@@ -1081,11 +1081,10 @@
 
 // ==========================================
 // ==========================================
-    // ชุดระบบโหลดข้อมูลและซิงค์ข้อมูล (อัปเดตป้องกัน Error)
+    // ชุดระบบโหลดข้อมูลและซิงค์ข้อมูล (อัปเดตสำหรับโฮสต์ภายนอก)
     // ==========================================
 
     function initApp() {
-        // ลบการตั้งเวลา 2 วินาทีทิ้งไป เพื่อให้หน้าโหลดรอจนกว่าข้อมูลจะมาจริงๆ
         const sUser = localStorage.getItem('aac_currentUser');
         if(sUser) { 
             currentUser = JSON.parse(sUser); 
@@ -1096,96 +1095,105 @@
         startBackgroundSync();
     }
 
+    // 1. เปลี่ยนให้ใช้ apiCall() แทน google.script.run
     function fetchInitialData() {
-        google.script.run.withSuccessHandler(res => {
-            try {
-                if(res && res.success && res.data) {
-                    if(res.data.settings) { systemSettings = {...systemSettings, ...res.data.settings}; applySettingsToUI(); }
-                    allGates = res.data.gates || [];
-                    typeCards = res.data.typeCards || [];
-                    recentLogs = res.data.recentLogs || [];
-                    allCards = res.data.allCards || [];
-                    cardStats = res.data.cardStats || { total:0, active:0, inactive:0, byType:{} };
-                    monthlyStats = res.data.monthlyStats || { total: 0, in: 0, out: 0, gates: {} }; // <-- เติมบรรทัดนี้ลงไป
+        // เรียกใช้ API โดยไม่โชว์หน้าโหลดดิ้งหลัก (เพราะมีหน้า Splash ปิดบังไว้อยู่แล้ว)
+        apiCall('getInitialData', {}, false)
+            .then(data => {
+                try {
+                    if(data) {
+                        if(data.settings) { systemSettings = {...systemSettings, ...data.settings}; applySettingsToUI(); }
+                        allGates = data.gates || [];
+                        typeCards = data.typeCards || [];
+                        recentLogs = data.recentLogs || [];
+                        allCards = data.allCards || [];
+                        cardStats = data.cardStats || { total:0, active:0, inactive:0, byType:{} };
+                        monthlyStats = data.monthlyStats || { total: 0, in: 0, out: 0, gates: {} };
 
-                    // วาดข้อมูลลงหน้าจอให้เสร็จเรียบร้อยก่อน
-                    updateGateSelects(); 
-                    if(currentPage === 'home') {
-                        renderHomeDashboard(); 
-                        renderRecentLogsTable(); 
-                        initBanner();
+                        updateGateSelects(); 
+                        if(currentPage === 'home') {
+                            renderHomeDashboard(); 
+                            renderRecentLogsTable(); 
+                            initBanner();
+                        }
                     }
+                } catch(e) {
+                    console.error("เกิดข้อผิดพลาดในการแสดงผลหน้าจอ:", e);
                 }
-            } catch(e) {
-                console.error("เกิดข้อผิดพลาดในการแสดงผลหน้าจอ:", e);
-            }
-            
-            // เมื่อวาดข้อมูลเสร็จแล้ว ค่อยสั่งปิดหน้าโหลด (Loading Screen)
-            if(systemSettings.loginBgUrl && !currentUser) {
-                const img = new Image(); 
-                img.src = systemSettings.loginBgUrl; 
-                img.onload = hideInitialSplash; 
-                img.onerror = hideInitialSplash;
-            } else {
-                hideInitialSplash();
-            }
-            
-        }).withFailureHandler(e => {
-            hideInitialSplash(); // ปิดหน้าโหลดกรณีเน็ตหลุด/เชื่อมต่อล้มเหลว
-            console.error("ขาดการเชื่อมต่ออินเทอร์เน็ต:", e);
-        }).processServer('getInitialData', {});
+                
+                // ปิดหน้าโหลด (Loading Screen)
+                if(systemSettings.loginBgUrl && !currentUser) {
+                    const img = new Image(); 
+                    img.src = systemSettings.loginBgUrl; 
+                    img.onload = hideInitialSplash; 
+                    img.onerror = hideInitialSplash;
+                } else {
+                    hideInitialSplash();
+                }
+            })
+            .catch(e => {
+                hideInitialSplash(); // ปิดหน้าโหลดกรณีเน็ตหลุด
+                console.error("โหลดข้อมูลเริ่มต้นล้มเหลว:", e);
+                showToast("ไม่สามารถโหลดข้อมูลจากเซิร์ฟเวอร์ได้", "error");
+            });
     }
 
+    // 2. เปลี่ยนปุ่มรีเฟรชข้อมูลหน้า Home
     function refreshHomeData() {
         showLoader('กำลังอัปเดตข้อมูลล่าสุด...');
-        google.script.run.withSuccessHandler(res => {
-            hideLoader();
-            try {
-                if(res && res.success && res.data) {
-                    allGates = res.data.gates || [];
-                    recentLogs = res.data.recentLogs || [];
-                    allCards = res.data.allCards || [];
-                    cardStats = res.data.cardStats || { total:0, active:0, inactive:0, byType:{} };
-                    monthlyStats = res.data.monthlyStats || { total: 0, in: 0, out: 0, gates: {} }; // <-- เติมบรรทัดนี้ลงไป
-                    
-                    updateGateSelects(); 
-                    if(currentPage === 'home') {
-                        renderHomeDashboard(); 
-                        renderRecentLogsTable();
-                    }
-                    showToast('อัปเดตข้อมูลล่าสุดเรียบร้อย', 'success');
-                }
-            } catch(e) {
-                console.error("ข้อผิดพลาดตอนรีเฟรช:", e);
-            }
-        }).withFailureHandler(e => {
-            hideLoader();
-            showToast('เชื่อมต่อล้มเหลว โปรดลองอีกครั้ง', 'error');
-        }).processServer('getInitialData', {});
-    }
-
-    function startBackgroundSync() {
-        setInterval(() => {
-            if(currentUser && currentPage === 'home') { 
-                google.script.run.withSuccessHandler(res => {
-                    try {
-                        if(res && res.success && res.data) {
-                            allGates = res.data.gates || [];
-                            recentLogs = res.data.recentLogs || [];
-                            allCards = res.data.allCards || [];
-                            cardStats = res.data.cardStats || { total:0, active:0, inactive:0, byType:{} };
-                            monthlyStats = res.data.monthlyStats || { total: 0, in: 0, out: 0, gates: {} }; // <-- เติมบรรทัดนี้ลงไป
-                            
-                            updateGateSelects();
+        apiCall('getInitialData', {}, false)
+            .then(data => {
+                hideLoader();
+                try {
+                    if(data) {
+                        allGates = data.gates || [];
+                        recentLogs = data.recentLogs || [];
+                        allCards = data.allCards || [];
+                        cardStats = data.cardStats || { total:0, active:0, inactive:0, byType:{} };
+                        monthlyStats = data.monthlyStats || { total: 0, in: 0, out: 0, gates: {} };
+                        
+                        updateGateSelects(); 
+                        if(currentPage === 'home') {
                             renderHomeDashboard(); 
                             renderRecentLogsTable();
                         }
-                    } catch(e) {
-                        console.error("ข้อผิดพลาดตอนอัปเดตเบื้องหลัง:", e);
+                        showToast('อัปเดตข้อมูลล่าสุดเรียบร้อย', 'success');
                     }
-                }).processServer('getInitialData', {});
+                } catch(e) {
+                    console.error("ข้อผิดพลาดตอนรีเฟรช:", e);
+                }
+            })
+            .catch(e => {
+                hideLoader();
+                showToast('เชื่อมต่อล้มเหลว โปรดลองอีกครั้ง', 'error');
+            });
+    }
+
+    // 3. เปลี่ยนระบบอัปเดตข้อมูลเบื้องหลังอัตโนมัติ (Background Sync)
+    function startBackgroundSync() {
+        setInterval(() => {
+            if(currentUser && currentPage === 'home') { 
+                apiCall('getInitialData', {}, false)
+                    .then(data => {
+                        try {
+                            if(data) {
+                                allGates = data.gates || [];
+                                recentLogs = data.recentLogs || [];
+                                allCards = data.allCards || [];
+                                cardStats = data.cardStats || { total:0, active:0, inactive:0, byType:{} };
+                                monthlyStats = data.monthlyStats || { total: 0, in: 0, out: 0, gates: {} };
+                                
+                                updateGateSelects();
+                                renderHomeDashboard(); 
+                                renderRecentLogsTable();
+                            }
+                        } catch(e) {
+                            console.error("ข้อผิดพลาดตอนอัปเดตเบื้องหลัง:", e);
+                        }
+                    })
+                    .catch(e => console.log("Background sync failed:", e)); // ดักไว้เงียบๆ ไม่ต้องโชว์ Alert กวนใจผู้ใช้
             }
-        }, 60000); 
+        }, 60000); // อัปเดตทุก 1 นาที
     }
 
 
@@ -1493,16 +1501,13 @@
             updateOfflineUI();
             showToast('บันทึกออฟไลน์แล้ว (รออินเทอร์เน็ต)', 'warning');
         } else {
-            // ถ้าเน็ตปกติ -> ส่งไป Google Sheets
-            google.script.run
-                .withFailureHandler(err => {
-                    // ถ้าจู่ๆ เน็ตหลุดจังหวะที่กำลังส่ง -> เก็บลงเครื่อง
-                    console.warn("ส่งข้อมูลไม่สำเร็จ เก็บลงคิวออฟไลน์:", err);
-                    offlineQueue.push(scanData);
-                    localStorage.setItem('aac_offlineQueue', JSON.stringify(offlineQueue));
-                    updateOfflineUI();
-                })
-                .processServer('processScan', scanData);
+            // ถ้าเน็ตปกติ -> ส่งไป API (ไม่โชว์ Loading หน้าจอมืดๆ เพราะทำ Optimistic UI ไปแล้ว)
+            apiCall('processScan', scanData, false).catch(err => {
+                console.warn("ส่งข้อมูลไม่สำเร็จ เก็บลงคิวออฟไลน์:", err);
+                offlineQueue.push(scanData);
+                localStorage.setItem('aac_offlineQueue', JSON.stringify(offlineQueue));
+                updateOfflineUI();
+            });
         }
     }
 
@@ -2693,25 +2698,25 @@ async function refreshActiveInsideData() {
         const queueLengthToSync = offlineQueue.length;
         const queueToSync = offlineQueue.slice(0, queueLengthToSync); 
         
-        google.script.run
-            .withSuccessHandler(res => {
+        // ส่งแบบเบื้องหลัง (ไม่เปิด Loading Screen)
+        apiCall('processBulkOfflineScans', queueToSync, false)
+            .then(res => {
                 isSyncing = false; // ปลดล็อคกุญแจ เมื่อทำงานเสร็จ
                 
-                // ลบเฉพาะรายการที่ส่งไปแล้วออก (ใช้วิธีตัด Array เพื่อความชัวร์ 100% ว่าไม่ลบผิด)
+                // ลบเฉพาะรายการที่ส่งไปแล้วออก
                 offlineQueue.splice(0, queueLengthToSync);
                 localStorage.setItem('aac_offlineQueue', JSON.stringify(offlineQueue));
                 updateOfflineUI();
                 
-                if(res && res.data && res.data.successCount > 0) {
-                    showToast(`ซิงค์ข้อมูลออฟไลน์สำเร็จ ${res.data.successCount} รายการ`, 'success');
+                if(res && res.successCount > 0) {
+                    showToast(`ซิงค์ข้อมูลออฟไลน์สำเร็จ ${res.successCount} รายการ`, 'success');
                     refreshHomeData(); // โหลดข้อมูลให้ตรงกับ Server ทันที
                 }
             })
-            .withFailureHandler(err => {
-                isSyncing = false; // ปลดล็อคกุญแจ แม้ว่าจะส่งล้มเหลว เพื่อให้รอบหน้าลองใหม่ได้
+            .catch(err => {
+                isSyncing = false; // ปลดล็อคกุญแจ ให้รอบหน้าลองใหม่
                 console.log("การซิงค์ล้มเหลว จะพยายามใหม่ในภายหลัง");
-            })
-            .processServer('processBulkOfflineScans', queueToSync);
+            });
     }
 
     // สั่งให้ระบบเช็ค Offline UI ตั้งแต่ตอนเปิดเว็บ
