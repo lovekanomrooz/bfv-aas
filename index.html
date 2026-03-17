@@ -1032,12 +1032,36 @@
         c.appendChild(t); lucide.createIcons(); setTimeout(()=>t.remove(), 4000); 
     }
     function showAlert(title, msg, type='error') {
-        document.getElementById('alertTitle').textContent = title; document.getElementById('alertMessage').textContent = msg;
-        const ic = document.getElementById('alertIconContainer'), btn = document.getElementById('alertBtn');
-        if(type==='error'){ ic.className='mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-5 bg-red-100 text-red-500 shadow-inner'; btn.className='w-full py-4 rounded-xl font-bold text-lg text-white bg-red-500 hover:bg-red-600'; ic.innerHTML=`<i data-lucide="x-octagon" class="w-10 h-10"></i>`; }
-        else if(type==='success'){ ic.className='mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-5 bg-emerald-100 text-emerald-500 shadow-inner'; btn.className='w-full py-4 rounded-xl font-bold text-lg text-white bg-emerald-500 hover:bg-emerald-600'; ic.innerHTML=`<i data-lucide="check-circle-2" class="w-10 h-10"></i>`; }
-        else { ic.className='mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-5 bg-orange-100 text-orange-500 shadow-inner'; btn.className='w-full py-4 rounded-xl font-bold text-lg text-white bg-orange-500 hover:bg-orange-600'; ic.innerHTML=`<i data-lucide="alert-triangle" class="w-10 h-10"></i>`; }
-        document.getElementById('customAlertModal').classList.remove('hidden'); lucide.createIcons();
+        // --- ส่วนที่เพิ่มใหม่: เล่นเสียงแจ้งเตือน ---
+        try {
+            if(type === 'error' || type === 'warning') {
+                // เสียงตี๊ดเตือน Error
+                const errSound = new Audio('https://assets.mixkit.co/active_storage/sfx/957/957-preview.mp3');
+                errSound.play();
+            }
+        } catch(e) {}
+        // ------------------------------------
+
+        document.getElementById('alertTitle').textContent = title; 
+        document.getElementById('alertMessage').textContent = msg;
+        const ic = document.getElementById('alertIconContainer');
+        const btn = document.getElementById('alertBtn');
+        
+        if(type==='error'){ 
+            ic.className='mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-5 bg-red-100 text-red-500 shadow-inner'; 
+            btn.className='w-full py-4 rounded-xl font-bold text-lg text-white bg-red-500 hover:bg-red-600'; 
+            ic.innerHTML=`<i data-lucide="x-octagon" class="w-10 h-10"></i>`; 
+        } else if(type==='success'){ 
+            ic.className='mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-5 bg-emerald-100 text-emerald-500 shadow-inner'; 
+            btn.className='w-full py-4 rounded-xl font-bold text-lg text-white bg-emerald-500 hover:bg-emerald-600'; 
+            ic.innerHTML=`<i data-lucide="check-circle-2" class="w-10 h-10"></i>`; 
+        } else { 
+            ic.className='mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-5 bg-orange-100 text-orange-500 shadow-inner'; 
+            btn.className='w-full py-4 rounded-xl font-bold text-lg text-white bg-orange-500 hover:bg-orange-600'; 
+            ic.innerHTML=`<i data-lucide="alert-triangle" class="w-10 h-10"></i>`; 
+        }
+        document.getElementById('customAlertModal').classList.remove('hidden'); 
+        lucide.createIcons();
     }
     function closeAlert() { document.getElementById('customAlertModal').classList.add('hidden'); }
     function hideInitialSplash() { const s = document.getElementById('initialSplash'); if(s) { s.style.opacity = '0'; setTimeout(()=>s.style.display='none', 700); } }
@@ -1539,6 +1563,14 @@
     }
 
     function handleScanSuccess(res) {
+	// --- เพิ่มโค้ดเล่นเสียงตรงนี้ ---
+        try {
+            // เสียงติ๊ด (แสกนสำเร็จ)
+            const successSound = new Audio('https://assets.mixkit.co/active_storage/sfx/961/961-preview.mp3');
+            successSound.play();
+        } catch(e) {}
+        // -----------------------------
+	
         showToast(`บันทึกสถานะ ${res.ioType} สำเร็จ`, 'success');
         
         document.getElementById('scanResultEmpty').classList.add('hidden');
@@ -3185,20 +3217,60 @@ async function startFaceDetectionLoop() {
             results.forEach((result, i) => {
                 const box = resizedDetections[i].detection.box;
                 
-                // วาดกรอบสี่เหลี่ยมรอบใบหน้า
-                const drawBox = new faceapi.draw.DrawBox(box, { 
-                    label: result.label === 'unknown' ? 'ไม่รู้จักใบหน้านี้' : result.label,
-                    boxColor: result.label === 'unknown' ? 'red' : '#22c55e'
-                });
-                drawBox.draw(canvas);
+                // --- เพิ่มใหม่: จัดการชื่อที่จะแสดง และสีของกรอบ ---
+                let displayName = 'ไม่รู้จักใบหน้านี้';
+                let boxColor = 'red';
 
-                // ถ้าเจอหน้าที่ตรงกัน และไม่ใช่คนแปลกหน้า
+                if (result.label !== 'unknown') {
+                    // ค้นหาข้อมูลชื่อ-สกุลจากฐานข้อมูลบัตร (allCards)
+                    const matchedCard = allCards.find(c => c.cardId === result.label);
+                    if (matchedCard) {
+                        // โชว์ รหัสบัตร + ชื่อ + นามสกุล
+                        displayName = `${matchedCard.cardId} ${matchedCard.firstName} ${matchedCard.lastName}`;
+                    } else {
+                        displayName = result.label;
+                    }
+                    boxColor = '#22c55e'; // สีเขียว
+                }
+
+                // 1. วาดกรอบสี่เหลี่ยมรอบใบหน้า (ปกติ)
+                ctx.strokeStyle = boxColor;
+                ctx.lineWidth = 3;
+                ctx.strokeRect(box.x, box.y, box.width, box.height);
+
+                // 2. วาดป้ายชื่อตัวหนังสือ (พลิกแกนให้กลับมาอ่านออกปกติ)
+                ctx.save(); // บันทึกสถานะ Canvas
+                
+                // ย้ายจุดโฟกัสไปที่กึ่งกลางด้านบนของกรอบใบหน้า
+                ctx.translate(box.x + (box.width / 2), box.y - 10);
+                
+                // พลิกแกน X กลับด้าน (-1) เพื่อแก้ปัญหา Mirror
+                ctx.scale(-1, 1);
+                
+                ctx.font = 'bold 16px Prompt';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                
+                // คำนวณความกว้างตัวหนังสือเพื่อวาดพื้นหลังให้พอดีคำ
+                const textWidth = ctx.measureText(displayName).width;
+                
+                // วาดกล่องสีพื้นหลังตัวหนังสือ
+                ctx.fillStyle = boxColor;
+                ctx.fillRect(-(textWidth / 2) - 8, -24, textWidth + 16, 28);
+                
+                // วาดตัวหนังสือสีขาวทับลงไป
+                ctx.fillStyle = 'white';
+                ctx.fillText(displayName, 0, 0);
+                
+                ctx.restore(); // คืนค่าสถานะ Canvas กลับเป็นปกติ
+
+                // ถ้าเจอหน้าที่ตรงกัน และไม่ใช่คนแปลกหน้า ให้ส่งรหัสไปแสกนเข้าออก
                 if (result.label !== 'unknown') {
                     triggerFaceScanSuccess(result.label);
                 }
             });
         }
-    }, 400); // เช็คทุกๆ 0.4 วินาที (ไม่หน่วงเครื่องจนเกินไป)
+    }, 1000); // <-- คงค่าหน่วงเวลา 1000 (1 วินาที) ไว้เหมือนเดิมครับ
 }
 
 // ฟังก์ชันเมื่อจับคู่หน้าผ่านแล้ว ส่งเข้ากระบวนการแสกน
@@ -3208,7 +3280,7 @@ function triggerFaceScanSuccess(cardId) {
     
     lastScannedFaceId = cardId;
     clearTimeout(faceScanCooldownTimer);
-    faceScanCooldownTimer = setTimeout(() => { lastScannedFaceId = null; }, 4000);
+    faceScanCooldownTimer = setTimeout(() => { lastScannedFaceId = null; }, 10000);
 
     // แจ้งเตือนกระพริบ
     document.getElementById('faceScanStatus').innerHTML = `<span class="text-green-600 font-black"><i data-lucide="check-circle" class="w-4 h-4 inline mr-1"></i> พบใบหน้า: ${cardId}</span>`;
