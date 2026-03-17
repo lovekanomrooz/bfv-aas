@@ -3167,7 +3167,7 @@ async function initFaceMatcherForWebcam() {
 
    // ค่าความแม่นยำ (0.38 = เข้มงวดมาก ป้องกันหน้าคล้าย, 0.45 = ปานกลาง, 0.6 = หละหลวม)
     // ถ้ารู้สึกว่า 0.38 แสกนยากไป ให้ขยับเป็น 0.40 ครับ
-    faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.38);
+    faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.40);
     
     document.getElementById('faceScanStatus').innerHTML = `<span class="text-green-600"><i data-lucide="scan-face" class="w-4 h-4 inline mr-1"></i> พร้อมแสกนแล้ว! (${countFaces} ใบหน้า)</span>`;
     lucide.createIcons();
