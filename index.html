@@ -3135,7 +3135,7 @@ function stopWebcam() {
     document.getElementById('faceScanStatus').innerHTML = 'กล้องถูกปิดการใช้งาน';
 }
 
-// โหลดฐานข้อมูลเข้า Face Matcher
+// โหลดฐานข้อมูลเข้า Face Matcher ตั้งค่าความเหมือนใบหน้า
 async function initFaceMatcherForWebcam() {
     document.getElementById('faceScanStatus').innerHTML = '<i class="spinner inline-block w-4 h-4 border-2 border-orange-500 border-t-transparent mr-2"></i> กำลังเตรียมฐานข้อมูลใบหน้า...';
 
@@ -3165,8 +3165,9 @@ async function initFaceMatcherForWebcam() {
         return;
     }
 
-    // ค่าความแม่นยำ (0.45 = กลางๆค่อนไปทางเข้มงวด, ค่ายิ่งน้อยยิ่งเข้มงวด)
-    faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.45);
+   // ค่าความแม่นยำ (0.38 = เข้มงวดมาก ป้องกันหน้าคล้าย, 0.45 = ปานกลาง, 0.6 = หละหลวม)
+    // ถ้ารู้สึกว่า 0.38 แสกนยากไป ให้ขยับเป็น 0.40 ครับ
+    faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.38);
     
     document.getElementById('faceScanStatus').innerHTML = `<span class="text-green-600"><i data-lucide="scan-face" class="w-4 h-4 inline mr-1"></i> พร้อมแสกนแล้ว! (${countFaces} ใบหน้า)</span>`;
     lucide.createIcons();
@@ -3217,54 +3218,55 @@ async function startFaceDetectionLoop() {
             results.forEach((result, i) => {
                 const box = resizedDetections[i].detection.box;
                 
-                // --- เพิ่มใหม่: จัดการชื่อที่จะแสดง และสีของกรอบ ---
-                let displayName = 'ไม่รู้จักใบหน้านี้';
+                // --- เพิ่มการคำนวณเปอร์เซ็นต์ความเหมือน ---
+                // แปลงค่า distance เป็นเปอร์เซ็นต์ (ยิ่ง distance น้อย % ยิ่งสูง)
+                const matchPercent = Math.round((1 - result.distance) * 100);
+                
+                let displayName = '';
                 let boxColor = 'red';
 
                 if (result.label !== 'unknown') {
-                    // ค้นหาข้อมูลชื่อ-สกุลจากฐานข้อมูลบัตร (allCards)
+                    // กรณีแสกนผ่าน (เปอร์เซ็นต์ถึงเกณฑ์ที่ตั้งไว้ เช่น 0.38)
                     const matchedCard = allCards.find(c => c.cardId === result.label);
                     if (matchedCard) {
-                        // โชว์ รหัสบัตร + ชื่อ + นามสกุล
-                        displayName = `${matchedCard.cardId} ${matchedCard.firstName} ${matchedCard.lastName}`;
+                        // โชว์ ชื่อ + นามสกุล + เปอร์เซ็นต์ความมั่นใจ
+                        displayName = `${matchedCard.firstName} ${matchedCard.lastName} (${matchPercent}%)`;
                     } else {
-                        displayName = result.label;
+                        displayName = `${result.label} (${matchPercent}%)`;
                     }
                     boxColor = '#22c55e'; // สีเขียว
+                } else {
+                    // กรณีแสกนไม่ผ่าน (หน้าคล้ายแต่ไม่ถึงเกณฑ์ หรือคนแปลกหน้า)
+                    displayName = `ไม่รู้จัก (${matchPercent}%)`;
+                    boxColor = 'red';
                 }
 
-                // 1. วาดกรอบสี่เหลี่ยมรอบใบหน้า (ปกติ)
+                // 1. วาดกรอบสี่เหลี่ยมรอบใบหน้า
                 ctx.strokeStyle = boxColor;
                 ctx.lineWidth = 3;
                 ctx.strokeRect(box.x, box.y, box.width, box.height);
 
                 // 2. วาดป้ายชื่อตัวหนังสือ (พลิกแกนให้กลับมาอ่านออกปกติ)
-                ctx.save(); // บันทึกสถานะ Canvas
-                
-                // ย้ายจุดโฟกัสไปที่กึ่งกลางด้านบนของกรอบใบหน้า
+                ctx.save(); 
                 ctx.translate(box.x + (box.width / 2), box.y - 10);
-                
-                // พลิกแกน X กลับด้าน (-1) เพื่อแก้ปัญหา Mirror
                 ctx.scale(-1, 1);
                 
                 ctx.font = 'bold 16px Prompt';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'bottom';
                 
-                // คำนวณความกว้างตัวหนังสือเพื่อวาดพื้นหลังให้พอดีคำ
                 const textWidth = ctx.measureText(displayName).width;
                 
-                // วาดกล่องสีพื้นหลังตัวหนังสือ
+                // กล่องข้อความ
                 ctx.fillStyle = boxColor;
                 ctx.fillRect(-(textWidth / 2) - 8, -24, textWidth + 16, 28);
                 
-                // วาดตัวหนังสือสีขาวทับลงไป
+                // ตัวหนังสือสีขาว
                 ctx.fillStyle = 'white';
                 ctx.fillText(displayName, 0, 0);
-                
-                ctx.restore(); // คืนค่าสถานะ Canvas กลับเป็นปกติ
+                ctx.restore(); 
 
-                // ถ้าเจอหน้าที่ตรงกัน และไม่ใช่คนแปลกหน้า ให้ส่งรหัสไปแสกนเข้าออก
+                // ถ้าเจอหน้าที่ตรงกัน ให้ส่งรหัสไปแสกนเข้าออก
                 if (result.label !== 'unknown') {
                     triggerFaceScanSuccess(result.label);
                 }
@@ -3275,7 +3277,7 @@ async function startFaceDetectionLoop() {
 
 // ฟังก์ชันเมื่อจับคู่หน้าผ่านแล้ว ส่งเข้ากระบวนการแสกน
 function triggerFaceScanSuccess(cardId) {
-    // ป้องกันการแสกนคนเดิมซ้ำๆ รัวๆ (ติด Cooldown 4 วินาทีต่อ 1 คน)
+    // ป้องกันการแสกนคนเดิมซ้ำๆ รัวๆ (ติด Cooldown 10 วินาทีต่อ 1 คน)
     if (lastScannedFaceId === cardId) return;
     
     lastScannedFaceId = cardId;
