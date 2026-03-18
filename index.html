@@ -4088,27 +4088,41 @@ if(c.areaAccessIds) {
 
     if (!front || !back) return showToast('ไม่พบข้อมูลบัตรสำหรับดาวน์โหลด', 'error');
 
-    showToast('กำลังเตรียมรูปภาพความละเอียดสูง...', 'info');
+    showToast('กำลังประมวลผลรูปภาพ (วิธีพิเศษ)...', 'info');
 
-    // ฟังก์ชันช่วยดาวน์โหลดรูปภาพ
-    const saveAsImage = async (el, suffix) => {
-        // ใช้เทคนิค "Snapshot" เพื่อให้ภาพออกมาตรงเป๊ะ 100%
+    // ฟังก์ชันถ่ายภาพแบบ Atomic (ล้างโลกจำลองให้เหลือแค่บัตร)
+    const atomicCapture = async (el, suffix) => {
         const canvas = await html2canvas(el, {
-            scale: 3, // ความชัดระดับ 300 DPI (เหมาะสำหรับพิมพ์)
+            scale: 3, // ความคมชัดสูง
             useCORS: true,
             backgroundColor: "#ffffff",
             logging: false,
-            // ล็อคขนาดให้เท่ากับบัตรพนักงาน
             width: 340,
             height: 540,
-            // กำจัดช่องว่างรอบข้าง
-            x: 0, 
+            // --- จุดสำคัญ: สร้างโลกจำลองใหม่ที่สะอาด 100% ---
+            onclone: (clonedDoc) => {
+                const clonedEl = clonedDoc.getElementById(el.id);
+                if (clonedEl) {
+                    // 1. ล้างข้อมูลทุกอย่างใน Body ของหน้าจำลองทิ้งให้หมด
+                    clonedDoc.body.innerHTML = ''; 
+                    // 2. เอาเฉพาะตัวบัตรไปแปะไว้ที่ Body โดยตรง
+                    clonedDoc.body.appendChild(clonedEl);
+                    // 3. เซ็ตสไตล์ให้ชิดขอบซ้ายบนสุดของโลกจำลอง
+                    clonedEl.style.position = 'absolute';
+                    clonedEl.style.top = '0';
+                    clonedEl.style.left = '0';
+                    clonedEl.style.margin = '0';
+                    clonedEl.style.transform = 'none'; // ล้างค่า transform ทั้งหมด
+                }
+            },
+            // ล็อคพิกัดการถ่ายที่ 0,0 ของโลกจำลอง
+            x: 0,
             y: 0,
             scrollX: 0,
             scrollY: 0
         });
 
-        // แปลง Canvas เป็นลิงก์ดาวน์โหลด
+        // ดาวน์โหลดไฟล์
         const link = document.createElement('a');
         link.download = `ID_Card_${cardIdText.replace(/\//g, '-')}_${suffix}.png`;
         link.href = canvas.toDataURL('image/png', 1.0);
@@ -4116,18 +4130,18 @@ if(c.areaAccessIds) {
     };
 
     try {
-        // 1. ดาวน์โหลดหน้าบัตร
-        await saveAsImage(front, 'FRONT');
+        // 1. ถ่ายหน้าบัตร
+        await atomicCapture(front, 'FRONT');
         
-        // 2. หน่วงเวลาเล็กน้อยเพื่อป้องกันเบราว์เซอร์บล็อคการโหลดพร้อมกัน
+        // 2. รอเล็กน้อยแล้วถ่ายหลังบัตร
         setTimeout(async () => {
-            await saveAsImage(back, 'BACK');
+            await atomicCapture(back, 'BACK');
             showToast('ดาวน์โหลดรูปภาพ หน้า-หลัง สำเร็จ!', 'success');
-        }, 800);
+        }, 1000);
 
     } catch (err) {
-        console.error("PNG Export Error:", err);
-        showToast('เกิดข้อผิดพลาดในการสร้างรูปภาพ', 'error');
+        console.error("Atomic Export Error:", err);
+        showToast('เกิดข้อผิดพลาดในการจัดตำแหน่งรูปภาพ', 'error');
     }
 }
     ///////////
