@@ -4086,85 +4086,59 @@ if(c.areaAccessIds) {
     const front = document.getElementById('printCardFront');
     const back = document.getElementById('printCardBack');
 
-    if (!front || !back) return showToast('ไม่พบข้อมูลบัตร', 'error');
+    if (!front || !back) return showToast('ไม่พบข้อมูลบัตรสำหรับดาวน์โหลด', 'error');
 
-    showToast('กำลังประมวลผลรูปภาพและข้อมูล...', 'info');
-
-    // 1. สร้างพื้นที่จัดหน้าสำหรับพิมพ์ (วางไว้ที่จุด 0,0 ของจอ แต่ซ่อนไว้หลัง Modal ด้วย z-index)
-    const printArea = document.createElement('div');
-    printArea.id = 'temp-print-area';
-    printArea.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 340px;
-        background: white;
-        z-index: -100; 
-        overflow: hidden;
-        line-height: 0;
-    `;
-
-    // 2. ฟังก์ชันช่วยเตรียมหน้าบัตร (กำจัดขอบมนและเงาที่ทำให้พิกัดเพี้ยน)
-    const cleanClone = (el) => {
-        const clone = el.cloneNode(true);
-        clone.style.width = '340px';
-        clone.style.height = '540px';
-        clone.style.margin = '0';
-        clone.style.padding = '0';
-        clone.style.boxShadow = 'none';
-        clone.style.borderRadius = '0';
-        clone.style.display = 'block';
-        clone.style.position = 'relative';
-        return clone;
-    };
-
-    const frontClone = cleanClone(front);
-    const backClone = cleanClone(back);
-
-    // ใส่คำสั่งตัดหน้า (Page Break)
-    backClone.style.pageBreakBefore = 'always';
-
-    printArea.appendChild(frontClone);
-    printArea.appendChild(backClone);
-    document.body.appendChild(printArea);
-
-    // 3. **จุดสำคัญ** รอให้เบราว์เซอร์ Render รูปภาพในพื้นที่ใหม่สักครู่ (500ms)
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    // 4. ตั้งค่า html2pdf
-    const opt = {
-        margin: 0,
-        filename: `ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`,
-        image: { type: 'jpeg', quality: 1.0 },
-        html2canvas: { 
-            scale: 2, // ใช้ 2 เพื่อความคมชัดที่เสถียร
-            useCORS: true, 
-            logging: false,
-            width: 340,
-            height: 1080,
-            scrollY: 0,
-            scrollX: 0,
-            windowWidth: 340 // บังคับ Viewport ให้แคบเท่าขนาดบัตร เพื่อตำแหน่ง absolute ที่แม่นยำ
-        },
-        jsPDF: { 
-            unit: 'px', 
-            format: [340, 540], 
-            orientation: 'portrait'
-        }
-    };
+    showToast('กำลังประมวลผล PDF คุณภาพสูง...', 'info');
 
     try {
-        // ประมวลผลจาก printArea ที่เบราว์เซอร์มองเห็นพิกัดแล้ว
-        await html2pdf().set(opt).from(printArea).save();
+        // ดึงไลบรารี jsPDF (ซึ่งคุณมีอยู่ในไฟล์แล้ว)
+        const { jsPDF } = window.jspdf;
+
+        // 1. ถ่ายภาพหน้าบัตร (Front) จากสิ่งที่เห็นอยู่ใน Modal
+        const canvasFront = await html2canvas(front, {
+            scale: 3, // ความชัดระดับสูง
+            useCORS: true,
+            backgroundColor: null,
+            logging: false,
+            // ล็อคขนาดให้ตรงตามตัวบัตร
+            width: 340,
+            height: 540
+        });
+        const imgFront = canvasFront.toDataURL('image/jpeg', 1.0);
+
+        // 2. ถ่ายภาพหลังบัตร (Back) จากสิ่งที่เห็นอยู่ใน Modal
+        const canvasBack = await html2canvas(back, {
+            scale: 3,
+            useCORS: true,
+            backgroundColor: null,
+            logging: false,
+            width: 340,
+            height: 540
+        });
+        const imgBack = canvasBack.toDataURL('image/jpeg', 1.0);
+
+        // 3. สร้างไฟล์ PDF แบบ Manual (ขนาด 340x540 px)
+        const pdf = new jsPDF({
+            orientation: 'p',
+            unit: 'px',
+            format: [340, 540]
+        });
+
+        // หน้าที่ 1: วางรูปหน้าบัตร
+        pdf.addImage(imgFront, 'JPEG', 0, 0, 340, 540);
+
+        // หน้าที่ 2: เพิ่มหน้าใหม่และวางรูปหลังบัตร
+        pdf.addPage([340, 540], 'p');
+        pdf.addImage(imgBack, 'JPEG', 0, 0, 340, 540);
+
+        // 4. บันทึกไฟล์
+        pdf.save(`ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`);
+        
         showToast('ดาวน์โหลด PDF สำเร็จแล้ว', 'success');
+
     } catch (err) {
-        console.error("PDF Error:", err);
-        showToast('เกิดข้อผิดพลาดในการสร้างไฟล์', 'error');
-    } finally {
-        // ลบพื้นที่ชั่วคราวทิ้ง
-        if (document.getElementById('temp-print-area')) {
-            document.body.removeChild(printArea);
-        }
+        console.error("Manual PDF Error:", err);
+        showToast('ดาวน์โหลดล้มเหลว กรุณาลองใหม่อีกครั้ง', 'error');
     }
 }
     ///////////
