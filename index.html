@@ -746,23 +746,38 @@
            </div>
        </div>
 
-	<!-- Settings: Card Template -->
+	<!-- Settings: Card Template & Labels -->
        <div class="bg-white rounded-2xl card-shadow p-6">
            <h3 class="font-bold mb-4 flex items-center gap-2 border-b pb-2 text-gray-700">
-               <i data-lucide="printer" class="w-5 h-5 text-pink-500"></i> ตั้งค่ารูปแบบบัตรพนักงาน (ID Card Template)
+               <i data-lucide="printer" class="w-5 h-5 text-pink-500"></i> ตั้งค่ารูปแบบบัตรพนักงาน (ID Card Template & Labels)
            </h3>
            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+               <!-- รูปลิงก์พื้นหลัง -->
                <div class="md:col-span-2">
-                   <label class="block text-sm font-bold mb-1 text-pink-700"><i data-lucide="link" class="w-3 h-3 inline"></i> ลิงก์รูปพื้นหลังบัตรด้านหน้า (Front Background)</label>
-                   <input type="url" id="cardTplFront" class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-pink-500 bg-pink-50/30" placeholder="https://...">
+                   <label class="block text-sm font-bold mb-1 text-pink-700"><i data-lucide="link" class="w-3 h-3 inline"></i> ลิงก์รูปพื้นหลังบัตรด้านหน้า</label>
+                   <input type="url" id="cardTplFront" class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-pink-500 bg-pink-50/30">
                </div>
                <div class="md:col-span-2">
-                   <label class="block text-sm font-bold mb-1 text-pink-700"><i data-lucide="link" class="w-3 h-3 inline"></i> ลิงก์รูปพื้นหลังบัตรด้านหลัง (Back Background)</label>
-                   <input type="url" id="cardTplBack" class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-pink-500 bg-pink-50/30" placeholder="https://...">
+                   <label class="block text-sm font-bold mb-1 text-pink-700"><i data-lucide="link" class="w-3 h-3 inline"></i> ลิงก์รูปพื้นหลังบัตรด้านหลัง</label>
+                   <input type="url" id="cardTplBack" class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-pink-500 bg-pink-50/30">
+               </div>
+               
+               <!-- ตั้งค่าคำศัพท์บนบัตร -->
+               <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+                   <div class="md:col-span-3"><p class="font-bold text-gray-800 text-sm mb-2">ปรับเปลี่ยนคำศัพท์บนบัตร (Labels)</p></div>
+                   <div><label class="block text-xs font-bold mb-1 text-gray-600">คำนำหน้าตำแหน่ง</label><input type="text" id="lblPos" class="w-full border p-2 rounded-lg" placeholder="ค่าเริ่มต้น: ตำแหน่ง"></div>
+                   <div><label class="block text-xs font-bold mb-1 text-gray-600">คำนำหน้าสังกัด/หน่วยงาน</label><input type="text" id="lblOrg" class="w-full border p-2 rounded-lg" placeholder="ค่าเริ่มต้น: สังกัด"></div>
+                   <div><label class="block text-xs font-bold mb-1 text-gray-600">คำนำหน้าวันหมดอายุ</label><input type="text" id="lblExp" class="w-full border p-2 rounded-lg" placeholder="ค่าเริ่มต้น: หมดอายุ"></div>
+               </div>
+
+               <!-- ข้อความเพิ่มเติม -->
+               <div class="md:col-span-2 mt-2">
+                   <label class="block text-sm font-bold mb-1 text-pink-700">ข้อความเพิ่มเติม (แสดงใต้หมายเลขบัตร)</label>
+                   <input type="text" id="cardFooterText" class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-pink-500 bg-white text-sm" placeholder="เช่น ท่าอากาศยานบุรีรัมย์">
                </div>
                <div class="md:col-span-2">
-                   <label class="block text-sm font-bold mb-1 text-pink-700"><i data-lucide="file-text" class="w-3 h-3 inline"></i> ข้อควรปฏิบัติ (ด้านหลังบัตร)</label>
-                   <textarea id="cardTplRules" rows="5" class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-pink-500 bg-white leading-relaxed text-sm" placeholder="1. ห้ามลืมบัตร..."></textarea>
+                   <label class="block text-sm font-bold mb-1 text-pink-700"><i data-lucide="file-text" class="w-3 h-3 inline"></i> ข้อควรปฏิบัติ (แสดงด้านหลังบัตร)</label>
+                   <textarea id="cardTplRules" rows="5" class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-pink-500 bg-white leading-relaxed text-sm"></textarea>
                </div>
            </div>
        </div>
@@ -992,7 +1007,13 @@
             <input type="hidden" id="editGateId">
             <div><label class="block text-sm font-bold mb-1 text-gray-700">ชื่อจุดเข้าออก <span class="text-red-500">*</span></label><input type="text" id="gateName" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-green-500 bg-white" placeholder="เช่น ประตู 1 (Main Gate)"></div>
             <div><label class="block text-sm font-bold mb-1 text-gray-700">สถานที่ตั้ง (อธิบายเพิ่มเติม)</label><input type="text" id="gateLocation" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-green-500 bg-white" placeholder="เช่น อาคาร A ด้านหน้า"></div>
-			<div><label class="block text-sm font-bold mb-1 text-blue-700">พื้นที่ที่อนุญาตให้ผ่านได้</label><input type="text" id="gateAllowedAreas" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-blue-50/30" placeholder="เช่น 1,5 (เว้นว่าง = ผ่านได้ทุกคน)"><p class="text-[10px] text-gray-500 mt-1">คั่นด้วยลูกน้ำ (,) หากประตูนี้ต้องการจำกัดสิทธิ์พื้นที่</p></div>
+			<div>
+                <label class="block text-sm font-bold mb-2 text-blue-700">พื้นที่ที่อนุญาตให้ผ่านได้</label>
+                <div id="gateAreaCheckboxes" class="grid grid-cols-2 gap-2 bg-blue-50/50 p-3 rounded-xl border border-blue-100 shadow-inner">
+                    <!-- Checkbox พื้นที่จะถูกสร้างอัตโนมัติด้วย JavaScript ตรงนี้ -->
+                </div>
+                <p class="text-[10px] text-gray-500 mt-2">ติ๊กเลือกพื้นที่ที่สามารถผ่านประตูนี้ได้ (ถ้าไม่ติ๊กเลย = ผ่านได้ทุกคน)</p>
+            </div>
             <div><label class="block text-sm font-bold mb-2 text-gray-700">สถานะ</label><select id="gateStatus" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 bg-white font-medium"><option value="active">เปิดใช้งาน (Active)</option><option value="inactive">ปิดใช้งาน (Inactive)</option></select></div>
         </div>
         <div class="p-4 border-t bg-white rounded-b-2xl flex justify-end gap-3 shadow-inner"><button onclick="closeGateModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition">ยกเลิก</button><button onclick="saveGate()" class="px-6 py-2 btn-primary text-white font-bold rounded-xl shadow-lg transition">บันทึก</button></div>
@@ -1061,30 +1082,48 @@
                        <img id="tplFrontImg" src="" class="absolute inset-0 w-full h-full object-cover z-0 bg-gray-50">
                        
                        <div class="absolute inset-0 z-10 flex flex-col">
-                           <!-- รูปโปรไฟล์ -->
-                           <div class="absolute top-[100px] left-[20px] w-[150px] h-[200px] border border-gray-300 bg-gray-100 flex items-center justify-center overflow-hidden shadow-inner">
-                               <img id="renderPhoto" src="" class="w-full h-full object-cover hidden">
-                               <i id="renderPhotoIcon" data-lucide="user" class="w-12 h-12 text-gray-300"></i>
-                           </div>
                            
-                           <!-- โซนขวา: ชั่วคราว / พื้นที่ / Drive / Escort -->
-                           <div class="absolute top-[100px] right-[20px] w-[110px] flex flex-col items-center gap-1">
-                               <div id="renderTemp" class="text-red-600 font-black text-xl mb-1 tracking-wider hidden shadow-sm bg-white/80 px-2 rounded">บัตรชั่วคราว</div>
-                               
-                               <div id="renderAreaBoxes" class="flex flex-col w-full border-2 border-indigo-900 bg-white shadow-sm">
-                                   <!-- กล่องพื้นที่จะถูกวาดตรงนี้ -->
+                           <!-- 1. โซนด้านบน (ห่างจากขอบบน 75px เพื่อหลบ Header สีน้ำเงิน) -->
+                           <div class="absolute top-[75px] left-[15px] right-[15px] flex justify-between items-start">
+                               <!-- รูปโปรไฟล์ (ซ้าย) -->
+                               <div class="w-[145px] h-[190px] border-2 border-gray-200 bg-white flex items-center justify-center overflow-hidden shadow-sm shrink-0">
+                                   <img id="renderPhoto" src="" class="w-full h-full object-cover hidden">
+                                   <i id="renderPhotoIcon" data-lucide="user" class="w-12 h-12 text-gray-300"></i>
                                </div>
                                
-                               <div id="renderEscort" class="w-full bg-indigo-900 text-white text-center font-black py-1.5 text-sm tracking-widest hidden mt-1">ESCORT</div>
-                               <div id="renderDrive" class="w-full bg-indigo-900 text-white text-center font-black py-1.5 text-sm tracking-widest hidden mt-1">DRIVE</div>
+                               <!-- สัญลักษณ์ (ขวา) -->
+                               <div class="w-[130px] flex flex-col items-center gap-1.5">
+                                   <!-- บัตรชั่วคราว (ห้ามตัดคำ, เอา tracking ออกกันสระลอย) -->
+                                   <div id="renderTemp" class="text-red-600 font-black text-xl mb-1 whitespace-nowrap hidden shadow-sm bg-white/90 px-3 py-0.5 rounded-lg border border-red-100">บัตรชั่วคราว</div>
+                                   
+                                   <div id="renderAreaBoxes" class="flex flex-col w-full border-[3px] border-indigo-900 bg-white shadow-sm rounded-sm overflow-hidden">
+                                       <!-- กล่องพื้นที่จะถูกวาดตรงนี้ -->
+                                   </div>
+                                   
+                                   <div id="renderEscort" class="w-full bg-indigo-900 text-white text-center font-black py-1.5 text-sm hidden mt-1 rounded-sm shadow-sm">ESCORT</div>
+                                   <div id="renderDrive" class="w-full bg-indigo-900 text-white text-center font-black py-1.5 text-sm hidden mt-1 rounded-sm shadow-sm">DRIVE</div>
+                               </div>
                            </div>
                            
-                           <!-- ข้อมูลด้านล่างซ้าย -->
-                           <div class="absolute bottom-[20px] left-[20px] right-[20px] flex flex-col gap-1.5 text-indigo-900 font-bold text-sm">
-                               <div class="flex items-center"><span class="w-[70px]">ตำแหน่ง</span> <span id="renderPos" class="flex-1 truncate">-</span></div>
-                               <div class="flex items-center"><span class="w-[70px]">สังกัด</span> <span id="renderOrg" class="flex-1 truncate">-</span></div>
-                               <div class="flex items-center"><span class="w-[70px]">หมดอายุ</span> <span id="renderExp" class="text-red-600 flex-1">-</span></div>
-                               <div class="mt-4 text-xl font-black text-indigo-900 tracking-wider">NO. <span id="renderCardId">-</span></div>
+                           <!-- 2. โซนข้อมูลส่วนตัว (อยู่ใต้รูปถ่าย ห่างลงมาประมาณ 15px -> top-[280px]) -->
+                           <div class="absolute top-[280px] left-[20px] right-[20px] flex flex-col gap-2 text-indigo-900 font-bold text-sm">
+                               <!-- ชื่อ-สกุล (เพิ่มใหม่) -->
+                               <div id="renderName" class="text-xl font-black text-indigo-900 mb-1 leading-tight border-b-2 border-indigo-100 pb-2">ชื่อ นามสกุล</div>
+                               
+                               <div class="flex items-start"><span id="renderLblPos" class="w-[70px] shrink-0 text-indigo-700">ตำแหน่ง</span> <span id="renderPos" class="flex-1 leading-tight">-</span></div>
+                               <div class="flex items-start"><span id="renderLblOrg" class="w-[70px] shrink-0 text-indigo-700">สังกัด</span> <span id="renderOrg" class="flex-1 leading-tight">-</span></div>
+                               
+                               <!-- วันหมดอายุ (บรรทัดใหม่ ตัวใหญ่ขึ้น) -->
+                               <div class="mt-2 pt-2 border-t border-gray-100 flex flex-col">
+                                   <span id="renderLblExp" class="text-xs text-red-500 mb-0.5">หมดอายุ</span> 
+                                   <span id="renderExp" class="text-red-600 text-lg font-black">-</span>
+                               </div>
+                           </div>
+
+                           <!-- 3. โซนรหัสบัตรและข้อความด้านล่างสุด -->
+                           <div class="absolute bottom-[20px] left-[20px] right-[20px] flex flex-col items-start">
+                               <div class="text-2xl font-black text-indigo-900">NO. <span id="renderCardId">-</span></div>
+                               <div id="renderCustomFooter" class="text-xs font-bold text-gray-500 mt-1 w-full truncate"></div>
                            </div>
                        </div>
                    </div>
@@ -1094,12 +1133,13 @@
                        <img id="tplBackImg" src="" class="absolute inset-0 w-full h-full object-cover z-0 bg-gray-50">
                        
                        <div class="absolute inset-0 z-10 flex flex-col px-6 py-8">
-                           <h3 class="text-red-600 font-black text-center text-xl mb-4 tracking-wider bg-white/80 rounded py-1">ข้อควรปฏิบัติ</h3>
-                           <div id="renderRules" class="text-gray-800 text-[11px] leading-loose whitespace-pre-line flex-1 font-medium bg-white/70 p-3 rounded-xl backdrop-blur-sm"></div>
+                           <!-- เอา tracking-wider ออก ป้องกันสระเพี้ยนตอนแปลง PDF -->
+                           <h3 class="text-red-600 font-black text-center text-xl mb-4 bg-white/90 rounded-lg py-1.5 shadow-sm border border-red-50">ข้อควรปฏิบัติ</h3>
+                           <div id="renderRules" class="text-gray-800 text-[12px] leading-loose whitespace-pre-line flex-1 font-medium bg-white/80 p-4 rounded-xl backdrop-blur-sm shadow-sm border border-gray-100"></div>
                            
-                           <div class="mt-auto flex flex-col items-center pb-6 bg-white/80 p-2 rounded-xl backdrop-blur-sm">
+                           <div class="mt-auto flex flex-col items-center pb-6 bg-white/90 p-3 rounded-xl backdrop-blur-sm shadow-sm border border-gray-100">
                                <div class="font-barcode text-6xl text-black leading-none" id="renderBarcode">*A001*</div>
-                               <div class="font-bold text-sm text-gray-800 tracking-widest mt-1" id="renderBarcodeText">A001</div>
+                               <div class="font-bold text-sm text-gray-800 mt-1" id="renderBarcodeText">A001</div>
                            </div>
                        </div>
                    </div>
@@ -3766,35 +3806,69 @@ function triggerFaceScanSuccess(cardId) {
 // ==========================================
     // JS: อัปเดตการตั้งค่า & การจัดการจุดเข้าออก (Gate)
     // ==========================================
-    
-    // อัปเดตตัวแปร Settings ให้รองรับเทมเพลตบัตร
     const origLoadSettings = loadSettings;
     loadSettings = function() {
         origLoadSettings();
         document.getElementById('cardTplFront').value = systemSettings.cardTplFront || '';
         document.getElementById('cardTplBack').value = systemSettings.cardTplBack || '';
         document.getElementById('cardTplRules').value = systemSettings.cardTplRules || '';
+        document.getElementById('lblPos').value = systemSettings.lblPos || '';
+        document.getElementById('lblOrg').value = systemSettings.lblOrg || '';
+        document.getElementById('lblExp').value = systemSettings.lblExp || '';
+        document.getElementById('cardFooterText').value = systemSettings.cardFooterText || '';
     }
     const origSaveSettings = saveAllSettings;
     saveAllSettings = async function() {
         systemSettings.cardTplFront = document.getElementById('cardTplFront').value;
         systemSettings.cardTplBack = document.getElementById('cardTplBack').value;
         systemSettings.cardTplRules = document.getElementById('cardTplRules').value;
+        systemSettings.lblPos = document.getElementById('lblPos').value.trim();
+        systemSettings.lblOrg = document.getElementById('lblOrg').value.trim();
+        systemSettings.lblExp = document.getElementById('lblExp').value.trim();
+        systemSettings.cardFooterText = document.getElementById('cardFooterText').value.trim();
         await origSaveSettings();
     }
 
-    // อัปเดต Gate ให้อ่าน/เขียน allowedAreas ได้
+    // --- ฟังก์ชันอเนกประสงค์สำหรับวาด Checkbox พื้นที่ ---
+    function renderAreaCheckboxesGen(selectedAreaStr, containerId, inputClass) {
+        const container = document.getElementById(containerId);
+        if(!container) return;
+        if(allAreas.length === 0) { container.innerHTML = '<span class="text-xs text-gray-400 col-span-full">ยังไม่ได้ตั้งค่าพื้นที่</span>'; return; }
+        
+        let selectedArr = [];
+        if(selectedAreaStr) selectedArr = selectedAreaStr.toString().split(',');
+
+        let html = '';
+        allAreas.filter(a => a.status === 'active').forEach(a => {
+            const isChecked = selectedArr.includes(String(a.areaNumber)) ? 'checked' : '';
+            html += `
+            <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-white border border-transparent hover:border-gray-200 transition bg-white/50">
+                <input type="checkbox" class="w-4 h-4 text-blue-600 rounded ${inputClass}" value="${a.areaNumber}" ${isChecked}>
+                <div class="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold text-gray-900 shadow-sm border border-gray-300" style="background-color: ${a.colorCode};">${a.areaNumber}</div>
+                <span class="text-xs font-bold text-gray-700 truncate">${a.areaName}</span>
+            </label>`;
+        });
+        container.innerHTML = html;
+    }
+
+    // ไปเขียนทับ (Override) ฟังก์ชันเดิมที่เคยผูกไว้กับ Card Modal
+    renderAreaCheckboxes = function(selectedAreaStr) {
+        renderAreaCheckboxesGen(selectedAreaStr, 'cardAreaCheckboxes', 'input-area-cb');
+    }
+
+    // อัปเดต Gate ให้อ่าน/เขียน allowedAreas ได้ผ่าน Checkbox
     const origOpenGateModal = openGateModal;
-    openGateModal = function() { origOpenGateModal(); document.getElementById('gateAllowedAreas').value = ''; }
+    openGateModal = function() { origOpenGateModal(); renderAreaCheckboxesGen('', 'gateAreaCheckboxes', 'input-gate-area-cb'); }
     
     const origEditGate = editGate;
-    editGate = function(id) { origEditGate(id); const g = allGates.find(x=>x.id===id); document.getElementById('gateAllowedAreas').value = g.allowedAreas || ''; }
+    editGate = function(id) { origEditGate(id); const g = allGates.find(x=>x.id===id); renderAreaCheckboxesGen(g.allowedAreas || '', 'gateAreaCheckboxes', 'input-gate-area-cb'); }
 
     const origSaveGate = saveGate;
     saveGate = async function() {
         const oldApiCall = window.apiCall;
         window.apiCall = async function(action, data, hide) {
-            data.allowedAreas = document.getElementById('gateAllowedAreas').value.trim();
+            const checkedBoxes = Array.from(document.querySelectorAll('.input-gate-area-cb:checked')).map(cb => cb.value);
+            data.allowedAreas = checkedBoxes.join(',');
             return oldApiCall(action, data, hide);
         };
         await origSaveGate();
@@ -3841,14 +3915,10 @@ function triggerFaceScanSuccess(cardId) {
     // ==========================================
     // JS: ระบบ Preview และโหลดบัตร PDF (ID Card)
     // ==========================================
-    
-    // ฟังก์ชันคำนวณสีตัวหนังสือ (ขาว/ดำ) ให้ตัดกับสีพื้นหลัง
     function getContrastYIQ(hexcolor){
         if(!hexcolor) return 'black';
         hexcolor = hexcolor.replace("#", "");
-        var r = parseInt(hexcolor.substr(0,2),16);
-        var g = parseInt(hexcolor.substr(2,2),16);
-        var b = parseInt(hexcolor.substr(4,2),16);
+        var r = parseInt(hexcolor.substr(0,2),16), g = parseInt(hexcolor.substr(2,2),16), b = parseInt(hexcolor.substr(4,2),16);
         var yiq = ((r*299)+(g*587)+(b*114))/1000;
         return (yiq >= 128) ? 'black' : 'white';
     }
@@ -3857,23 +3927,28 @@ function triggerFaceScanSuccess(cardId) {
         const c = allCards.find(x => x.id === id);
         const t = typeCards.find(x => parseInt(x.id) === parseInt(c.typeId)) || {};
         
-        // เซ็ตภาพพื้นหลัง
         document.getElementById('tplFrontImg').src = systemSettings.cardTplFront || '';
         document.getElementById('tplBackImg').src = systemSettings.cardTplBack || '';
         
-        // เซ็ตรูปพนักงาน
+        // รูปถ่าย
         const imgEl = document.getElementById('renderPhoto');
         const iconEl = document.getElementById('renderPhotoIcon');
         if(c.imageUrl) { imgEl.src = c.imageUrl; imgEl.classList.remove('hidden'); iconEl.classList.add('hidden'); }
         else { imgEl.src = ''; imgEl.classList.add('hidden'); iconEl.classList.remove('hidden'); }
         
-        // ข้อมูลตัวหนังสือ
+        // ข้อมูลตัวหนังสือ + ดึง Label จาก Settings (ถ้าไม่มีให้ใช้ค่าเริ่มต้น)
+        document.getElementById('renderLblPos').textContent = systemSettings.lblPos || 'ตำแหน่ง';
+        document.getElementById('renderLblOrg').textContent = systemSettings.lblOrg || 'สังกัด';
+        document.getElementById('renderLblExp').textContent = systemSettings.lblExp || 'หมดอายุ';
+        
+        document.getElementById('renderName').textContent = `${c.firstName} ${c.lastName}`;
         document.getElementById('renderPos').textContent = c.position || '-';
         document.getElementById('renderOrg').textContent = c.organization || '-';
         document.getElementById('renderExp').textContent = formatDateOnly(c.expiryDate);
         document.getElementById('renderCardId').textContent = c.cardId;
+        document.getElementById('renderCustomFooter').textContent = systemSettings.cardFooterText || '';
         
-        // สัญลักษณ์พิเศษ
+        // สัญลักษณ์
         const tempEl = document.getElementById('renderTemp');
         const escortEl = document.getElementById('renderEscort');
         const driveEl = document.getElementById('renderDrive');
@@ -3891,12 +3966,11 @@ function triggerFaceScanSuccess(cardId) {
             aData.sort((a,b) => parseInt(a.areaNumber) - parseInt(b.areaNumber));
             
             if(aData.length > 0) {
-                // คำนวณความสูงให้ยืดหยุ่น ถ้ามีกล่องเดียวใหญ่ๆ มีหลายกล่องก็หดเล็กลง
-                const hSize = aData.length === 1 ? '120px' : (120 / aData.length) + 'px';
+                const hSize = aData.length === 1 ? '130px' : (130 / aData.length) + 'px';
                 const fSize = aData.length === 1 ? '5rem' : (aData.length === 2 ? '3.5rem' : '2.5rem');
                 
                 areaHtml = aData.map((a, idx) => `
-                    <div class="w-full flex items-center justify-center font-black ${idx !== aData.length-1 ? 'border-b-2 border-indigo-900' : ''}" 
+                    <div class="w-full flex items-center justify-center font-black ${idx !== aData.length-1 ? 'border-b-[3px] border-indigo-900' : ''}" 
                          style="height: ${hSize}; background-color: ${a.colorCode}; color: ${getContrastYIQ(a.colorCode)}; font-size: ${fSize}; line-height: 1;">
                         ${a.areaNumber}
                     </div>
@@ -3920,13 +3994,12 @@ function triggerFaceScanSuccess(cardId) {
         const element = document.getElementById('printCardContainer');
         const cardIdText = document.getElementById('renderBarcodeText').textContent;
         
-        // ตั้งค่าหน้า PDF แนวนอน (Landscape) เพื่อให้ 2 บัตรวางเรียงกันพอดีหน้า
         const opt = {
           margin:       0,
           filename:     `ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`,
           image:        { type: 'jpeg', quality: 1 },
-          html2canvas:  { scale: 3, useCORS: true, logging: false }, // Scale 3 ให้รูปคมชัดสุดๆ
-          jsPDF:        { unit: 'px', format: [540, 704], orientation: 'landscape' } // 340*2 + Gap 24 = 704 x 540 พอดีเป๊ะ
+          html2canvas:  { scale: 3, useCORS: true, letterRendering: true, logging: false },
+          jsPDF:        { unit: 'px', format: [540, 704], orientation: 'landscape' }
         };
         
         showToast('กำลังสร้างไฟล์ PDF ปริ้นบัตร กรุณารอสักครู่...', 'info');
