@@ -36,38 +36,47 @@
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-/* พื้นที่รวมแถบขวา (กว้าง 130px) */
-#renderAreaBoxes {
-    display: block !important; /* เลิกใช้ Flex เพื่อความแม่นยำใน PDF */
-    width: 130px !important;
-    height: 230px !important; /* สูงเท่ารูปถ่าย */
-    padding: 0 !important;
+/* ล็อคขนาดบัตรให้แม่นยำที่สุด */
+#printCardFront, #printCardBack {
+    width: 340px !important;
+    height: 540px !important;
     margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important; /* สำคัญมาก: ให้ขอบรวมอยู่ใน 540px */
+    position: relative !important;
+    overflow: hidden !important;
 }
 
-/* สี่เหลี่ยมจัตุรัสแต่ละรูป */
-.area-square {
-    width: 130px !important;
-    height: 115px !important; /* 230 / 2 = 115 (จะเป็นสี่เหลี่ยมเกือบจัตุรัสที่พอดีแถบ) */
+/* พื้นที่แถบขวา */
+#renderAreaBoxes {
     display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    font-weight: 900 !important;
-    line-height: 1 !important;
+    flex-direction: column !important;
+    width: 130px !important;
+    height: 230px !important;
+    padding: 0 !important;
     margin: 0 !important;
     box-sizing: border-box !important;
 }
 
-/* ปรับ Modal ไม่ให้มี Scroll แนวนอน */
-#idCardModal .overflow-y-auto {
-    overflow-x: hidden !important;
+/* กล่องสี่เหลี่ยมพื้นที่ */
+.area-square {
+    flex: 1 1 0% !important; /* แบ่งพื้นที่เท่าๆ กัน */
+    width: 130px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-family: 'Prompt', sans-serif !important;
+    font-weight: 900 !important;
+    box-sizing: border-box !important;
+    line-height: 1 !important;
 }
-#printCardContainer {
-    display: flex;
-    flex-direction: column; /* วางบัตรหน้า-หลัง ต่อกันแนวตั้งเสมอในพรีวิว */
-    align-items: center;
-    gap: 30px;
-    width: 100%;
+
+/* กำหนดจุดตัดหน้า PDF */
+.pdf-break {
+    page-break-after: always !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
   </style>
 </head>
@@ -4031,9 +4040,8 @@ function triggerFaceScanSuccess(cardId) {
         c.canDrive === true || c.canDrive === 'TRUE' ? driveEl.classList.remove('hidden') : driveEl.classList.add('hidden');
         
         // แก้ไขส่วนสร้างกล่องพื้นที่ใน previewIdCard
-// ส่วนจัดการพื้นที่ (Area Access) ในฟังก์ชัน previewIdCard
 const areaContainer = document.getElementById('renderAreaBoxes');
-areaContainer.innerHTML = ''; // ล้างค่า
+areaContainer.innerHTML = ''; 
 
 if(c.areaAccessIds) {
     const arr = c.areaAccessIds.split(',').filter(x => x);
@@ -4041,18 +4049,14 @@ if(c.areaAccessIds) {
     aData.sort((a,b) => parseInt(a.areaNumber) - parseInt(b.areaNumber));
     
     if(aData.length > 0) {
-        // วาดกล่องแยกกัน (สูงสุด 2 กล่องเพื่อให้พอดีความสูง 230px)
         const areaHtml = aData.slice(0, 2).map((a, idx) => {
-            // ถ้ามี 1 พื้นที่ ให้สูงเต็ม 230 หรือสูงครึ่งเดียว? 
-            // ตามดีไซน์ทั่วไป ถ้ามี 1 พื้นที่มักจะไว้ข้างบน หรือขยายเต็ม (ในที่นี้ขอทำเป็น 115px ตามตรรกะรูปสี่เหลี่ยม)
-            const h = aData.length === 1 ? "230px" : "115px";
-            const fSize = aData.length === 1 ? "90px" : "75px";
+            // ปรับฟอนต์ให้เล็กลงเล็กน้อยเพื่อไม่ให้ตกขอบ (1 พื้นที่ = 100, 2 พื้นที่ = 80)
+            const fSize = aData.length === 1 ? "100px" : "80px";
             
             return `
                 <div class="area-square" 
                      style="background-color: ${a.colorCode}; 
                             color: ${getContrastYIQ(a.colorCode)}; 
-                            height: ${h} !important;
                             font-size: ${fSize} !important;
                             border: 2px solid #312e81;">
                     ${a.areaNumber}
@@ -4079,27 +4083,27 @@ if(c.areaAccessIds) {
     const front = document.getElementById('printCardFront');
     const back = document.getElementById('printCardBack');
 
-    // สร้าง Wrapper ชั่วคราวที่จัดระเบียบใหม่สำหรับ PDF
-    const pdfWrapper = document.createElement('div');
-    pdfWrapper.style.width = '340px';
-    pdfWrapper.style.background = 'white';
+    // สร้างกล่องเก็บหน้า PDF โดยไม่มี Margin/Padding เลย
+    const pdfContent = document.createElement('div');
+    pdfContent.style.width = '340px';
+    pdfContent.style.margin = '0';
+    pdfContent.style.padding = '0';
 
-    // หน้าที่ 1
-    const page1 = front.cloneNode(true);
-    page1.style.boxShadow = 'none';
-    page1.style.margin = '0 auto';
-    page1.style.display = 'block';
+    // โคลนหน้า 1
+    const p1 = front.cloneNode(true);
+    p1.style.boxShadow = 'none';
+    
+    // โคลนหน้า 2
+    const p2 = back.cloneNode(true);
+    p2.style.boxShadow = 'none';
 
-    // หน้าที่ 2
-    const page2 = back.cloneNode(true);
-    page2.style.boxShadow = 'none';
-    page2.style.margin = '0 auto';
-    page2.style.display = 'block';
-    page2.style.pageBreakBefore = 'always'; // บังคับขึ้นหน้าใหม่
+    // จุดตัดหน้า (ใส่อยู่ระหว่างหน้า 1 และ 2)
+    const br = document.createElement('div');
+    br.className = 'pdf-break';
 
-    pdfWrapper.appendChild(page1);
-    pdfWrapper.appendChild(page2);
-    document.body.appendChild(pdfWrapper); // เพิ่มลง Body ชั่วคราวเพื่อให้ Library วัดขนาดได้
+    pdfContent.appendChild(p1);
+    pdfContent.appendChild(br);
+    pdfContent.appendChild(p2);
 
     showToast('กำลังผลิต PDF 2 หน้า...', 'info');
 
@@ -4111,20 +4115,22 @@ if(c.areaAccessIds) {
             scale: 2, 
             useCORS: true, 
             logging: false,
-            width: 340,
+            width: 340, // ล็อคความกว้าง Canvas
+            x: 0,       // แก้ปัญหาเยื้องขวา
             y: 0,
             scrollX: 0,
             scrollY: 0
         },
-        jsPDF: { unit: 'px', format: [340, 540], orientation: 'portrait' }
+        jsPDF: { 
+            unit: 'px', 
+            format: [340, 540], // ขนาดหน้าต้องพอดีเป๊ะกับ Content
+            orientation: 'portrait',
+            hotfixes: ['px_scaling']
+        }
     };
 
-    html2pdf().set(opt).from(pdfWrapper).save().then(() => {
-        document.body.removeChild(pdfWrapper); // ลบทิ้งเมื่อเสร็จ
+    html2pdf().set(opt).from(pdfContent).save().then(() => {
         showToast('ดาวน์โหลด PDF สำเร็จ', 'success');
-    }).catch(err => {
-        console.error(err);
-        document.body.removeChild(pdfWrapper);
     });
 }
     ///////////
