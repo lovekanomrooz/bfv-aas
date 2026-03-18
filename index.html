@@ -77,9 +77,9 @@
     -webkit-print-color-adjust: exact; /* สำหรับรูปภาพพื้นหลัง */
 }
 /* ลบช่องว่างที่อาจเกิดขึ้นระหว่างหน้า */
-.pdf-page-break {
-    page-break-after: always;
-}
+/*pdf-page-break {*/
+/*    page-break-after: always;*/
+/*}*/
   </style>
 </head>
 <body class="h-full bg-gray-50">
@@ -4117,7 +4117,7 @@ if(c.areaAccessIds) {
     const opt = {
         margin: 0,
         filename: `ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`,
-        image: { type: 'jpeg', quality: 0.92 },
+        image: { type: 'jpeg', quality: 0.90 },
         html2canvas: { 
             scale: 3, 
             useCORS: true, 
