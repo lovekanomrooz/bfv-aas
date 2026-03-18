@@ -4092,7 +4092,7 @@ if(c.areaAccessIds) {
 
     // 1. สร้าง Container ชั่วคราว (Temporary Wrapper)
     const pdfWrapper = document.createElement('div');
-    pdfWrapper.style.width = '339px';
+    pdfWrapper.style.width = '330px';
     pdfWrapper.style.background = 'white';
     pdfWrapper.style.display = 'block'; // บังคับให้เรียงแนวตั้ง
 
@@ -4117,7 +4117,7 @@ if(c.areaAccessIds) {
     const opt = {
         margin: 0,
         filename: `ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
+        image: { type: 'jpeg', quality: 0.90 },
         html2canvas: { 
             scale: 3, 
             useCORS: true, 
@@ -4127,7 +4127,7 @@ if(c.areaAccessIds) {
         },
         jsPDF: { 
             unit: 'px', 
-            format: [339, 539], 
+            format: [330, 530], 
             orientation: 'portrait' 
         },
         // ใช้โหมด CSS และ Legacy ร่วมกันเพื่อความชัวร์ในการแบ่งหน้า
