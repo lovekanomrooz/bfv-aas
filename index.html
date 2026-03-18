@@ -54,16 +54,16 @@
     box-sizing: border-box !important;
 }
 
-/* แก้ไขคลาสสี่เหลี่ยมพื้นที่ */
-.area-square {
-    display: table !important; /* เปลี่ยนจาก flex เป็น table */
-    width: 130px !important;
-    height: 115px !important;
-    border-collapse: collapse;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: 2px solid #1e1b4b !important;
+/* บังคับสี่เหลี่ยมจัตุรัส */
+.area-square-fixed {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 2px solid #1e1b4b !important; /* สีกรมท่าเข้ม */
+    font-weight: 900 !important;
     box-sizing: border-box !important;
+    line-height: 1 !important;
+    text-align: center !important;
 }
 /* CSS แนะนำสำหรับหน้าบัตร/หลังบัตร */
 #printCardFront, #printCardBack {
@@ -72,15 +72,6 @@
     box-sizing: border-box !important;
     overflow: hidden !important;
     position: relative !important;
-}
-/* สร้างคลาสลูกสำหรับจัดกึ่งกลางตัวเลข */
-.area-text-cell {
-    display: table-cell !important;
-    vertical-align: middle !important; /* จัดกึ่งกลางแนวตั้งแบบดั้งเดิม (แม่นยำที่สุด) */
-    text-align: center !important;
-    line-height: 1 !important;
-    padding: 0 !important;
-    margin: 0 !important;
 }
   </style>
 </head>
@@ -4054,19 +4045,20 @@ if(c.areaAccessIds) {
     aData.sort((a,b) => parseInt(a.areaNumber) - parseInt(b.areaNumber));
     
     if(aData.length > 0) {
-        const areaHtml = aData.slice(0, 2).map(a => {
-            const h = aData.length === 1 ? "230px" : "115px";
-            const fSize = aData.length === 1 ? "100px" : "80px";
-            
-            // ใช้โครงสร้าง Table-cell เพื่อความแม่นยำใน PDF
-            return `
-                <div class="area-square" style="height: ${h} !important; background-color: ${a.colorCode};">
-                    <div class="area-text-cell" style="color: ${getContrastYIQ(a.colorCode)}; font-size: ${fSize} !important;">
-                        ${a.areaNumber}
-                    </div>
-                </div>
-            `;
-        }).join('');
+        // ตรรกะ: 1 พื้นที่ = กล่องใหญ่, 2 พื้นที่ = กล่องจัตุรัส 2 ใบ
+        const boxSize = aData.length === 1 ? "130px" : "60px";
+        const fontSize = aData.length === 1 ? "100px" : "50px";
+
+        const areaHtml = aData.slice(0, 2).map(a => `
+            <div class="area-square-fixed" 
+                 style="background-color: ${a.colorCode}; 
+                        color: ${getContrastYIQ(a.colorCode)}; 
+                        width: ${boxSize} !important;
+                        height: ${boxSize} !important;
+                        font-size: ${fontSize} !important;">
+                ${a.areaNumber}
+            </div>
+        `).join('');
         areaContainer.innerHTML = areaHtml;
     }
 }
@@ -4082,66 +4074,49 @@ if(c.areaAccessIds) {
     
     function closeIdCardModal() { document.getElementById('idCardModal').classList.add('hidden'); }
 
-   async function downloadPdfCard() {
-    const cardIdText = document.getElementById('renderBarcodeText').textContent;
-    const front = document.getElementById('printCardFront');
-    const back = document.getElementById('printCardBack');
-
-    showLoader('กำลังล็อกตำแหน่งพิกเซลและสร้าง PDF...');
-
-    try {
-        await document.fonts.ready;
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [340, 540] });
-
-        const captureOptions = {
-            scale: 2.5,
-            useCORS: true,
-            backgroundColor: "#ffffff",
-            width: 340,
-            height: 540,
-            logging: false,
-            // *** จุดสำคัญ: ปรับแต่งบัตรในขณะที่กำลังถูกโคลนเพื่อถ่ายรูป ***
-            onclone: (clonedDoc) => {
-                const els = clonedDoc.querySelectorAll('*');
-                els.forEach(el => {
-                    // ล้างค่า Line-height และ Vertical-align ที่เบราว์เซอร์อาจจะใส่มาให้เอง
-                    el.style.lineHeight = '1.0';
-                    el.style.letterSpacing = '0';
-                });
-                
-                // ค้นหาบัตรในโคลนและลบเงา/ขอบมน
-                const cards = clonedDoc.querySelectorAll('#printCardFront, #printCardBack');
-                cards.forEach(c => {
-                    c.style.boxShadow = 'none';
-                    c.style.borderRadius = '0';
-                    c.style.transform = 'none';
-                    c.style.top = '0';
-                    c.style.left = '0';
-                });
-            }
-        };
-
-        // วาดหน้าบัตร
-        const canvasFront = await html2canvas(front, captureOptions);
-        pdf.addImage(canvasFront.toDataURL('image/jpeg', 1.0), 'JPEG', 0, 0, 340, 540);
-
-        // วาดหลังบัตร
-        pdf.addPage([340, 540], 'portrait');
-        const canvasBack = await html2canvas(back, captureOptions);
-        pdf.addImage(canvasBack.toDataURL('image/jpeg', 1.0), 'JPEG', 0, 0, 340, 540);
-
-        pdf.save(`ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`);
+    function downloadPdfCard() {
+        const cardIdText = document.getElementById('renderBarcodeText').textContent;
         
-        hideLoader();
-        showToast('ดาวน์โหลด PDF สำเร็จ!', 'success');
-
-    } catch (err) {
-        console.error("PDF Export Error: ", err);
-        hideLoader();
-        showToast('เกิดข้อผิดพลาดในการคำนวณพิกเซล', 'error');
+        // --- เทคนิคใหม่แก้ปัญหา PDF ล้นหน้า ---
+        // 1. สร้างกล่องจำลองที่ไม่มีช่องว่างเลย เพื่อส่งไป Gen PDF โดยเฉพาะ
+        const cloneContainer = document.createElement('div');
+        cloneContainer.style.width = '340px'; 
+        
+        const frontClone = document.getElementById('printCardFront').cloneNode(true);
+        const backClone = document.getElementById('printCardBack').cloneNode(true);
+        
+        // ลบเงาและปรับระยะให้ชิดกันสนิท
+        frontClone.style.boxShadow = 'none';
+        backClone.style.boxShadow = 'none';
+        
+        // บังคับให้หลังบัตรขึ้นหน้าใหม่
+        backClone.style.pageBreakBefore = 'always'; 
+        
+        cloneContainer.appendChild(frontClone);
+        cloneContainer.appendChild(backClone);
+        
+        // ซ่อนไว้ไม่ให้ผู้ใช้เห็น
+        cloneContainer.style.position = 'absolute';
+        cloneContainer.style.left = '-9999px';
+        document.body.appendChild(cloneContainer);
+        
+        // ใช้ความสูง 541 (บวกเผื่อ 1px) ป้องกันเศษพิกเซลเด้งไปหน้าถัดไป
+        const opt = {
+          margin:       0,
+          filename:     `ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`,
+          image:        { type: 'jpeg', quality: 1 },
+          html2canvas:  { scale: 3, useCORS: true, allowTaint: true, logging: false },
+          jsPDF:        { unit: 'px', format: [340, 541], orientation: 'portrait' } 
+        };
+        
+        showToast('กำลังสร้างไฟล์ PDF กรุณารอสักครู่...', 'info');
+        
+        html2pdf().set(opt).from(cloneContainer).save().then(() => {
+            // ทำลายกล่องจำลองทิ้งเมื่อเสร็จสิ้น
+            document.body.removeChild(cloneContainer);
+            showToast('ดาวน์โหลดไฟล์ PDF บัตรพนักงานสำเร็จ!', 'success');
+        });
     }
-}
     ///////////
   </script>
 </body>
