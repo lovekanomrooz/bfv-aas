@@ -59,6 +59,7 @@
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+	overflow: hidden; /* ป้องกันเนื้อหาไหล */
     border: 2px solid #1e1b4b !important; /* สีกรมท่าเข้ม */
     font-weight: 900 !important;
     box-sizing: border-box !important;
@@ -4075,9 +4076,8 @@ if(c.areaAccessIds) {
     function closeIdCardModal() { document.getElementById('idCardModal').classList.add('hidden'); }
 
    async function downloadPdfCard() {
-    // 1. ตรวจสอบว่ามี Library ครบหรือไม่
-    if (typeof html2canvas === 'undefined') {
-        showAlert('ผิดพลาด', 'ไม่พบไลบรารี html2canvas กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต', 'error');
+    if (typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined') {
+        showAlert('ผิดพลาด', 'ไม่พบไลบรารีที่จำเป็นสำหรับ PDF', 'error');
         return;
     }
 
@@ -4085,57 +4085,75 @@ if(c.areaAccessIds) {
     const front = document.getElementById('printCardFront');
     const back = document.getElementById('printCardBack');
 
-    if (!front || !back) {
-        showToast('ไม่พบข้อมูลบัตรหน้าหรือหลัง', 'error');
-        return;
-    }
-
-    showLoader('กำลังผลิต PDF คุณภาพสูง (0%)...');
+    showLoader('กำลังปรับปรุงตำแหน่งพิกเซลและสร้าง PDF...');
 
     try {
-        // 2. ตั้งค่าการดึงคลาส jsPDF (รองรับหลายเวอร์ชั่น)
+        await document.fonts.ready; // รอให้ฟอนต์ทั้งหมดโหลดเสร็จ
+
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF({
             orientation: 'portrait',
             unit: 'px',
-            format: [340, 540]
+            format: [340, 540],
+            hotfixes: ['px_scaling']
         });
 
-        // 3. ฟังก์ชันช่วยแปลง Element เป็นรูป (เพิ่มการรอโหลดภาพ)
-        const capture = async (el, label) => {
-            showLoader(`กำลังประมวลผลหน้า ${label}...`);
-            return await html2canvas(el, {
-                scale: 3, // ความละเอียดสูงพิเศษ
-                useCORS: true, // แก้ปัญหาหน้าขาวจากรูป Drive
-                allowTaint: false,
-                backgroundColor: "#ffffff",
-                logging: false,
+        // ฟังก์ชัน Capture พิเศษ: แยก Element ออกมาวาดข้างนอกเพื่อความแม่นยำ
+        const captureElement = async (el) => {
+            // สร้างพื้นที่อิสระ (Sandbox) เพื่อไม่ให้ CSS หน้าเว็บกวนตำแหน่ง
+            const sandbox = document.createElement('div');
+            sandbox.style.position = 'fixed';
+            sandbox.style.left = '-5000px';
+            sandbox.style.top = '0';
+            sandbox.style.width = '340px';
+            sandbox.style.height = '540px';
+            document.body.appendChild(sandbox);
+
+            // โคลนบัตรไปไว้ใน Sandbox
+            const clone = el.cloneNode(true);
+            clone.style.boxShadow = 'none';
+            clone.style.borderRadius = '0'; // ลบขอบมนชั่วคราวเพื่อให้ขอบรูปคมชัด
+            clone.style.transform = 'none';
+            clone.style.margin = '0';
+            sandbox.appendChild(clone);
+
+            const canvas = await html2canvas(clone, {
+                scale: 2.5, // ลดจาก 3 เหลือ 2.5 เพื่อความเสถียรของตำแหน่งแต่ยังคมชัด
+                useCORS: true,
+                backgroundColor: null,
                 width: 340,
-                height: 540
+                height: 540,
+                // ตั้งค่าเหล่านี้เพื่อล็อกไม่ให้ฟอนต์ขยับ
+                windowWidth: 340,
+                windowHeight: 540,
+                scrollX: 0,
+                scrollY: 0,
+                x: 0,
+                y: 0
             });
+
+            document.body.removeChild(sandbox);
+            return canvas.toDataURL('image/jpeg', 1.0);
         };
 
-        // 4. วาดหน้าบัตร
-        const canvasFront = await capture(front, 'ด้านหน้า');
-        const imgDataFront = canvasFront.toDataURL('image/jpeg', 1.0);
-        pdf.addImage(imgDataFront, 'JPEG', 0, 0, 340, 540);
+        // วาดหน้าบัตร
+        const imgFront = await captureElement(front);
+        pdf.addImage(imgFront, 'JPEG', 0, 0, 340, 540);
 
-        // 5. วาดหลังบัตร (เพิ่มหน้าใหม่)
+        // วาดหลังบัตร
         pdf.addPage([340, 540], 'portrait');
-        const canvasBack = await capture(back, 'ด้านหลัง');
-        const imgDataBack = canvasBack.toDataURL('image/jpeg', 1.0);
-        pdf.addImage(imgDataBack, 'JPEG', 0, 0, 340, 540);
+        const imgBack = await captureElement(back);
+        pdf.addImage(imgBack, 'JPEG', 0, 0, 340, 540);
 
-        // 6. ดาวน์โหลดไฟล์
         pdf.save(`ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`);
         
         hideLoader();
         showToast('ดาวน์โหลด PDF สำเร็จ!', 'success');
 
     } catch (err) {
-        console.error("PDF Error: ", err);
+        console.error("PDF Export Error: ", err);
         hideLoader();
-        showAlert('เกิดข้อผิดพลาด', 'ไม่สามารถสร้าง PDF ได้: ' + err.message, 'error');
+        showAlert('เกิดข้อผิดพลาด', 'ตำแหน่งพิกเซลคลาดเคลื่อน: ' + err.message, 'error');
     }
 }
     ///////////
