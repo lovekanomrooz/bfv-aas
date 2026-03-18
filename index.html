@@ -4088,27 +4088,37 @@ if(c.areaAccessIds) {
 
     if (!front || !back) return showToast('ไม่พบข้อมูลบัตร', 'error');
 
-    showToast('กำลังสร้าง PDF 2 หน้า...', 'info');
+    showToast('กำลังสร้าง PDF 2 หน้า (ไม่มีหน้าเกิน)...', 'info');
 
-    // 1. สร้าง Container ชั่วคราว (Temporary Wrapper)
+    // 1. สร้าง Wrapper ที่บล็อกช่องว่างทุกชนิด (Line Height และ Font Size เป็น 0)
     const pdfWrapper = document.createElement('div');
     pdfWrapper.style.width = '340px';
-    pdfWrapper.style.background = 'white';
-    pdfWrapper.style.display = 'block'; // บังคับให้เรียงแนวตั้ง
+    pdfWrapper.style.margin = '0';
+    pdfWrapper.style.padding = '0';
+    pdfWrapper.style.lineHeight = '0'; // บล็อกช่องว่างระหว่างบรรทัด
+    pdfWrapper.style.fontSize = '0';   // บล็อกช่องว่างของตัวอักษรที่มองไม่เห็น
+    pdfWrapper.style.backgroundColor = 'white';
 
-    // 2. Clone หน้าบัตรมาใส่ และลบค่าที่ทำให้เลย์เอาท์เพี้ยน
+    // 2. ปรับแต่ง Clone ของหน้าบัตร
     const fClone = front.cloneNode(true);
-    fClone.style.margin = '0';
-    fClone.style.boxShadow = 'none';
     fClone.style.display = 'block';
+    fClone.style.margin = '0';
+    fClone.style.padding = '0';
+    fClone.style.boxShadow = 'none'; // ลบเงาออกเพราะเงาทำให้ขนาดเกินหน้ากระดาษ
+    fClone.style.border = 'none';
+    fClone.style.width = '340px';
+    fClone.style.height = '540px';
 
     const bClone = back.cloneNode(true);
-    bClone.style.margin = '0';
-    bClone.style.boxShadow = 'none';
+    bClone.id = 'page2'; // กำหนด ID ให้หน้าหลัง
     bClone.style.display = 'block';
-    
-    // บังคับคำสั่งขึ้นหน้าใหม่ (Page Break) ที่ตัวบัตรหลัง
-    bClone.style.pageBreakBefore = 'always'; 
+    bClone.style.margin = '0';
+    bClone.style.padding = '0';
+    bClone.style.boxShadow = 'none';
+    bClone.style.border = 'none';
+    bClone.style.width = '340px';
+    bClone.style.height = '540px';
+    bClone.style.pageBreakBefore = 'always'; // คำสั่งตัดหน้า
 
     pdfWrapper.appendChild(fClone);
     pdfWrapper.appendChild(bClone);
@@ -4117,30 +4127,32 @@ if(c.areaAccessIds) {
     const opt = {
         margin: 0,
         filename: `ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
+        image: { type: 'jpeg', quality: 1.0 }, // ใช้คุณภาพสูงสุด
         html2canvas: { 
             scale: 2, 
             useCORS: true, 
             logging: false,
             scrollX: 0,
-            scrollY: 0
+            scrollY: 0,
+            width: 340,
+            height: 1080 // 540 * 2 = ความสูงรวมที่พอดีเป๊ะ
         },
         jsPDF: { 
             unit: 'px', 
             format: [340, 540], 
-            orientation: 'portrait' 
+            orientation: 'portrait',
+            hotfixes: ['px_scaling'] // แก้ไขเรื่องขนาดพิกเซลใน PDF
         },
-        // ใช้โหมด CSS และ Legacy ร่วมกันเพื่อความชัวร์ในการแบ่งหน้า
-        pagebreak: { mode: ['css', 'legacy'] }
+        pagebreak: { mode: 'css', before: '#page2' }
     };
 
     try {
-        // ส่ง pdfWrapper ที่เราสร้างขึ้น (เรียงแนวตั้งแล้ว) ไปประมวลผล
+        // ประมวลผลและดาวน์โหลด
         await html2pdf().set(opt).from(pdfWrapper).save();
         showToast('ดาวน์โหลด PDF สำเร็จ', 'success');
     } catch (err) {
         console.error("PDF Error:", err);
-        showToast('เกิดข้อผิดพลาด', 'error');
+        showToast('เกิดข้อผิดพลาดในการสร้างไฟล์', 'error');
     }
 }
     ///////////
