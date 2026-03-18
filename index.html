@@ -4088,48 +4088,56 @@ if(c.areaAccessIds) {
 
     if (!front || !back) return showToast('ไม่พบข้อมูลบัตรสำหรับดาวน์โหลด', 'error');
 
-    showToast('กำลังจัดตำแหน่งและสร้าง PDF...', 'info');
+    showToast('กำลังจัดตำแหน่งพิกัดและสร้าง PDF...', 'info');
 
     try {
         const { jsPDF } = window.jspdf;
 
-        // ฟังก์ชันช่วยถ่ายภาพแบบล็อคพิกัด (ป้องกันการ Shift Down)
-        const captureElement = async (el) => {
+        // ฟังก์ชันถ่ายภาพแบบ "ล็อคพิกัดศูนย์" (Zero-Offset Capture)
+        const capturePage = async (el) => {
             return await html2canvas(el, {
-                scale: 3, // ความคมชัดสูง
+                scale: 3,
                 useCORS: true,
                 logging: false,
                 backgroundColor: "#ffffff",
-                // --- จุดสำคัญ: ป้องกันข้อมูลเลื่อน (Shift) ---
                 width: 340,
                 height: 540,
-                scrollX: 0,
-                scrollY: -window.scrollY, // หักล้างระยะ Scroll ของหน้าจอ
-                x: 0,
-                y: 0
+                // --- หัวใจสำคัญ: แก้ไขปัญหาข้อมูลเลื่อนลง ---
+                onclone: (clonedDoc) => {
+                    // หา Element ที่กำลังถูกถ่ายในหน้าจำลอง
+                    const clonedEl = clonedDoc.getElementById(el.id);
+                    if (clonedEl) {
+                        // บังคับให้ไปวางที่มุมบนซ้ายสุดของหน้ากระดาษจำลอง
+                        clonedEl.style.position = "fixed";
+                        clonedEl.style.top = "0";
+                        clonedEl.style.left = "0";
+                        clonedEl.style.margin = "0";
+                        clonedEl.style.transform = "none";
+                    }
+                }
                 // ---------------------------------------
             });
         };
 
         // 1. ถ่ายภาพหน้าบัตร
-        const canvasFront = await captureElement(front);
+        const canvasFront = await capturePage(front);
         const imgFront = canvasFront.toDataURL('image/jpeg', 1.0);
 
         // 2. ถ่ายภาพหลังบัตร
-        const canvasBack = await captureElement(back);
+        const canvasBack = await capturePage(back);
         const imgBack = canvasBack.toDataURL('image/jpeg', 1.0);
 
-        // 3. สร้างไฟล์ PDF (ขนาด 340x540 px)
+        // 3. สร้าง PDF ขนาด 340x540 px
         const pdf = new jsPDF({
             orientation: 'p',
             unit: 'px',
             format: [340, 540]
         });
 
-        // หน้าที่ 1
+        // วางหน้า 1
         pdf.addImage(imgFront, 'JPEG', 0, 0, 340, 540);
 
-        // หน้าที่ 2
+        // วางหน้า 2
         pdf.addPage([340, 540], 'p');
         pdf.addImage(imgBack, 'JPEG', 0, 0, 340, 540);
 
@@ -4139,8 +4147,8 @@ if(c.areaAccessIds) {
         showToast('ดาวน์โหลด PDF สำเร็จแล้ว', 'success');
 
     } catch (err) {
-        console.error("Shift PDF Error:", err);
-        showToast('เกิดข้อผิดพลาดในการจัดตำแหน่งรูปภาพ', 'error');
+        console.error("PDF Final Error:", err);
+        showToast('เกิดข้อผิดพลาดในการจัดทำไฟล์', 'error');
     }
 }
     ///////////
