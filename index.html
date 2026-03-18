@@ -770,14 +770,16 @@
                    <div><label class="block text-xs font-bold mb-1 text-gray-600">คำนำหน้าวันหมดอายุ</label><input type="text" id="lblExp" class="w-full border p-2 rounded-lg" placeholder="ค่าเริ่มต้น: หมดอายุ"></div>
                </div>
 
-               <!-- ข้อความเพิ่มเติม -->
-               <div class="md:col-span-2 mt-2">
-                   <label class="block text-sm font-bold mb-1 text-pink-700">ข้อความเพิ่มเติม (แสดงใต้หมายเลขบัตร)</label>
-                   <input type="text" id="cardFooterText" class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-pink-500 bg-white text-sm" placeholder="เช่น ท่าอากาศยานบุรีรัมย์">
-               </div>
                <div class="md:col-span-2">
                    <label class="block text-sm font-bold mb-1 text-pink-700"><i data-lucide="file-text" class="w-3 h-3 inline"></i> ข้อควรปฏิบัติ (แสดงด้านหลังบัตร)</label>
                    <textarea id="cardTplRules" rows="5" class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-pink-500 bg-white leading-relaxed text-sm"></textarea>
+               </div>
+			   <!-- ข้อความเพิ่มเติมด้านหลังบัตร (ใต้บาร์โค้ด) -->
+               <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+                   <div class="md:col-span-3"><p class="font-bold text-gray-800 text-sm mb-2"><i data-lucide="align-center" class="w-4 h-4 inline mr-1 text-pink-500"></i> ข้อความท้ายบัตรด้านหลัง (แสดงใต้บาร์โค้ด จัดกึ่งกลาง)</p></div>
+                   <div><label class="block text-xs font-bold mb-1 text-gray-600">บรรทัดที่ 1</label><input type="text" id="cardFooterLine1" class="w-full border p-2 rounded-lg text-center" placeholder="เช่น ผู้ใดเก็บได้..."></div>
+                   <div><label class="block text-xs font-bold mb-1 text-gray-600">บรรทัดที่ 2</label><input type="text" id="cardFooterLine2" class="w-full border p-2 rounded-lg text-center" placeholder="เช่น กรุณาส่งคืนที่..."></div>
+                   <div><label class="block text-xs font-bold mb-1 text-gray-600">บรรทัดที่ 3</label><input type="text" id="cardFooterLine3" class="w-full border p-2 rounded-lg text-center" placeholder="เช่น โทร. 044-xxxxxx"></div>
                </div>
            </div>
        </div>
@@ -1075,76 +1077,92 @@
            <div class="p-6 overflow-y-auto bg-gray-100 flex-1 flex flex-col items-center justify-center gap-8">
                
                <!-- กล่องเป้าหมายที่จะถูกแปลงเป็น PDF -->
-               <div id="printCardContainer" class="flex flex-col md:flex-row gap-6 bg-transparent">
+               <div id="printCardContainer" class="flex flex-col gap-8 bg-transparent pb-4">
                    
                    <!-- หน้าบัตร (Front) -->
-                   <div class="relative w-[340px] h-[540px] bg-white rounded-xl overflow-hidden shadow-xl border border-gray-200 shrink-0 select-none">
-                       <img id="tplFrontImg" src="" class="absolute inset-0 w-full h-full object-cover z-0 bg-gray-50">
+                   <div id="printCardFront" class="relative w-[340px] h-[540px] bg-white rounded-xl overflow-hidden shadow-xl border border-gray-200 shrink-0 select-none">
+                       <img id="tplFrontImg" src="" class="absolute inset-0 w-full h-full object-cover z-0 bg-gray-50" crossorigin="anonymous">
                        
                        <div class="absolute inset-0 z-10 flex flex-col">
                            
-                           <!-- 1. โซนด้านบน (ห่างจากขอบบน 75px เพื่อหลบ Header สีน้ำเงิน) -->
+                           <!-- โซนด้านบน -->
                            <div class="absolute top-[75px] left-[15px] right-[15px] flex justify-between items-start">
                                <!-- รูปโปรไฟล์ (ซ้าย) -->
                                <div class="w-[145px] h-[190px] border-2 border-gray-200 bg-white flex items-center justify-center overflow-hidden shadow-sm shrink-0">
-                                   <img id="renderPhoto" src="" class="w-full h-full object-cover hidden">
+                                   <img id="renderPhoto" src="" class="w-full h-full object-cover hidden" crossorigin="anonymous">
                                    <i id="renderPhotoIcon" data-lucide="user" class="w-12 h-12 text-gray-300"></i>
                                </div>
                                
-                               <!-- สัญลักษณ์ (ขวา) -->
-                               <div class="w-[130px] flex flex-col items-center gap-1.5">
-                                   <!-- บัตรชั่วคราว (ห้ามตัดคำ, เอา tracking ออกกันสระลอย) -->
-                                   <div id="renderTemp" class="text-red-600 font-black text-xl mb-1 whitespace-nowrap hidden shadow-sm bg-white/90 px-3 py-0.5 rounded-lg border border-red-100">บัตรชั่วคราว</div>
+                               <!-- สัญลักษณ์ (ขวา) บังคับความสูงไม่เกินรูปโปรไฟล์ -->
+                               <div class="w-[130px] flex flex-col items-center justify-start max-h-[190px] overflow-hidden gap-1">
+                                   <div id="renderTemp" class="text-red-600 font-black text-[17px] mb-0.5 whitespace-nowrap hidden shadow-sm bg-white/90 px-2 py-0.5 rounded-lg border border-red-100">บัตรชั่วคราว</div>
                                    
-                                   <div id="renderAreaBoxes" class="flex flex-col w-full border-[3px] border-indigo-900 bg-white shadow-sm rounded-sm overflow-hidden">
+                                   <div id="renderAreaBoxes" class="flex flex-col w-full border-[3px] border-indigo-900 bg-white shadow-sm rounded-sm overflow-hidden flex-1 min-h-[50px]">
                                        <!-- กล่องพื้นที่จะถูกวาดตรงนี้ -->
                                    </div>
                                    
-                                   <div id="renderEscort" class="w-full bg-indigo-900 text-white text-center font-black py-1.5 text-sm hidden mt-1 rounded-sm shadow-sm">ESCORT</div>
-                                   <div id="renderDrive" class="w-full bg-indigo-900 text-white text-center font-black py-1.5 text-sm hidden mt-1 rounded-sm shadow-sm">DRIVE</div>
+                                   <div id="renderEscort" class="w-full bg-indigo-900 text-white text-center font-black py-1 text-xs hidden rounded-sm shadow-sm shrink-0 mt-0.5">ESCORT</div>
+                                   <div id="renderDrive" class="w-full bg-indigo-900 text-white text-center font-black py-1 text-xs hidden rounded-sm shadow-sm shrink-0 mt-0.5">DRIVE</div>
                                </div>
                            </div>
                            
-                           <!-- 2. โซนข้อมูลส่วนตัว (อยู่ใต้รูปถ่าย ห่างลงมาประมาณ 15px -> top-[280px]) -->
-                           <div class="absolute top-[280px] left-[20px] right-[20px] flex flex-col gap-2 text-indigo-900 font-bold text-sm">
-                               <!-- ชื่อ-สกุล (เพิ่มใหม่) -->
-                               <div id="renderName" class="text-xl font-black text-indigo-900 mb-1 leading-tight border-b-2 border-indigo-100 pb-2">ชื่อ นามสกุล</div>
+                           <!-- โซนข้อมูลส่วนตัว -->
+                           <div class="absolute top-[280px] left-[20px] right-[20px] flex flex-col gap-2 text-indigo-900 font-bold text-[13px]">
+                               <!-- ชื่อ-สกุล (บังคับบรรทัดเดียว ถ้ายาวให้หดเล็กลง) -->
+                               <div id="renderName" class="text-[22px] font-black text-indigo-900 mb-0.5 leading-none border-b-2 border-indigo-100 pb-2 whitespace-nowrap overflow-hidden text-ellipsis" style="max-width: 100%;">ชื่อ นามสกุล</div>
                                
-                               <div class="flex items-start"><span id="renderLblPos" class="w-[70px] shrink-0 text-indigo-700">ตำแหน่ง</span> <span id="renderPos" class="flex-1 leading-tight">-</span></div>
-                               <div class="flex items-start"><span id="renderLblOrg" class="w-[70px] shrink-0 text-indigo-700">สังกัด</span> <span id="renderOrg" class="flex-1 leading-tight">-</span></div>
+                               <div class="flex items-start mt-1"><span id="renderLblPos" class="w-[65px] shrink-0 text-indigo-700">ตำแหน่ง</span> <span id="renderPos" class="flex-1 leading-tight">-</span></div>
+                               <div class="flex items-start"><span id="renderLblOrg" class="w-[65px] shrink-0 text-indigo-700">สังกัด</span> <span id="renderOrg" class="flex-1 leading-tight">-</span></div>
                                
-                               <!-- วันหมดอายุ (บรรทัดใหม่ ตัวใหญ่ขึ้น) -->
+                               <!-- วันหมดอายุ -->
                                <div class="mt-2 pt-2 border-t border-gray-100 flex flex-col">
-                                   <span id="renderLblExp" class="text-xs text-red-500 mb-0.5">หมดอายุ</span> 
-                                   <span id="renderExp" class="text-red-600 text-lg font-black">-</span>
+                                   <span id="renderLblExp" class="text-[11px] text-red-500 mb-0.5">หมดอายุ</span> 
+                                   <span id="renderExp" class="text-[20px] font-black text-red-600 leading-none">-</span>
                                </div>
                            </div>
 
-                           <!-- 3. โซนรหัสบัตรและข้อความด้านล่างสุด -->
-                           <div class="absolute bottom-[20px] left-[20px] right-[20px] flex flex-col items-start">
-                               <div class="text-2xl font-black text-indigo-900">NO. <span id="renderCardId">-</span></div>
-                               <div id="renderCustomFooter" class="text-xs font-bold text-gray-500 mt-1 w-full truncate"></div>
+                           <!-- โซนรหัสบัตรด้านล่างซ้าย -->
+                           <div class="absolute bottom-[20px] left-[20px]">
+                               <div class="text-[22px] font-black text-indigo-900 leading-none">NO. <span id="renderCardId">-</span></div>
                            </div>
                        </div>
                    </div>
 
-                   <!-- หลังบัตร (Back) -->
-                   <div class="relative w-[340px] h-[540px] bg-white rounded-xl overflow-hidden shadow-xl border border-gray-200 shrink-0 select-none">
-                       <img id="tplBackImg" src="" class="absolute inset-0 w-full h-full object-cover z-0 bg-gray-50">
+                   <!-- หน้าบัตร (Back) สำหรับตัดขึ้นหน้า 2 ใน PDF -->
+                   <div id="printCardBack" class="relative w-[340px] h-[540px] bg-white rounded-xl overflow-hidden shadow-xl border border-gray-200 shrink-0 select-none page-break">
+                       <img id="tplBackImg" src="" class="absolute inset-0 w-full h-full object-cover z-0 bg-gray-50" crossorigin="anonymous">
                        
-                       <div class="absolute inset-0 z-10 flex flex-col px-6 py-8">
-                           <!-- เอา tracking-wider ออก ป้องกันสระเพี้ยนตอนแปลง PDF -->
-                           <h3 class="text-red-600 font-black text-center text-xl mb-4 bg-white/90 rounded-lg py-1.5 shadow-sm border border-red-50">ข้อควรปฏิบัติ</h3>
-                           <div id="renderRules" class="text-gray-800 text-[12px] leading-loose whitespace-pre-line flex-1 font-medium bg-white/80 p-4 rounded-xl backdrop-blur-sm shadow-sm border border-gray-100"></div>
+                       <div class="absolute inset-0 z-10 flex flex-col px-5 py-6">
+                           <h3 class="text-red-600 font-black text-center text-[19px] mb-3 bg-white/90 rounded-lg py-1 shadow-sm border border-red-50">ข้อควรปฏิบัติ</h3>
                            
-                           <div class="mt-auto flex flex-col items-center pb-6 bg-white/90 p-3 rounded-xl backdrop-blur-sm shadow-sm border border-gray-100">
-                               <div class="font-barcode text-6xl text-black leading-none" id="renderBarcode">*A001*</div>
-                               <div class="font-bold text-sm text-gray-800 mt-1" id="renderBarcodeText">A001</div>
+                           <!-- กฎระเบียบ -->
+                           <div id="renderRules" class="text-gray-800 text-[11px] leading-relaxed whitespace-pre-line flex-1 font-medium bg-white/80 p-3 rounded-xl backdrop-blur-sm shadow-sm border border-gray-100"></div>
+                           
+                           <!-- โซนบาร์โค้ด และข้อความ 3 บรรทัด -->
+                           <div class="mt-4 flex flex-col items-center pb-4 pt-4 px-2 bg-white/90 rounded-xl backdrop-blur-sm shadow-sm border border-gray-100 w-full overflow-hidden">
+                               
+                               <!-- บาร์โค้ด (บีบความกว้างไม่ให้ล้น) -->
+                               <div class="w-full flex justify-center">
+                                   <div class="font-barcode text-5xl text-black leading-none transform scale-x-[0.85] origin-center" id="renderBarcode">*A001*</div>
+                               </div>
+                               <div class="font-bold text-[13px] text-gray-800 mt-1" id="renderBarcodeText">A001</div>
+                               
+                               <!-- เส้นแบ่ง 40% -->
+                               <div class="w-[40%] h-[2px] bg-gray-300 my-3 rounded-full"></div>
+                               
+                               <!-- ข้อความท้ายบัตร 3 บรรทัด -->
+                               <div class="flex flex-col items-center text-center text-[10px] font-bold text-gray-600 leading-tight gap-0.5 w-full px-2">
+                                   <span id="renderFooter1" class="truncate w-full">-</span>
+                                   <span id="renderFooter2" class="truncate w-full">-</span>
+                                   <span id="renderFooter3" class="truncate w-full text-indigo-800">-</span>
+                               </div>
+                               
                            </div>
                        </div>
                    </div>
                    
                </div>
+			   <!--///////////////////////////////-->
            </div>
            
            <div class="p-4 border-t bg-white flex justify-end gap-3">
@@ -3815,7 +3833,9 @@ function triggerFaceScanSuccess(cardId) {
         document.getElementById('lblPos').value = systemSettings.lblPos || '';
         document.getElementById('lblOrg').value = systemSettings.lblOrg || '';
         document.getElementById('lblExp').value = systemSettings.lblExp || '';
-        document.getElementById('cardFooterText').value = systemSettings.cardFooterText || '';
+        document.getElementById('cardFooterLine1').value = systemSettings.cardFooterLine1 || '';
+        document.getElementById('cardFooterLine2').value = systemSettings.cardFooterLine2 || '';
+        document.getElementById('cardFooterLine3').value = systemSettings.cardFooterLine3 || '';
     }
     const origSaveSettings = saveAllSettings;
     saveAllSettings = async function() {
@@ -3825,11 +3845,12 @@ function triggerFaceScanSuccess(cardId) {
         systemSettings.lblPos = document.getElementById('lblPos').value.trim();
         systemSettings.lblOrg = document.getElementById('lblOrg').value.trim();
         systemSettings.lblExp = document.getElementById('lblExp').value.trim();
-        systemSettings.cardFooterText = document.getElementById('cardFooterText').value.trim();
+        systemSettings.cardFooterLine1 = document.getElementById('cardFooterLine1').value.trim();
+        systemSettings.cardFooterLine2 = document.getElementById('cardFooterLine2').value.trim();
+        systemSettings.cardFooterLine3 = document.getElementById('cardFooterLine3').value.trim();
         await origSaveSettings();
     }
 
-    // --- ฟังก์ชันอเนกประสงค์สำหรับวาด Checkbox พื้นที่ ---
     function renderAreaCheckboxesGen(selectedAreaStr, containerId, inputClass) {
         const container = document.getElementById(containerId);
         if(!container) return;
@@ -3851,12 +3872,10 @@ function triggerFaceScanSuccess(cardId) {
         container.innerHTML = html;
     }
 
-    // ไปเขียนทับ (Override) ฟังก์ชันเดิมที่เคยผูกไว้กับ Card Modal
     renderAreaCheckboxes = function(selectedAreaStr) {
         renderAreaCheckboxesGen(selectedAreaStr, 'cardAreaCheckboxes', 'input-area-cb');
     }
 
-    // อัปเดต Gate ให้อ่าน/เขียน allowedAreas ได้ผ่าน Checkbox
     const origOpenGateModal = openGateModal;
     openGateModal = function() { origOpenGateModal(); renderAreaCheckboxesGen('', 'gateAreaCheckboxes', 'input-gate-area-cb'); }
     
@@ -3875,29 +3894,25 @@ function triggerFaceScanSuccess(cardId) {
         window.apiCall = oldApiCall;
     }
 
-    // --- เพิ่ม Logic บล็อคพื้นที่ ตอนแสกนบัตร (Gate Validation) ---
     const origProcessMainScan = processMainScan;
     processMainScan = function() {
         const gateId = document.getElementById('scanGateSelect').value;
         const mainInput = document.getElementById('scanInput');
         const cardId = mainInput.value.trim().toUpperCase();
         
-        if(!gateId || !cardId) return origProcessMainScan(); // ปล่อยให้ฟังก์ชันเดิมด่า
+        if(!gateId || !cardId) return origProcessMainScan(); 
 
         const gate = allGates.find(g => parseInt(g.id) === parseInt(gateId));
         const card = allCards.find(c => String(c.cardId).toUpperCase() === cardId);
         
-        // ถ้าหาบัตรเจอ ประตูใช้งานได้ และประตูมีการจำกัดพื้นที่
         if(gate && card && gate.status === 'active' && gate.allowedAreas && gate.allowedAreas.trim() !== '') {
             const currentStatus = card.currentStatus || 'OUT';
             const newStatus = currentStatus === 'IN' ? 'OUT' : 'IN';
             
-            // ตรวจสอบเฉพาะ "ขาเข้า (IN)"
             if(newStatus === 'IN') {
                 const requiredAreas = gate.allowedAreas.split(',').map(s => s.trim());
                 const userAreas = (card.areaAccessIds || '').split(',');
                 
-                // เช็คว่าผู้ใช้มีพื้นที่ "อย่างน้อย 1 อัน" ที่ตรงกับประตูไหม
                 const hasAccess = requiredAreas.some(ra => userAreas.includes(ra));
                 if(!hasAccess) {
                     mainInput.value = ''; mainInput.focus();
@@ -3906,12 +3921,8 @@ function triggerFaceScanSuccess(cardId) {
                 }
             }
         }
-        
-        // ถ้าผ่านเงื่อนไขหมด โยนให้ฟังก์ชันเดิมจัดการต่อ
         origProcessMainScan();
     }
-
-
     // ==========================================
     // JS: ระบบ Preview และโหลดบัตร PDF (ID Card)
     // ==========================================
@@ -3930,13 +3941,11 @@ function triggerFaceScanSuccess(cardId) {
         document.getElementById('tplFrontImg').src = systemSettings.cardTplFront || '';
         document.getElementById('tplBackImg').src = systemSettings.cardTplBack || '';
         
-        // รูปถ่าย
         const imgEl = document.getElementById('renderPhoto');
         const iconEl = document.getElementById('renderPhotoIcon');
         if(c.imageUrl) { imgEl.src = c.imageUrl; imgEl.classList.remove('hidden'); iconEl.classList.add('hidden'); }
         else { imgEl.src = ''; imgEl.classList.add('hidden'); iconEl.classList.remove('hidden'); }
         
-        // ข้อมูลตัวหนังสือ + ดึง Label จาก Settings (ถ้าไม่มีให้ใช้ค่าเริ่มต้น)
         document.getElementById('renderLblPos').textContent = systemSettings.lblPos || 'ตำแหน่ง';
         document.getElementById('renderLblOrg').textContent = systemSettings.lblOrg || 'สังกัด';
         document.getElementById('renderLblExp').textContent = systemSettings.lblExp || 'หมดอายุ';
@@ -3946,9 +3955,11 @@ function triggerFaceScanSuccess(cardId) {
         document.getElementById('renderOrg').textContent = c.organization || '-';
         document.getElementById('renderExp').textContent = formatDateOnly(c.expiryDate);
         document.getElementById('renderCardId').textContent = c.cardId;
-        document.getElementById('renderCustomFooter').textContent = systemSettings.cardFooterText || '';
         
-        // สัญลักษณ์
+        document.getElementById('renderFooter1').textContent = systemSettings.cardFooterLine1 || '-';
+        document.getElementById('renderFooter2').textContent = systemSettings.cardFooterLine2 || '-';
+        document.getElementById('renderFooter3').textContent = systemSettings.cardFooterLine3 || '';
+        
         const tempEl = document.getElementById('renderTemp');
         const escortEl = document.getElementById('renderEscort');
         const driveEl = document.getElementById('renderDrive');
@@ -3957,7 +3968,6 @@ function triggerFaceScanSuccess(cardId) {
         t.requireCompanion === true || t.requireCompanion === 'TRUE' ? escortEl.classList.remove('hidden') : escortEl.classList.add('hidden');
         c.canDrive === true || c.canDrive === 'TRUE' ? driveEl.classList.remove('hidden') : driveEl.classList.add('hidden');
         
-        // วาดกล่องพื้นที่
         const areaContainer = document.getElementById('renderAreaBoxes');
         let areaHtml = '';
         if(c.areaAccessIds) {
@@ -3966,12 +3976,10 @@ function triggerFaceScanSuccess(cardId) {
             aData.sort((a,b) => parseInt(a.areaNumber) - parseInt(b.areaNumber));
             
             if(aData.length > 0) {
-                const hSize = aData.length === 1 ? '130px' : (130 / aData.length) + 'px';
-                const fSize = aData.length === 1 ? '5rem' : (aData.length === 2 ? '3.5rem' : '2.5rem');
-                
+                // คำนวณความสูงแบบยืดหยุ่น เพื่อไม่ให้ล้นออกนอกกรอบ
                 areaHtml = aData.map((a, idx) => `
                     <div class="w-full flex items-center justify-center font-black ${idx !== aData.length-1 ? 'border-b-[3px] border-indigo-900' : ''}" 
-                         style="height: ${hSize}; background-color: ${a.colorCode}; color: ${getContrastYIQ(a.colorCode)}; font-size: ${fSize}; line-height: 1;">
+                         style="flex: 1; min-height: 0; background-color: ${a.colorCode}; color: ${getContrastYIQ(a.colorCode)}; font-size: ${aData.length <= 2 ? '3.5rem' : '2rem'}; line-height: 1;">
                         ${a.areaNumber}
                     </div>
                 `).join('');
@@ -3979,7 +3987,6 @@ function triggerFaceScanSuccess(cardId) {
         }
         areaContainer.innerHTML = areaHtml;
         
-        // ด้านหลังบัตร
         document.getElementById('renderRules').innerHTML = (systemSettings.cardTplRules || '').replace(/\n/g, '<br>');
         document.getElementById('renderBarcode').textContent = `*${c.cardId}*`;
         document.getElementById('renderBarcodeText').textContent = c.cardId;
@@ -3990,20 +3997,29 @@ function triggerFaceScanSuccess(cardId) {
     
     function closeIdCardModal() { document.getElementById('idCardModal').classList.add('hidden'); }
 
+    // ฟังก์ชันสร้าง PDF (แก้ไขเรื่องรูปไม่ขึ้น และจัดให้แบ่งเป็น 2 หน้า)
     function downloadPdfCard() {
         const element = document.getElementById('printCardContainer');
         const cardIdText = document.getElementById('renderBarcodeText').textContent;
         
+        // เราตั้งค่า margin ให้พอดี และใช้ 'pagebreak' เพื่อตัดขึ้นหน้าใหม่
         const opt = {
           margin:       0,
           filename:     `ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`,
           image:        { type: 'jpeg', quality: 1 },
-          html2canvas:  { scale: 3, useCORS: true, letterRendering: true, logging: false },
-          jsPDF:        { unit: 'px', format: [540, 704], orientation: 'landscape' }
+          html2canvas:  { scale: 3, useCORS: true, allowTaint: true, letterRendering: true, logging: false },
+          jsPDF:        { unit: 'px', format: [340, 540], orientation: 'portrait' }, // ตั้งค่ากระดาษให้เท่ากับขนาดการ์ด 1 ใบ
+          pagebreak:    { mode: ['css', 'legacy'] }
         };
         
+        // บังคับให้หน้าเว็บเอาคลาส .page-break มาตัดขึ้นหน้าใหม่ (ใน CSS)
+        const backCard = document.getElementById('printCardBack');
+        backCard.classList.add('html2pdf__page-break'); 
+        
         showToast('กำลังสร้างไฟล์ PDF ปริ้นบัตร กรุณารอสักครู่...', 'info');
+        
         html2pdf().set(opt).from(element).save().then(() => {
+            backCard.classList.remove('html2pdf__page-break'); // ลบคลาสทิ้งหลังโหลดเสร็จ
             showToast('ดาวน์โหลดไฟล์ PDF บัตรพนักงานสำเร็จ!', 'success');
         });
     }
