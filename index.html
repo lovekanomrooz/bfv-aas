@@ -215,7 +215,7 @@
                                    <div class="grid grid-cols-2 gap-y-3 gap-x-4 text-sm">
                                        <div><span class="text-gray-500 block text-xs">ประเภทบัตร</span><span id="resCardType" class="font-bold text-gray-800 bg-gray-200 px-2 py-0.5 rounded">-</span></div>
                                        <div><span class="text-gray-500 block text-xs">ทะเบียนรถ</span><span id="resVehicle" class="font-medium text-gray-800">-</span></div>
-                                       <div><span class="text-gray-500 block text-xs">วันหมดอายุ</span><span id="resExpiry" class="font-medium text-gray-800">-</span></div>
+                                       <div><span class="text-gray-500 block text-xs">วันหมดอายุ (หมดอายุเวลา 23:59:59 น.)</span><span id="resExpiry" class="font-medium text-gray-800">-</span></div>
                                        <div><span class="text-gray-500 block text-xs">เวลาบันทึก</span><span id="resTime" class="font-bold text-green-600">-</span></div>
                                    </div>
 
@@ -353,6 +353,8 @@
                 <option value="newest">ใหม่ล่าสุดก่อน</option>
                 <option value="oldest">เก่าสุดก่อน</option>
                 <option value="name">เรียงตามชื่อ (ก-ฮ)</option>
+		<option value="cardIdAsc">เรียงตามรหัสบัตร (น้อยไปมาก)</option>
+                <option value="cardIdDesc">เรียงตามรหัสบัตร (มากไปน้อย)</option>
             </select>
          </div>
         
@@ -387,7 +389,7 @@
                            <th class="px-4 py-3 text-left text-sm font-bold text-gray-500 min-w-[150px]">ชื่อ - นามสกุล</th>
                            <th class="px-4 py-3 text-left text-sm font-bold text-gray-500">หน่วยงาน</th>
                            <th class="px-4 py-3 text-left text-sm font-bold text-gray-500">ประเภท</th>
-                           <th class="px-4 py-3 text-center text-sm font-bold text-gray-500">วันหมดอายุ</th>
+                           <th class="px-4 py-3 text-center text-sm font-bold text-gray-500">วันหมดอายุ (หมดอายุเวลา 23:59:59 น.)</th>
                            <th class="px-4 py-3 text-center text-sm font-bold text-gray-500">สถานะบัตร</th>
                            <th class="px-4 py-3 text-center text-sm font-bold text-gray-500">ปัจจุบัน</th>
                            <th class="px-4 py-3 text-center text-sm font-bold text-gray-500 min-w-[120px]">จัดการ</th>
@@ -638,6 +640,84 @@
                </div>
            </div>
            <p class="text-sm text-gray-500 mt-2"><span class="font-bold text-orange-600">คำแนะนำ:</span> เมื่อเปิดใช้งาน ระบบจะตรวจสอบผู้ที่มีสถานะ 'เข้า (IN)' ค้างไว้ และสร้างประวัติบังคับออก 'OUT' ให้อัตโนมัติทุกๆ คืนเวลา ตี 3 - ตี 4 (ตั้งค่าเวลาในทริกเกอร์ของ Google)</p>
+       </div>
+
+<!-- Settings: AI Face Scan -->
+       <div class="bg-white rounded-2xl card-shadow p-6">
+           <h3 class="font-bold mb-4 flex items-center gap-2 border-b pb-2 text-gray-700">
+               <i data-lucide="scan-face" class="w-5 h-5 text-indigo-500"></i> ตั้งค่าระบบแสกนใบหน้า (AI)
+           </h3>
+           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+               
+               <!-- ตั้งค่าความเข้มงวด -->
+               <div class="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
+                   <label class="block text-sm font-bold mb-2 text-indigo-900">ความเข้มงวดในการตรวจจับใบหน้า</label>
+                   <div class="flex items-center gap-3 mb-2">
+                       <input type="number" id="aiThreshold" step="0.01" min="0.30" max="0.60" class="w-24 border p-2.5 rounded-lg focus:ring-2 outline-none focus:ring-indigo-500 bg-white text-center font-black text-indigo-700 shadow-inner">
+                       <span class="text-sm font-bold text-gray-600">ค่าน้อย = เข้มงวดมาก</span>
+                   </div>
+                   <p class="text-xs text-gray-500 leading-relaxed">
+                       <span class="font-bold text-red-500">คำแนะนำ:</span> ค่ามาตรฐานคือ <b>0.38</b><br>
+                       • แสกนยากเกินไป (หน้าตรงตัวจริงยังไม่ค่อยผ่าน) <span class="text-green-600 font-bold">👉 ให้ปรับเพิ่ม (เช่น 0.40 หรือ 0.42)</span><br>
+                       • แสกนง่ายเกินไป (มั่วไปโดนคนหน้าคล้าย) <span class="text-red-600 font-bold">👉 ให้ปรับลด (เช่น 0.36 หรือ 0.35)</span>
+                   </p>
+               </div>
+
+               <!-- ตั้งค่า Cooldown -->
+               <div class="bg-orange-50/50 p-4 rounded-xl border border-orange-100">
+                   <label class="block text-sm font-bold mb-2 text-orange-900">หน่วงเวลาแสกนซ้ำ (Cooldown)</label>
+                   <div class="flex items-center gap-3 mb-2">
+                       <input type="number" id="aiCooldown" min="1" max="60" class="w-24 border p-2.5 rounded-lg focus:ring-2 outline-none focus:ring-orange-500 bg-white text-center font-black text-orange-700 shadow-inner">
+                       <span class="text-sm font-bold text-gray-600">วินาที</span>
+                   </div>
+                   <p class="text-xs text-gray-500 leading-relaxed">
+                       <span class="font-bold text-red-500">คำแนะนำ:</span> ป้องกันระบบแสกนคนเดิมเข้า-ออกซ้ำรัวๆ เวลาคนยืนแช่อยู่หน้ากล้องนานเกินไป<br>
+                       • ค่ามาตรฐานคือ <b>10 วินาที</b> (ปรับได้ตามความเหมาะสมของหน้างาน)
+                   </p>
+               </div>
+			   
+			   <!-- ตั้งค่าความถี่การสแกน (Interval) -->
+               <div class="bg-blue-50/50 p-4 rounded-xl border border-blue-100 md:col-span-2">
+                   <label class="block text-sm font-bold mb-2 text-blue-900">ความถี่ในการตรวจจับใบหน้า (Interval)</label>
+                   <div class="flex items-center gap-3 mb-2">
+                       <input type="number" id="aiInterval" min="200" max="2000" step="100" class="w-24 border p-2.5 rounded-lg focus:ring-2 outline-none focus:ring-blue-500 bg-white text-center font-black text-blue-700 shadow-inner">
+                       <span class="text-sm font-bold text-gray-600">มิลลิวินาที (1000 มิลลิวินาที = 1 วินาที)</span>
+                   </div>
+                   <p class="text-xs text-gray-500 leading-relaxed">
+                       <span class="font-bold text-red-500">คำแนะนำ:</span> กำหนดความเร็วที่ AI จะดึงภาพจากกล้องมาประมวลผล<br>
+                       • ค่ามาตรฐานคือ <b>1000 มิลลิวินาที</b> (1 วิ/ครั้ง)<br>
+                       • เครื่องสเปกต่ำ/มือถือเก่า <span class="text-orange-600 font-bold">👉 ให้ปรับเพิ่มเป็น 1500 - 2000 (ลดอาการกระตุก)</span><br>
+                       • เครื่องสเปกสูง/ต้องการความไว <span class="text-green-600 font-bold">👉 ให้ปรับลดเหลือ 400 - 800 (จับภาพได้ไวขึ้น)</span>
+                   </p>
+               </div>
+			   
+			   <!-- ตั้งค่าขนาดกรอบใบหน้า (Bounding Box Padding) -->
+               <div class="bg-teal-50/50 p-4 rounded-xl border border-teal-100 md:col-span-2">
+                   <label class="block text-sm font-bold mb-2 text-teal-900">ปรับขนาดกรอบใบหน้าขณะแสกน (Bounding Box)</label>
+                   
+                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
+                       <!-- ด้านข้าง (X) -->
+                       <div class="flex items-center gap-3">
+                           <span class="text-sm font-bold text-gray-600 w-24">เผื่อด้านข้าง:</span>
+                           <input type="number" id="aiPadX" min="0" max="50" step="1" class="w-20 border p-2 rounded-lg focus:ring-2 outline-none focus:ring-teal-500 bg-white text-center font-black text-teal-700 shadow-inner">
+                           <span class="text-xs text-gray-500">%</span>
+                       </div>
+                       
+                       <!-- ด้านบน/หน้าผาก (Top) -->
+                       <div class="flex items-center gap-3">
+                           <span class="text-sm font-bold text-gray-600 w-24">เผื่อหน้าผาก:</span>
+                           <input type="number" id="aiPadTop" min="0" max="100" step="1" class="w-20 border p-2 rounded-lg focus:ring-2 outline-none focus:ring-teal-500 bg-white text-center font-black text-teal-700 shadow-inner">
+                           <span class="text-xs text-gray-500">%</span>
+                       </div>
+                   </div>
+                   
+                   <p class="text-xs text-gray-500 leading-relaxed mt-2">
+                       <span class="font-bold text-red-500">คำแนะนำ:</span> AI จับภาพแค่คิ้วถึงคาง จึงต้องเผื่อพื้นที่กรอบให้ครอบคลุมทั้งศีรษะเพื่อความสวยงาม<br>
+                       • ค่ามาตรฐาน: <b>ด้านข้าง 15%, หน้าผาก 35%</b> (ถ้าใส่ 0 กรอบจะรัดแน่นพอดีโครงหน้าเป๊ะ)
+                   </p>
+               </div>
+
+           </div>
        </div>
 
        <!-- Settings: Banner -->
@@ -895,7 +975,7 @@
     const thaiMonths = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
     let offlineQueue = JSON.parse(localStorage.getItem('aac_offlineQueue') || '[]');
     let currentUser = null, currentPage = 'home';
-    let systemSettings = { systemName: 'ระบบบันทึกการเข้าออกพื้นที่', systemSubName: 'AREA ACCESS CONTROL', footerText: 'Copyright', logoUrl: '', loginBgUrl: '', faviconUrl: '', bannerEnabled: true, bannerSpeed: 4, banners: [], autoCheckoutEnabled: true };
+    let systemSettings = { systemName: 'ระบบบันทึกการเข้าออกพื้นที่', systemSubName: 'AREA ACCESS CONTROL', footerText: 'Copyright', logoUrl: '', loginBgUrl: '', faviconUrl: '', bannerEnabled: true, bannerSpeed: 4, banners: [], autoCheckoutEnabled: true , aiThreshold: 0.38, aiCooldown: 10, aiInterval: 1000, aiPadX: 15, aiPadTop: 35 };
     
     // Data Caches
     let allGates = [], typeCards = [], allCards = [], allSystemUsers = [];
@@ -913,7 +993,26 @@
     // Banner Timer
     let currentSlide = 0, slideInterval = null;
 
-
+// ==========================================
+    // ฟังก์ชันช่วยเรียงลำดับรหัสบัตร (รูปแบบ Prefix+Num/Year)
+    // ==========================================
+    function parseCardIdForSort(cardIdStr) {
+        if (!cardIdStr) return { year: 0, prefixNum: '' };
+        
+        const str = String(cardIdStr).trim();
+        const parts = str.split('/');
+        
+        // ถ้ามีเครื่องหมาย / ให้ถือว่าส่วนหลังคือ ปี พ.ศ.
+        if (parts.length >= 2) {
+            const yearPart = parseInt(parts[parts.length - 1]) || 0;
+            // ส่วนหน้า (เช่น A003) ให้รวมทุกอย่างที่อยู่หน้า / สุดท้าย
+            const prefixNumPart = parts.slice(0, parts.length - 1).join('/'); 
+            return { year: yearPart, prefixNum: prefixNumPart };
+        } 
+        
+        // ถ้าไม่มีเครื่องหมาย / (บัตรยุคเก่า หรือกรอกผิดรูปแบบ) ให้ถือว่าปีเป็น 0 แล้วเรียงตามตัวอักษร
+        return { year: 0, prefixNum: str };
+    }
 // ==========================================
     // ตัวแปรและฟังก์ชันระบบ AI Face Recognition
     // ==========================================
@@ -956,7 +1055,7 @@
     // ==========================================
     
     // 🔥 นำ URL ที่คัดลอกมาจาก Step 1 มาวางในเครื่องหมายคำพูดด้านล่างนี้เลยครับ
-    const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycby4RSw_v_fF3ad2IIU_Gut723YSYa7KL3MLDMzNX88hPsC5F1X2GTM9t2hkHeryuxGF/exec'; 
+    const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyFROLaXvGkoZomtSfimlrR7Z0jaP1VTbyD9eKWyp52Q499Ms-nL32f0c6s3W4G0MnC/exec'; 
 
     function apiCall(action, data={}, showLoadingUI = true) {
         if(showLoadingUI) showLoader();
@@ -1465,6 +1564,8 @@
         if (card.status !== 'active') return showAlert('ถูกระงับ', `บัตรหมายเลข ${cardId} ถูกระงับการใช้งาน`, 'error');
 
         const expiryDate = new Date(card.expiryDate);
+        expiryDate.setHours(23, 59, 59, 999); // ปรับเวลาให้เป็น 23:59:59 ของวันนั้น
+        
         const now = new Date();
         if (now > expiryDate) return showAlert('บัตรหมดอายุ', `บัตรหมายเลข ${cardId} หมดอายุแล้วเมื่อ ${formatDateOnly(card.expiryDate)}`, 'error');
 
@@ -1552,7 +1653,9 @@
         const compCard = allCards.find(c => String(c.cardId).toUpperCase() === compCardId);
         if (!compCard) return showAlert('ไม่พบข้อมูล', `ไม่พบบัตรผู้ติดตามหมายเลข ${compCardId} ในระบบ`, 'error');
         if (compCard.status !== 'active') return showAlert('ถูกระงับ', `บัตรผู้ติดตามถูกระงับการใช้งาน`, 'error');
-        if (new Date() > new Date(compCard.expiryDate)) return showAlert('บัตรหมดอายุ', `บัตรผู้ติดตามหมดอายุแล้ว`, 'error');
+        const compExpDate = new Date(compCard.expiryDate);
+        compExpDate.setHours(23, 59, 59, 999); // ปรับเวลาให้เป็น 23:59:59 ของวันนั้น
+        if (new Date() > compExpDate) return showAlert('บัตรหมดอายุ', `บัตรผู้ติดตามหมดอายุแล้ว`, 'error');
 
         const gate = allGates.find(g => parseInt(g.id) === parseInt(gateId));
         const mainCard = allCards.find(c => String(c.cardId).toUpperCase() === mainCardId);
@@ -1753,7 +1856,7 @@
         }
         lucide.createIcons();
 
-        // --- โค้ดเรียงลำดับ (เพิ่มเข้าไปตรงนี้) ---
+        // --- โค้ดเรียงลำดับ (อัปเดตแบบแยก ปี พ.ศ.) ---
         const sortBy = document.getElementById('cardSortFilter').value;
         if(sortBy === 'newest') {
             currentFilteredCards.sort((a,b) => b.id - a.id);
@@ -1761,6 +1864,27 @@
             currentFilteredCards.sort((a,b) => a.id - b.id);
         } else if(sortBy === 'name') {
             currentFilteredCards.sort((a,b) => String(a.firstName).localeCompare(String(b.firstName), 'th'));
+        } else if(sortBy === 'cardIdAsc' || sortBy === 'cardIdDesc') {
+            
+            currentFilteredCards.sort((a, b) => {
+                const parsedA = parseCardIdForSort(a.cardId);
+                const parsedB = parseCardIdForSort(b.cardId);
+                
+                // 1. เทียบปี พ.ศ. ก่อน (ถ้าปีต่างกัน)
+                if (parsedA.year !== parsedB.year) {
+                    // ปีน้อยกว่าขึ้นก่อน เสมอ (เรียงจากอดีตไปปัจจุบัน)
+                    return parsedA.year - parsedB.year;
+                }
+                
+                // 2. ถ้าปีเท่ากัน (หรือไม่มีปีทั้งคู่) ให้เทียบรหัสด้านหน้า (A003 vs A004)
+                // ใช้ numeric: true เพื่อให้ A2 มาก่อน A10
+                return parsedA.prefixNum.localeCompare(parsedB.prefixNum, 'th', { numeric: true });
+            });
+
+            // ถ้าเลือก มากไปน้อย (Desc) ให้พลิก Array ที่เรียงเสร็จแล้วกลับด้าน
+            if (sortBy === 'cardIdDesc') {
+                currentFilteredCards.reverse();
+            }
         }
         // ----------------------------------------
         
@@ -1777,7 +1901,9 @@
 
         tbody.innerHTML = list.map(c => {
             const t = typeCards.find(x => parseInt(x.id) === parseInt(c.typeId)) || {typeName:'Unknown'};
-            const isExp = new Date(c.expiryDate) < new Date();
+            const expDateForBadge = new Date(c.expiryDate);
+            expDateForBadge.setHours(23, 59, 59, 999);
+            const isExp = expDateForBadge < new Date();
             let expBadge = isExp ? `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs font-bold border border-red-200">หมดอายุ</span>` : `<span class="text-gray-600 font-medium">${formatDateOnly(c.expiryDate)}</span>`;
             
             return `
@@ -2505,6 +2631,11 @@
         document.getElementById('loginBgUrl').value = systemSettings.loginBgUrl || '';
         document.getElementById('faviconUrl').value = systemSettings.faviconUrl || '';
         document.getElementById('autoCheckoutEnabled').checked = systemSettings.autoCheckoutEnabled;
+		document.getElementById('aiThreshold').value = systemSettings.aiThreshold || 0.38;
+        document.getElementById('aiCooldown').value = systemSettings.aiCooldown || 10;
+		document.getElementById('aiInterval').value = systemSettings.aiInterval || 1000;
+		document.getElementById('aiPadX').value = systemSettings.aiPadX !== undefined ? systemSettings.aiPadX : 15;
+        document.getElementById('aiPadTop').value = systemSettings.aiPadTop !== undefined ? systemSettings.aiPadTop : 35;
         renderBannerList();
     }
     
@@ -2534,6 +2665,11 @@
         systemSettings.logoUrl = document.getElementById('logoUrl').value;
         systemSettings.loginBgUrl = document.getElementById('loginBgUrl').value;
         systemSettings.faviconUrl = document.getElementById('faviconUrl').value;
+		systemSettings.aiThreshold = parseFloat(document.getElementById('aiThreshold').value) || 0.38;
+        systemSettings.aiCooldown = parseInt(document.getElementById('aiCooldown').value) || 10;
+		systemSettings.aiInterval = parseInt(document.getElementById('aiInterval').value) || 1000;
+		systemSettings.aiPadX = parseInt(document.getElementById('aiPadX').value) || 0;
+        systemSettings.aiPadTop = parseInt(document.getElementById('aiPadTop').value) || 0;
         
         // --- เพิ่มบรรทัดนี้เข้าไป เพื่อดึงสถานะติ๊กถูกจากหน้าเว็บ ---
         systemSettings.autoCheckoutEnabled = document.getElementById('autoCheckoutEnabled').checked;
@@ -3027,7 +3163,9 @@ let tempCardImageBase64 = null;
 
         latestCards.forEach(c => {
             const t = typeCards.find(x => parseInt(x.id) === parseInt(c.typeId)) || {typeName:'Unknown'};
-            const isExp = new Date(c.expiryDate) < new Date();
+            const expDateForExcel = new Date(c.expiryDate);
+            expDateForExcel.setHours(23, 59, 59, 999);
+            const isExp = expDateForExcel < new Date();
             const statusColor = c.status === 'active' ? '#16a34a' : '#dc2626';
             const expColor = isExp ? '#dc2626' : '#000000';
 
@@ -3166,8 +3304,9 @@ async function initFaceMatcherForWebcam() {
     }
 
    // ค่าความแม่นยำ (0.38 = เข้มงวดมาก ป้องกันหน้าคล้าย, 0.45 = ปานกลาง, 0.6 = หละหลวม)
-    // ถ้ารู้สึกว่า 0.38 แสกนยากไป ให้ขยับเป็น 0.40 ครับ
-    faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.42);
+    // ดึงค่าความเข้มงวดจากที่แอดมินตั้งไว้ (ถ้าไม่มีให้ใช้ 0.38)
+    const currentThreshold = systemSettings.aiThreshold || 0.38;
+    faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, currentThreshold);
     
     document.getElementById('faceScanStatus').innerHTML = `<span class="text-green-600"><i data-lucide="scan-face" class="w-4 h-4 inline mr-1"></i> พร้อมแสกนแล้ว! (${countFaces} ใบหน้า)</span>`;
     lucide.createIcons();
@@ -3216,8 +3355,41 @@ async function startFaceDetectionLoop() {
             const results = resizedDetections.map(d => faceMatcher.findBestMatch(d.descriptor));
 
             results.forEach((result, i) => {
-                const box = resizedDetections[i].detection.box;
+                //const box = resizedDetections[i].detection.box;
+               
+// --- เริ่ม: คำนวณกรอบให้พอดีกับใบหน้าเป๊ะๆ ด้วย Face Landmarks ---
+                const landmarks = resizedDetections[i].landmarks.positions;
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
                 
+                // หาจุดซ้ายสุด ขวาสุด บนสุด ล่างสุด ของโครงหน้า
+                landmarks.forEach(pt => {
+                    if (pt.x < minX) minX = pt.x;
+                    if (pt.y < minY) minY = pt.y;
+                    if (pt.x > maxX) maxX = pt.x;
+                    if (pt.y > maxY) maxY = pt.y;
+                });
+
+                const exactWidth = maxX - minX;
+                const exactHeight = maxY - minY;
+
+                // ดึงค่า % Padding จาก Settings (ถ้าไม่มีให้ใช้ 15% และ 35%)
+                const padXPercent = (systemSettings.aiPadX !== undefined ? systemSettings.aiPadX : 15) / 100;
+                const padTopPercent = (systemSettings.aiPadTop !== undefined ? systemSettings.aiPadTop : 35) / 100;
+
+                // คำนวณระยะขอบ
+                const padX = exactWidth * padXPercent;
+                const padTop = exactHeight * padTopPercent;
+                const padBottom = exactHeight * 0.10; // เผื่อคางไว้ 10% เสมอ (ตายตัว ไม่ต้องตั้งค่า)
+
+                // สร้าง Box อันใหม่ที่พอดีกับหน้า
+                const box = {
+                    x: minX - padX,
+                    y: minY - padTop,
+                    width: exactWidth + (padX * 2),
+                    height: exactHeight + padTop + padBottom
+                };
+                // --- จบ: การคำนวณกรอบใหม่ ---
+			   
                 // --- เพิ่มการคำนวณเปอร์เซ็นต์ความเหมือน ---
                 // แปลงค่า distance เป็นเปอร์เซ็นต์ (ยิ่ง distance น้อย % ยิ่งสูง)
                 const matchPercent = Math.round((1 - result.distance) * 100);
@@ -3272,7 +3444,8 @@ async function startFaceDetectionLoop() {
                 }
             });
         }
-    }, 1000); // <-- คงค่าหน่วงเวลา 1000 (1 วินาที) ไว้เหมือนเดิมครับ
+    // --- เปลี่ยนตรงนี้: ดึงค่าความถี่จากที่แอดมินตั้งไว้ (ค่าเริ่มต้น 1000 ms) ---
+    }, systemSettings.aiInterval || 1000); 
 }
 
 // ฟังก์ชันเมื่อจับคู่หน้าผ่านแล้ว ส่งเข้ากระบวนการแสกน
@@ -3282,7 +3455,10 @@ function triggerFaceScanSuccess(cardId) {
     
     lastScannedFaceId = cardId;
     clearTimeout(faceScanCooldownTimer);
-    faceScanCooldownTimer = setTimeout(() => { lastScannedFaceId = null; }, 10000);
+    //ดึงเวลา Cooldown จากที่แอดมินตั้งไว้แปลงเป็นมิลลิวินาที (ถ้าไม่มีให้ใช้ 10 วิ)
+    
+	const cooldownMs = (systemSettings.aiCooldown || 10) * 1000;
+    faceScanCooldownTimer = setTimeout(() => { lastScannedFaceId = null; }, cooldownMs);
 
     // แจ้งเตือนกระพริบ
     document.getElementById('faceScanStatus').innerHTML = `<span class="text-green-600 font-black"><i data-lucide="check-circle" class="w-4 h-4 inline mr-1"></i> พบใบหน้า: ${cardId}</span>`;
