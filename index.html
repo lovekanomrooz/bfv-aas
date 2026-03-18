@@ -4081,81 +4081,90 @@ if(c.areaAccessIds) {
     
     function closeIdCardModal() { document.getElementById('idCardModal').classList.add('hidden'); }
 
-   async function downloadPdfCard() {
+  async function downloadPdfCard() {
     const cardIdText = document.getElementById('renderBarcodeText').textContent;
     const front = document.getElementById('printCardFront');
     const back = document.getElementById('printCardBack');
 
     if (!front || !back) return showToast('ไม่พบข้อมูลบัตร', 'error');
 
-    showToast('กำลังจัดทำ PDF... กรุณารอสักครู่', 'info');
+    showToast('กำลังประมวลผลรูปภาพและข้อมูล...', 'info');
 
-    // 1. สร้าง Container ลับที่อยู่นอก Modal เพื่อป้องกันการดึง Style เลย์เอาต์ที่เพี้ยนมา
-    const workerElement = document.createElement('div');
-    workerElement.style.position = 'absolute';
-    workerElement.style.left = '-9999px'; // ซ่อนไว้ข้างนอก
-    workerElement.style.top = '0';
-    workerElement.style.width = '340px';
-    workerElement.style.backgroundColor = '#ffffff';
+    // 1. สร้างพื้นที่จัดหน้าสำหรับพิมพ์ (วางไว้ที่จุด 0,0 ของจอ แต่ซ่อนไว้หลัง Modal ด้วย z-index)
+    const printArea = document.createElement('div');
+    printArea.id = 'temp-print-area';
+    printArea.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 340px;
+        background: white;
+        z-index: -100; 
+        overflow: hidden;
+        line-height: 0;
+    `;
 
-    // 2. ฟังก์ชันช่วยเตรียมหน้าบัตรให้สะอาด (ลดโอกาสตำแหน่งเพี้ยน)
-    const preparePage = (original) => {
-        const clone = original.cloneNode(true);
+    // 2. ฟังก์ชันช่วยเตรียมหน้าบัตร (กำจัดขอบมนและเงาที่ทำให้พิกัดเพี้ยน)
+    const cleanClone = (el) => {
+        const clone = el.cloneNode(true);
         clone.style.width = '340px';
         clone.style.height = '540px';
-        clone.style.display = 'block';
-        clone.style.position = 'relative'; // ล็อคตำแหน่งอ้างอิง
         clone.style.margin = '0';
         clone.style.padding = '0';
-        clone.style.boxShadow = 'none'; // ลบเงาที่ทำให้พิกัดเคลื่อน
-        clone.style.borderRadius = '0'; // ลบขอบมนเพื่อให้เต็มหน้ากระดาษพอดี
-        clone.style.transform = 'none'; // ลบการหมุนหรือย่อขยาย
+        clone.style.boxShadow = 'none';
+        clone.style.borderRadius = '0';
+        clone.style.display = 'block';
+        clone.style.position = 'relative';
         return clone;
     };
 
-    const frontPage = preparePage(front);
-    const backPage = preparePage(back);
+    const frontClone = cleanClone(front);
+    const backClone = cleanClone(back);
 
-    // เพิ่มคลาสสำหรับสั่งตัดหน้าให้ html2pdf รู้จัก
-    backPage.classList.add('html2pdf__page-break');
+    // ใส่คำสั่งตัดหน้า (Page Break)
+    backClone.style.pageBreakBefore = 'always';
 
-    workerElement.appendChild(frontPage);
-    workerElement.appendChild(backPage);
-    document.body.appendChild(workerElement);
+    printArea.appendChild(frontClone);
+    printArea.appendChild(backClone);
+    document.body.appendChild(printArea);
 
-    // 3. ตั้งค่า html2pdf
+    // 3. **จุดสำคัญ** รอให้เบราว์เซอร์ Render รูปภาพในพื้นที่ใหม่สักครู่ (500ms)
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // 4. ตั้งค่า html2pdf
     const opt = {
         margin: 0,
         filename: `ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`,
         image: { type: 'jpeg', quality: 1.0 },
         html2canvas: { 
-            scale: 3, // เพิ่มความละเอียดเป็น 3 เท่าเพื่อให้ตัวหนังสือและบาร์โค้ดคมชัด
-            useCORS: true, // สำคัญมากสำหรับรูปภาพจาก Google Drive
+            scale: 2, // ใช้ 2 เพื่อความคมชัดที่เสถียร
+            useCORS: true, 
             logging: false,
             width: 340,
-            height: 1080, // ความสูงรวม 2 หน้า (540x2)
+            height: 1080,
             scrollY: 0,
             scrollX: 0,
-            windowWidth: 340 // บังคับ Viewport ให้เท่ากับความกว้างบัตรเพื่อตำแหน่ง absolute ที่แม่นยำ
+            windowWidth: 340 // บังคับ Viewport ให้แคบเท่าขนาดบัตร เพื่อตำแหน่ง absolute ที่แม่นยำ
         },
         jsPDF: { 
             unit: 'px', 
             format: [340, 540], 
-            orientation: 'portrait' 
-        },
-        pagebreak: { mode: ['css', 'legacy'] }
+            orientation: 'portrait'
+        }
     };
 
     try {
-        // ประมวลผลจาก workerElement ที่เราสร้างขึ้นมาใหม่
-        await html2pdf().set(opt).from(workerElement).save();
+        // ประมวลผลจาก printArea ที่เบราว์เซอร์มองเห็นพิกัดแล้ว
+        await html2pdf().set(opt).from(printArea).save();
         showToast('ดาวน์โหลด PDF สำเร็จแล้ว', 'success');
     } catch (err) {
         console.error("PDF Error:", err);
         showToast('เกิดข้อผิดพลาดในการสร้างไฟล์', 'error');
     } finally {
-        // ลบ Element ลับทิ้ง
-        document.body.removeChild(workerElement);
+        // ลบพื้นที่ชั่วคราวทิ้ง
+        if (document.getElementById('temp-print-area')) {
+            document.body.removeChild(printArea);
+        }
     }
 }
     ///////////
