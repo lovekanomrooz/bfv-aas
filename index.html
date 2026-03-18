@@ -4088,46 +4088,48 @@ if(c.areaAccessIds) {
 
     if (!front || !back) return showToast('ไม่พบข้อมูลบัตรสำหรับดาวน์โหลด', 'error');
 
-    showToast('กำลังประมวลผล PDF คุณภาพสูง...', 'info');
+    showToast('กำลังจัดตำแหน่งและสร้าง PDF...', 'info');
 
     try {
-        // ดึงไลบรารี jsPDF (ซึ่งคุณมีอยู่ในไฟล์แล้ว)
         const { jsPDF } = window.jspdf;
 
-        // 1. ถ่ายภาพหน้าบัตร (Front) จากสิ่งที่เห็นอยู่ใน Modal
-        const canvasFront = await html2canvas(front, {
-            scale: 3, // ความชัดระดับสูง
-            useCORS: true,
-            backgroundColor: null,
-            logging: false,
-            // ล็อคขนาดให้ตรงตามตัวบัตร
-            width: 340,
-            height: 540
-        });
+        // ฟังก์ชันช่วยถ่ายภาพแบบล็อคพิกัด (ป้องกันการ Shift Down)
+        const captureElement = async (el) => {
+            return await html2canvas(el, {
+                scale: 3, // ความคมชัดสูง
+                useCORS: true,
+                logging: false,
+                backgroundColor: "#ffffff",
+                // --- จุดสำคัญ: ป้องกันข้อมูลเลื่อน (Shift) ---
+                width: 340,
+                height: 540,
+                scrollX: 0,
+                scrollY: -window.scrollY, // หักล้างระยะ Scroll ของหน้าจอ
+                x: 0,
+                y: 0
+                // ---------------------------------------
+            });
+        };
+
+        // 1. ถ่ายภาพหน้าบัตร
+        const canvasFront = await captureElement(front);
         const imgFront = canvasFront.toDataURL('image/jpeg', 1.0);
 
-        // 2. ถ่ายภาพหลังบัตร (Back) จากสิ่งที่เห็นอยู่ใน Modal
-        const canvasBack = await html2canvas(back, {
-            scale: 3,
-            useCORS: true,
-            backgroundColor: null,
-            logging: false,
-            width: 340,
-            height: 540
-        });
+        // 2. ถ่ายภาพหลังบัตร
+        const canvasBack = await captureElement(back);
         const imgBack = canvasBack.toDataURL('image/jpeg', 1.0);
 
-        // 3. สร้างไฟล์ PDF แบบ Manual (ขนาด 340x540 px)
+        // 3. สร้างไฟล์ PDF (ขนาด 340x540 px)
         const pdf = new jsPDF({
             orientation: 'p',
             unit: 'px',
             format: [340, 540]
         });
 
-        // หน้าที่ 1: วางรูปหน้าบัตร
+        // หน้าที่ 1
         pdf.addImage(imgFront, 'JPEG', 0, 0, 340, 540);
 
-        // หน้าที่ 2: เพิ่มหน้าใหม่และวางรูปหลังบัตร
+        // หน้าที่ 2
         pdf.addPage([340, 540], 'p');
         pdf.addImage(imgBack, 'JPEG', 0, 0, 340, 540);
 
@@ -4137,8 +4139,8 @@ if(c.areaAccessIds) {
         showToast('ดาวน์โหลด PDF สำเร็จแล้ว', 'success');
 
     } catch (err) {
-        console.error("Manual PDF Error:", err);
-        showToast('ดาวน์โหลดล้มเหลว กรุณาลองใหม่อีกครั้ง', 'error');
+        console.error("Shift PDF Error:", err);
+        showToast('เกิดข้อผิดพลาดในการจัดตำแหน่งรูปภาพ', 'error');
     }
 }
     ///////////
