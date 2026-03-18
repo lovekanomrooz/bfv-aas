@@ -4082,94 +4082,89 @@ if(c.areaAccessIds) {
     function closeIdCardModal() { document.getElementById('idCardModal').classList.add('hidden'); }
 
   async function downloadIdCardAsImages() {
-    const cardIdText = document.getElementById('renderBarcodeText').textContent;
+   const cardIdText = document.getElementById('renderBarcodeText').textContent;
     const front = document.getElementById('printCardFront');
     const back = document.getElementById('printCardBack');
 
     if (!front || !back) return showToast('ไม่พบข้อมูลบัตรสำหรับดาวน์โหลด', 'error');
 
-    showToast('กำลังเตรียมรูปภาพ (วิธี Brute Force)...', 'info');
+    showToast('กำลังประมวลผลรูปภาพ (วิธี Manual Crop)...', 'info');
 
-    // ฟังก์ชันถ่ายรูปวิธีเด็ดขาด
-    const bruteForceCapture = async (targetEl, suffix) => {
-        // 1. เก็บค่าการแสดงผลเดิมของแอปหลักไว้
+    // ฟังก์ชันถ่ายรูปแบบตัดขอบด้วยมือ
+    const manualCropCapture = async (targetEl, suffix) => {
         const mainApp = document.getElementById('app');
         const originalDisplay = mainApp.style.display;
-        const originalScrollY = window.scrollY;
 
-        // 2. สร้าง Container ใหม่ที่สะอาดที่สุดที่มุมซ้ายบน (0,0)
+        // 1. สร้างพื้นที่วางบัตรที่จุด (0,0)
         const stage = document.createElement('div');
-        stage.id = 'brute-force-stage';
+        stage.id = 'manual-crop-stage';
         stage.style.cssText = `
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 340px;
-            height: 540px;
-            z-index: 999999;
-            background: white;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
+            position: fixed; top: 0; left: 0; width: 340px; height: 540px;
+            z-index: 999999; background: white; margin: 0; padding: 0;
         `;
 
-        // 3. Clone บัตรพนักงานไปวางใน Stage
         const clone = targetEl.cloneNode(true);
         clone.style.margin = '0';
         clone.style.boxShadow = 'none';
         clone.style.borderRadius = '0';
-        clone.style.position = 'relative'; // ล็อคพิกัดอ้างอิง
+        clone.style.position = 'relative';
         stage.appendChild(clone);
 
-        // 4. *** จุดตาย *** ซ่อนแอปพลิเคชันทั้งเว็บทิ้งไปชั่วคราว เพื่อล้างพิกัดรบกวน
+        // 2. ซ่อนเว็บหลัก และเลื่อนหน้าจอไปที่จุดสูงสุด
         mainApp.style.display = 'none';
         document.body.appendChild(stage);
-        window.scrollTo(0, 0); // เลื่อนหน้าจอไปที่ 0,0 เสมอ
+        window.scrollTo(0, 0);
 
-        // 5. รอให้เบราว์เซอร์วาดภาพใหม่ (100ms)
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 150));
 
-        // 6. ถ่ายรูปจากหน้าจอที่ว่างเปล่าที่มีแค่บัตรพนักงาน
-        const canvas = await html2canvas(stage, {
-            scale: 3,
+        // 3. ถ่ายรูป "ทั้งหน้าจอ" (ไม่ให้ไลบรารีตัดรูปเอง)
+        const scale = 3; // ความชัด 3 เท่า
+        const fullCanvas = await html2canvas(document.body, {
+            scale: scale,
             useCORS: true,
             logging: false,
             backgroundColor: "#ffffff",
-            width: 340,
-            height: 540,
-            x: 0,
-            y: 0,
             scrollX: 0,
-            scrollY: 0
+            scrollY: 0,
+            x: 0,
+            y: 0
         });
 
-        // 7. คืนค่าหน้าเว็บกลับมาเป็นปกติ
+        // 4. *** ขั้นตอนสำคัญ: ตัดรูปด้วยมือ (Manual Crop) ***
+        // เราจะสร้าง Canvas ใหม่ขนาด 340x540 แล้วดึงข้อมูลจากจุด (0,0) ของรูปใหญ่มาวาง
+        const finalCanvas = document.createElement('canvas');
+        finalCanvas.width = 340 * scale;
+        finalCanvas.height = 540 * scale;
+        const ctx = finalCanvas.getContext('2d');
+        
+        // วาดรูปจากจุด (0,0) ของต้นฉบับ มาวางที่ (0,0) ของอันใหม่
+        ctx.drawImage(fullCanvas, 0, 0);
+
+        // 5. คืนค่าหน้าจอเดิม
         document.body.removeChild(stage);
         mainApp.style.display = originalDisplay;
-        window.scrollTo(0, originalScrollY);
 
-        // 8. ดาวน์โหลดไฟล์ PNG
+        // 6. ดาวน์โหลดไฟล์ PNG
         const link = document.createElement('a');
         link.download = `ID_Card_${cardIdText.replace(/\//g, '-')}_${suffix}.png`;
-        link.href = canvas.toDataURL('image/png', 1.0);
+        link.href = finalCanvas.toDataURL('image/png', 1.0);
         link.click();
     };
 
     try {
         // ถ่ายหน้าบัตร
-        await bruteForceCapture(front, 'FRONT');
+        await manualCropCapture(front, 'FRONT');
         
-        // รอ 1 วินาทีแล้วถ่ายหลังบัตร
+        // รอสักครู่แล้วถ่ายหลังบัตร
         setTimeout(async () => {
-            await bruteForceCapture(back, 'BACK');
-            showToast('ดาวน์โหลดรูปภาพ หน้า-หลัง สำเร็จ!', 'success');
-        }, 1000);
+            await manualCropCapture(back, 'BACK');
+            showToast('ดาวน์โหลดรูปภาพสำเร็จและตำแหน่งตรงเป๊ะ!', 'success');
+        }, 1200);
 
     } catch (err) {
-        console.error("Brute Force Export Error:", err);
-        // คืนค่าหน้าเว็บหากเกิดข้อผิดพลาด
+        console.error("Manual Crop Error:", err);
         document.getElementById('app').style.display = 'block';
-        showToast('เกิดข้อผิดพลาดในการสร้างรูปภาพ', 'error');
+        showToast('เกิดข้อผิดพลาดในการตัดรูปภาพ', 'error');
     }
 }
     ///////////
