@@ -36,42 +36,38 @@
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-#printCardContainer {
-    display: flex;
-    flex-direction: column; /* ให้วางหน้า-หลัง ต่อกันแนวตั้งในพรีวิว */
-    align-items: center;
-    gap: 20px;
-    width: 100%;
-    max-width: 100%;
+/* พื้นที่รวมแถบขวา (กว้าง 130px) */
+#renderAreaBoxes {
+    display: block !important; /* เลิกใช้ Flex เพื่อความแม่นยำใน PDF */
+    width: 130px !important;
+    height: 230px !important; /* สูงเท่ารูปถ่าย */
+    padding: 0 !important;
+    margin: 0 !important;
 }
 
-.area-box-fixed {
+/* สี่เหลี่ยมจัตุรัสแต่ละรูป */
+.area-square {
+    width: 130px !important;
+    height: 115px !important; /* 230 / 2 = 115 (จะเป็นสี่เหลี่ยมเกือบจัตุรัสที่พอดีแถบ) */
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    width: 130px !important; /* กว้างเท่ากับแถบขวา */
-    height: 110px !important; /* แบ่งครึ่งจากความสูงรูปโดยประมาณ เพื่อให้เป็นจัตุรัส */
-    margin: 0 auto !important;
-    text-align: center !important;
-    font-family: 'Prompt', sans-serif !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
 }
 
-/* บังคับให้หน้า 2 ขึ้นหน้าใหม่ใน PDF */
-.pdf-page-break {
-    page-break-before: always !important;
-}
-
-/* ซ่อนแถบเลื่อนแนวนอนของ Modal */
+/* ปรับ Modal ไม่ให้มี Scroll แนวนอน */
 #idCardModal .overflow-y-auto {
     overflow-x: hidden !important;
 }
-
-@media (min-width: 1024px) {
-    #printCardContainer {
-        flex-direction: row; /* ถ้าจอใหญ่ (Desktop) ค่อยวางขนานกัน */
-        justify-content: center;
-        align-items: flex-start;
-    }
+#printCardContainer {
+    display: flex;
+    flex-direction: column; /* วางบัตรหน้า-หลัง ต่อกันแนวตั้งเสมอในพรีวิว */
+    align-items: center;
+    gap: 30px;
+    width: 100%;
 }
   </style>
 </head>
@@ -4037,31 +4033,32 @@ function triggerFaceScanSuccess(cardId) {
         // แก้ไขส่วนสร้างกล่องพื้นที่ใน previewIdCard
 // ส่วนจัดการพื้นที่ (Area Access) ในฟังก์ชัน previewIdCard
 const areaContainer = document.getElementById('renderAreaBoxes');
-areaContainer.innerHTML = ''; // ล้างค่าเก่าทิ้งเสมอ
-areaContainer.className = "flex flex-col w-full h-full border-[3px] border-indigo-900 bg-white shadow-sm overflow-hidden rounded-sm";
+areaContainer.innerHTML = ''; // ล้างค่า
 
 if(c.areaAccessIds) {
-    const arr = c.areaAccessIds.split(',').filter(x => x); // กรองค่าว่าง
+    const arr = c.areaAccessIds.split(',').filter(x => x);
     let aData = allAreas.filter(a => arr.includes(String(a.areaNumber)));
     aData.sort((a,b) => parseInt(a.areaNumber) - parseInt(b.areaNumber));
     
     if(aData.length > 0) {
-        // คำนวณความสูงให้พอดีกับพื้นที่ 230px
-        const boxHeight = (230 / aData.length) + "px";
-        // ปรับขนาดฟอนต์ตามจำนวนกล่อง
-        const fontSize = aData.length === 1 ? '5.5rem' : (aData.length === 2 ? '3.8rem' : '2.5rem');
-
-        areaHtml = aData.map((a, idx) => `
-            <div class="flex items-center justify-center font-black w-full" 
-                 style="background-color: ${a.colorCode}; 
-                        color: ${getContrastYIQ(a.colorCode)}; 
-                        height: ${boxHeight}; 
-                        font-size: ${fontSize}; 
-                        line-height: 1;
-                        border-bottom: ${idx < aData.length - 1 ? '3px solid #312e81' : 'none'}">
-                <span style="transform: translateY(2px);">${a.areaNumber}</span>
-            </div>
-        `).join('');
+        // วาดกล่องแยกกัน (สูงสุด 2 กล่องเพื่อให้พอดีความสูง 230px)
+        const areaHtml = aData.slice(0, 2).map((a, idx) => {
+            // ถ้ามี 1 พื้นที่ ให้สูงเต็ม 230 หรือสูงครึ่งเดียว? 
+            // ตามดีไซน์ทั่วไป ถ้ามี 1 พื้นที่มักจะไว้ข้างบน หรือขยายเต็ม (ในที่นี้ขอทำเป็น 115px ตามตรรกะรูปสี่เหลี่ยม)
+            const h = aData.length === 1 ? "230px" : "115px";
+            const fSize = aData.length === 1 ? "90px" : "75px";
+            
+            return `
+                <div class="area-square" 
+                     style="background-color: ${a.colorCode}; 
+                            color: ${getContrastYIQ(a.colorCode)}; 
+                            height: ${h} !important;
+                            font-size: ${fSize} !important;
+                            border: 2px solid #312e81;">
+                    ${a.areaNumber}
+                </div>
+            `;
+        }).join('');
         areaContainer.innerHTML = areaHtml;
     }
 }
@@ -4079,34 +4076,55 @@ if(c.areaAccessIds) {
 
     function downloadPdfCard() {
     const cardIdText = document.getElementById('renderBarcodeText').textContent;
-    // เลือก Container ที่ห่อหุ้มทั้งบัตรหน้าและหลัง
-    const element = document.getElementById('printCardContainer');
-    
-    showToast('กำลังเตรียม PDF 2 หน้า...', 'info');
+    const front = document.getElementById('printCardFront');
+    const back = document.getElementById('printCardBack');
+
+    // สร้าง Wrapper ชั่วคราวที่จัดระเบียบใหม่สำหรับ PDF
+    const pdfWrapper = document.createElement('div');
+    pdfWrapper.style.width = '340px';
+    pdfWrapper.style.background = 'white';
+
+    // หน้าที่ 1
+    const page1 = front.cloneNode(true);
+    page1.style.boxShadow = 'none';
+    page1.style.margin = '0 auto';
+    page1.style.display = 'block';
+
+    // หน้าที่ 2
+    const page2 = back.cloneNode(true);
+    page2.style.boxShadow = 'none';
+    page2.style.margin = '0 auto';
+    page2.style.display = 'block';
+    page2.style.pageBreakBefore = 'always'; // บังคับขึ้นหน้าใหม่
+
+    pdfWrapper.appendChild(page1);
+    pdfWrapper.appendChild(page2);
+    document.body.appendChild(pdfWrapper); // เพิ่มลง Body ชั่วคราวเพื่อให้ Library วัดขนาดได้
+
+    showToast('กำลังผลิต PDF 2 หน้า...', 'info');
 
     const opt = {
         margin: 0,
         filename: `ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
+        image: { type: 'jpeg', quality: 1 },
         html2canvas: { 
             scale: 2, 
             useCORS: true, 
             logging: false,
-            letterRendering: true
+            width: 340,
+            y: 0,
+            scrollX: 0,
+            scrollY: 0
         },
-        jsPDF: { unit: 'px', format: [340, 540], orientation: 'portrait' },
-        // บังคับให้ตัดหน้า (Page Break) ที่บัตรด้านหลัง
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'], before: '#printCardBack' }
+        jsPDF: { unit: 'px', format: [340, 540], orientation: 'portrait' }
     };
 
-    // ตรวจสอบว่ามีหน้าหลังหรือไม่ก่อนรัน
-    if (!document.getElementById('printCardBack')) {
-        showToast('ไม่พบข้อมูลด้านหลังบัตร', 'error');
-        return;
-    }
-
-    html2pdf().set(opt).from(element).save().then(() => {
+    html2pdf().set(opt).from(pdfWrapper).save().then(() => {
+        document.body.removeChild(pdfWrapper); // ลบทิ้งเมื่อเสร็จ
         showToast('ดาวน์โหลด PDF สำเร็จ', 'success');
+    }).catch(err => {
+        console.error(err);
+        document.body.removeChild(pdfWrapper);
     });
 }
     ///////////
