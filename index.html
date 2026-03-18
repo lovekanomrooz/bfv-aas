@@ -4083,48 +4083,64 @@ if(c.areaAccessIds) {
 
    async function downloadPdfCard() {
     const cardIdText = document.getElementById('renderBarcodeText').textContent;
-    // เลือก Container หลักที่มีทั้งหน้าหน้าและหน้าหลัง
-    const element = document.getElementById('printCardContainer');
+    const front = document.getElementById('printCardFront');
+    const back = document.getElementById('printCardBack');
 
-    if (!element) return showToast('ไม่พบข้อมูลบัตรสำหรับดาวน์โหลด', 'error');
+    if (!front || !back) return showToast('ไม่พบข้อมูลบัตร', 'error');
 
-    showToast('กำลังเตรียมไฟล์ PDF กรุณารอสักครู่...', 'info');
+    showToast('กำลังสร้าง PDF 2 หน้า...', 'info');
 
-    // ตั้งค่าตัวเลือกสำหรับ PDF
+    // 1. สร้าง Container ชั่วคราว (Temporary Wrapper)
+    const pdfWrapper = document.createElement('div');
+    pdfWrapper.style.width = '340px';
+    pdfWrapper.style.background = 'white';
+    pdfWrapper.style.display = 'block'; // บังคับให้เรียงแนวตั้ง
+
+    // 2. Clone หน้าบัตรมาใส่ และลบค่าที่ทำให้เลย์เอาท์เพี้ยน
+    const fClone = front.cloneNode(true);
+    fClone.style.margin = '0';
+    fClone.style.boxShadow = 'none';
+    fClone.style.display = 'block';
+
+    const bClone = back.cloneNode(true);
+    bClone.style.margin = '0';
+    bClone.style.boxShadow = 'none';
+    bClone.style.display = 'block';
+    
+    // บังคับคำสั่งขึ้นหน้าใหม่ (Page Break) ที่ตัวบัตรหลัง
+    bClone.style.pageBreakBefore = 'always'; 
+
+    pdfWrapper.appendChild(fClone);
+    pdfWrapper.appendChild(bClone);
+
+    // 3. ตั้งค่า html2pdf
     const opt = {
         margin: 0,
         filename: `ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { 
-            scale: 2, // ใช้ 2 เพื่อความเสถียร (ชัดเพียงพอสำหรับพิมพ์)
+            scale: 2, 
             useCORS: true, 
             logging: false,
-            letterRendering: true,
-            allowTaint: false,
-            // สำคัญ: บังคับให้เริ่มวาดจากตำแหน่ง 0,0 ของ Element
             scrollX: 0,
             scrollY: 0
         },
         jsPDF: { 
             unit: 'px', 
-            format: [340, 540], // ขนาดบัตร 1 หน้า
-            orientation: 'portrait'
+            format: [340, 540], 
+            orientation: 'portrait' 
         },
-        // บังคับการตัดหน้า (Page Break) ตาม Class ที่เรากำหนดไว้
-        pagebreak: { mode: 'css', before: '.pdf-page-break' }
+        // ใช้โหมด CSS และ Legacy ร่วมกันเพื่อความชัวร์ในการแบ่งหน้า
+        pagebreak: { mode: ['css', 'legacy'] }
     };
 
     try {
-        // ใช้ html2pdf แบบ Worker เพื่อความแม่นยำ
-        await html2pdf().set(opt).from(element).toPdf().get('pdf').then(function (pdf) {
-            // ตรวจสอบจำนวนหน้า ถ้าเกิน 2 หน้า (เพราะมีพื้นที่ว่าง) 
-            // สามารถสั่งลบหน้าสุดท้ายทิ้งได้ถ้าจำเป็น แต่การตั้งค่าด้านบนมักจะพอดีแล้ว
-        }).save();
-
+        // ส่ง pdfWrapper ที่เราสร้างขึ้น (เรียงแนวตั้งแล้ว) ไปประมวลผล
+        await html2pdf().set(opt).from(pdfWrapper).save();
         showToast('ดาวน์โหลด PDF สำเร็จ', 'success');
     } catch (err) {
-        console.error("PDF Generate Error:", err);
-        showToast('เกิดข้อผิดพลาดในการสร้าง PDF', 'error');
+        console.error("PDF Error:", err);
+        showToast('เกิดข้อผิดพลาด', 'error');
     }
 }
     ///////////
