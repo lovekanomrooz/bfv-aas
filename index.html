@@ -36,12 +36,13 @@
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-/* ป้องกันการขยับใน PDF */
 #printCardContainer {
-    width: 340px !important;
-    background-color: transparent;
-    margin: 0 !important;
-    padding: 0 !important;
+    display: flex;
+    flex-direction: column; /* ให้วางหน้า-หลัง ต่อกันแนวตั้งในพรีวิว */
+    align-items: center;
+    gap: 20px;
+    width: 100%;
+    max-width: 100%;
 }
 
 .area-box-fixed {
@@ -58,6 +59,19 @@
 /* บังคับให้หน้า 2 ขึ้นหน้าใหม่ใน PDF */
 .pdf-page-break {
     page-break-before: always !important;
+}
+
+/* ซ่อนแถบเลื่อนแนวนอนของ Modal */
+#idCardModal .overflow-y-auto {
+    overflow-x: hidden !important;
+}
+
+@media (min-width: 1024px) {
+    #printCardContainer {
+        flex-direction: row; /* ถ้าจอใหญ่ (Desktop) ค่อยวางขนานกัน */
+        justify-content: center;
+        align-items: flex-start;
+    }
 }
   </style>
 </head>
@@ -1157,7 +1171,7 @@
                                <!-- วันหมดอายุ -->
                                <div class="flex flex-col mt-0.5">
                                    <span id="renderLblExp" class="text-[13px] text-red-500 mb-1">หมดอายุ</span> 
-                                   <span id="renderExp" class="text-[22px] font-black text-red-600 leading-none ml-2">-</span>
+                                   <span id="renderExp" class="text-[19px] font-black text-red-600 leading-none ml-1">-</span>
                                </div>
                            </div>
 
@@ -1169,7 +1183,7 @@
                    </div>
 
                    <!-- หน้าบัตร (Back) -->
-                   <div id="printCardBack" class="relative w-[340px] h-[540px] bg-white rounded-xl overflow-hidden shadow-xl shrink-0 select-none box-border">
+                   <div id="printCardBack" class="relative w-[340px] h-[540px] bg-white rounded-xl overflow-hidden shadow-xl shrink-0 select-none box-border pdf-page-break">
                        <img id="tplBackImg" src="" class="absolute inset-0 w-full h-full object-fill z-0 bg-gray-50" crossorigin="anonymous">
                        
                        <div class="absolute inset-0 z-10 flex flex-col px-4 py-6">
@@ -4021,37 +4035,36 @@ function triggerFaceScanSuccess(cardId) {
         c.canDrive === true || c.canDrive === 'TRUE' ? driveEl.classList.remove('hidden') : driveEl.classList.add('hidden');
         
         // แก้ไขส่วนสร้างกล่องพื้นที่ใน previewIdCard
-// ค้นหาในฟังก์ชัน previewIdCard และแทนที่ส่วนสร้าง areaHtml
+// ส่วนจัดการพื้นที่ (Area Access) ในฟังก์ชัน previewIdCard
 const areaContainer = document.getElementById('renderAreaBoxes');
-let areaHtml = '';
+areaContainer.innerHTML = ''; // ล้างค่าเก่าทิ้งเสมอ
+areaContainer.className = "flex flex-col w-full h-full border-[3px] border-indigo-900 bg-white shadow-sm overflow-hidden rounded-sm";
+
 if(c.areaAccessIds) {
-    const arr = c.areaAccessIds.split(',');
+    const arr = c.areaAccessIds.split(',').filter(x => x); // กรองค่าว่าง
     let aData = allAreas.filter(a => arr.includes(String(a.areaNumber)));
     aData.sort((a,b) => parseInt(a.areaNumber) - parseInt(b.areaNumber));
     
     if(aData.length > 0) {
-        // ล้างสไตล์เก่าออก บังคับให้ชิดกัน
-        areaContainer.style.gap = "0px";
-        areaContainer.style.display = "block"; 
-
-        // คำนวณความสูง: ถ้ารูปสูง 230px, 2 กล่องจะสูงกล่องละ 115px (เกือบเป็นจัตุรัส)
-        const boxHeight = aData.length === 1 ? "230px" : "115px";
-        const fontSize = aData.length === 1 ? "100px" : "70px";
+        // คำนวณความสูงให้พอดีกับพื้นที่ 230px
+        const boxHeight = (230 / aData.length) + "px";
+        // ปรับขนาดฟอนต์ตามจำนวนกล่อง
+        const fontSize = aData.length === 1 ? '5.5rem' : (aData.length === 2 ? '3.8rem' : '2.5rem');
 
         areaHtml = aData.map((a, idx) => `
-            <div class="area-box-fixed" 
+            <div class="flex items-center justify-center font-black w-full" 
                  style="background-color: ${a.colorCode}; 
                         color: ${getContrastYIQ(a.colorCode)}; 
-                        height: ${boxHeight} !important;
-                        font-size: ${fontSize} !important;
-                        border-bottom: ${idx === 0 && aData.length > 1 ? '2px solid #000' : 'none'};
-                        line-height: ${boxHeight} !important;">
-                ${a.areaNumber}
+                        height: ${boxHeight}; 
+                        font-size: ${fontSize}; 
+                        line-height: 1;
+                        border-bottom: ${idx < aData.length - 1 ? '3px solid #312e81' : 'none'}">
+                <span style="transform: translateY(2px);">${a.areaNumber}</span>
             </div>
         `).join('');
+        areaContainer.innerHTML = areaHtml;
     }
 }
-areaContainer.innerHTML = areaHtml;
         
         document.getElementById('renderBarcode').textContent = `*${c.cardId}*`;
         document.getElementById('renderBarcodeText').textContent = c.cardId;
@@ -4066,51 +4079,35 @@ areaContainer.innerHTML = areaHtml;
 
     function downloadPdfCard() {
     const cardIdText = document.getElementById('renderBarcodeText').textContent;
-    const front = document.getElementById('printCardFront');
-    const back = document.getElementById('printCardBack');
-
-    // สร้าง Element ชั่วคราวเพื่อรวมหน้า 1 และ 2 เข้าด้วยกัน
-    const wrapper = document.createElement('div');
-    wrapper.style.width = '340px';
+    // เลือก Container ที่ห่อหุ้มทั้งบัตรหน้าและหลัง
+    const element = document.getElementById('printCardContainer');
     
-    // โคลนหน้าหน้า
-    const page1 = front.cloneNode(true);
-    page1.style.boxShadow = 'none';
-    page1.style.margin = '0';
-    
-    // โคลนหน้าหลัง และใส่ Page Break
-    const page2 = back.cloneNode(true);
-    page2.style.boxShadow = 'none';
-    page2.style.margin = '0';
-    page2.classList.add('pdf-page-break');
-    
-    wrapper.appendChild(page1);
-    wrapper.appendChild(page2);
-
-    showToast('กำลังผลิต PDF 2 หน้า...', 'info');
+    showToast('กำลังเตรียม PDF 2 หน้า...', 'info');
 
     const opt = {
         margin: 0,
         filename: `ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`,
-        image: { type: 'jpeg', quality: 1 },
+        image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { 
-            scale: 2, // ปรับเป็น 2 เพื่อให้ไฟล์ไม่ใหญ่เกินไปและลดความเพี้ยน
-            useCORS: true,
+            scale: 2, 
+            useCORS: true, 
             logging: false,
-            width: 340, // ล็อคความกว้าง
-            height: 1080 // 540 x 2 หน้า
+            letterRendering: true
         },
-        jsPDF: { 
-            unit: 'px', 
-            format: [340, 540], // ขนาดหน้าละ 340x540
-            orientation: 'portrait',
-            hotfixes: ['px_scaling'] 
-        }
+        jsPDF: { unit: 'px', format: [340, 540], orientation: 'portrait' },
+        // บังคับให้ตัดหน้า (Page Break) ที่บัตรด้านหลัง
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'], before: '#printCardBack' }
     };
 
-    html2pdf().set(opt).from(wrapper).toPdf().get('pdf').then(function (pdf) {
+    // ตรวจสอบว่ามีหน้าหลังหรือไม่ก่อนรัน
+    if (!document.getElementById('printCardBack')) {
+        showToast('ไม่พบข้อมูลด้านหลังบัตร', 'error');
+        return;
+    }
+
+    html2pdf().set(opt).from(element).save().then(() => {
         showToast('ดาวน์โหลด PDF สำเร็จ', 'success');
-    }).save();
+    });
 }
     ///////////
   </script>
