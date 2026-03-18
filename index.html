@@ -4081,73 +4081,51 @@ if(c.areaAccessIds) {
     
     function closeIdCardModal() { document.getElementById('idCardModal').classList.add('hidden'); }
 
-   function downloadPdfCard() {
+   async function downloadPdfCard() {
     const cardIdText = document.getElementById('renderBarcodeText').textContent;
-    const front = document.getElementById('printCardFront');
-    const back = document.getElementById('printCardBack');
+    // เลือก Container หลักที่มีทั้งหน้าหน้าและหน้าหลัง
+    const element = document.getElementById('printCardContainer');
 
-    // 1. สร้าง Wrapper ลับ (Hidden Container) ที่วางไว้ที่มุมซ้ายบนสุดของจอ
-    // เพื่อรีเซ็ตพิกัด X, Y ให้เป็น 0 เสมอ ลดปัญหาการเยื้อง
-    const pdfWrapper = document.createElement('div');
-    pdfWrapper.style.position = 'fixed';
-    pdfWrapper.style.top = '0';
-    pdfWrapper.style.left = '0';
-    pdfWrapper.style.width = '340px'; // ขนาดเท่าหน้าบัตรพอดี
-    pdfWrapper.style.zIndex = '-9999';
-    pdfWrapper.style.backgroundColor = 'white';
-    pdfWrapper.style.lineHeight = '0'; // ป้องกันช่องว่างระหว่างบรรทัดที่ทำให้หน้าเกิน
+    if (!element) return showToast('ไม่พบข้อมูลบัตรสำหรับดาวน์โหลด', 'error');
 
-    // 2. Clone หน้าบัตรมาวางใน Wrapper โดยลบ Style ที่อาจทำให้เคลื่อนออก
-    const page1 = front.cloneNode(true);
-    page1.style.boxShadow = 'none';
-    page1.style.margin = '0';
-    page1.style.position = 'relative';
-    page1.style.display = 'block';
+    showToast('กำลังเตรียมไฟล์ PDF กรุณารอสักครู่...', 'info');
 
-    const page2 = back.cloneNode(true);
-    page2.style.boxShadow = 'none';
-    page2.style.margin = '0';
-    page2.style.position = 'relative';
-    page2.style.display = 'block';
-    page2.style.pageBreakBefore = 'always'; // บังคับขึ้นหน้าใหม่ให้ชัดเจน
-
-    pdfWrapper.appendChild(page1);
-    pdfWrapper.appendChild(page2);
-    document.body.appendChild(pdfWrapper);
-
-    showToast('กำลังผลิต PDF...', 'info');
-
-    // 3. ตั้งค่า html2pdf
+    // ตั้งค่าตัวเลือกสำหรับ PDF
     const opt = {
         margin: 0,
         filename: `ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`,
-        image: { type: 'jpeg', quality: 1.0 },
+        image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { 
-            scale: 3, // เพิ่มความชัด
+            scale: 2, // ใช้ 2 เพื่อความเสถียร (ชัดเพียงพอสำหรับพิมพ์)
             useCORS: true, 
             logging: false,
-            width: 340,
-            height: 1080, // 540 * 2 หน้า
-            scrollY: 0,
+            letterRendering: true,
+            allowTaint: false,
+            // สำคัญ: บังคับให้เริ่มวาดจากตำแหน่ง 0,0 ของ Element
             scrollX: 0,
-            windowWidth: 340 // บังคับ Viewport ให้แคบเท่าบัตร
+            scrollY: 0
         },
         jsPDF: { 
             unit: 'px', 
-            format: [340, 540], 
-            orientation: 'portrait',
-            compress: true
-        }
+            format: [340, 540], // ขนาดบัตร 1 หน้า
+            orientation: 'portrait'
+        },
+        // บังคับการตัดหน้า (Page Break) ตาม Class ที่เรากำหนดไว้
+        pagebreak: { mode: 'css', before: '.pdf-page-break' }
     };
 
-    // 4. เริ่มต้นการสร้าง PDF
-    html2pdf().set(opt).from(pdfWrapper).save().then(() => {
-        document.body.removeChild(pdfWrapper); // ลบทิ้งเมื่อเสร็จ
+    try {
+        // ใช้ html2pdf แบบ Worker เพื่อความแม่นยำ
+        await html2pdf().set(opt).from(element).toPdf().get('pdf').then(function (pdf) {
+            // ตรวจสอบจำนวนหน้า ถ้าเกิน 2 หน้า (เพราะมีพื้นที่ว่าง) 
+            // สามารถสั่งลบหน้าสุดท้ายทิ้งได้ถ้าจำเป็น แต่การตั้งค่าด้านบนมักจะพอดีแล้ว
+        }).save();
+
         showToast('ดาวน์โหลด PDF สำเร็จ', 'success');
-    }).catch(err => {
-        console.error("PDF Error:", err);
-        document.body.removeChild(pdfWrapper);
-    });
+    } catch (err) {
+        console.error("PDF Generate Error:", err);
+        showToast('เกิดข้อผิดพลาดในการสร้าง PDF', 'error');
+    }
 }
     ///////////
   </script>
