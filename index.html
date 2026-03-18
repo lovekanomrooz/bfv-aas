@@ -436,6 +436,30 @@
        </div>
        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="gatesGrid"></div>
       </div>
+	  
+	  <!-- ============================================== -->
+      <!-- หน้าจัดการพื้นที่ (Area Access) (Admin Only) -->
+      <!-- ============================================== -->
+      <div id="manageAreasPage" class="page hidden p-4 lg:p-6">
+       <div class="flex justify-between items-center mb-6">
+           <h2 class="text-xl font-bold flex items-center gap-2 text-gray-800"><i data-lucide="map" class="w-6 h-6 text-green-600"></i> จัดการพื้นที่ (Area Access)</h2>
+           <button onclick="openAreaModal()" class="btn-primary text-white px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg text-sm font-bold hover:-translate-y-1"><i data-lucide="plus" class="w-4 h-4"></i> เพิ่มพื้นที่ใหม่</button>
+       </div>
+       <div class="bg-white rounded-2xl card-shadow overflow-hidden border-t-4 border-yellow-500">
+           <table class="w-full text-left">
+               <thead class="bg-gray-50 border-b">
+                   <tr>
+                       <th class="px-6 py-4 text-sm font-bold text-gray-500 text-center">หมายเลขพื้นที่</th>
+                       <th class="px-6 py-4 text-sm font-bold text-gray-500">ชื่อพื้นที่</th>
+                       <th class="px-6 py-4 text-sm font-bold text-gray-500 text-center">สีสัญลักษณ์</th>
+                       <th class="px-6 py-4 text-center text-sm font-bold text-gray-500">สถานะ</th>
+                       <th class="px-6 py-4 text-center text-sm font-bold text-gray-500">จัดการ</th>
+                   </tr>
+               </thead>
+               <tbody id="areasTableBody" class="divide-y divide-gray-100"></tbody>
+           </table>
+       </div>
+      </div>
 
       <!-- ============================================== -->
       <!-- หน้าจัดการผู้ใช้งาน (Admin Only) -->
@@ -872,7 +896,20 @@
             
             <div class="col-span-2 md:col-span-1"><label class="block text-sm font-bold mb-1 text-gray-700">ชื่อ <span class="text-red-500">*</span></label><input type="text" id="cardFirstName" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-green-500 bg-white"></div>
             <div class="col-span-2 md:col-span-1"><label class="block text-sm font-bold mb-1 text-gray-700">นามสกุล</label><input type="text" id="cardLastName" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-green-500 bg-white"></div>
-            <div class="col-span-2"><label class="block text-sm font-bold mb-1 text-gray-700">หน่วยงาน</label><input type="text" id="cardOrg" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-green-500 bg-white"></div>
+            <div class="col-span-2 md:col-span-1"><label class="block text-sm font-bold mb-1 text-gray-700">ตำแหน่ง</label><input type="text" id="cardPosition" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-green-500 bg-white" placeholder="เว้นว่างได้"></div>
+            <div class="col-span-2 md:col-span-1"><label class="block text-sm font-bold mb-1 text-gray-700">หน่วยงาน</label><input type="text" id="cardOrg" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-green-500 bg-white"></div>
+            
+            <div class="col-span-2 bg-blue-50 p-3 rounded-xl border border-blue-100 flex items-center justify-between cursor-pointer" onclick="document.getElementById('cardCanDrive').click()">
+                <div><p class="font-bold text-blue-900 text-sm">อนุญาตให้ขับขี่ยานพาหนะ (DRIVE)</p><p class="text-xs text-blue-600 mt-0.5">ระบบจะพิมพ์สัญลักษณ์ DRIVE ลงบนบัตร</p></div>
+                <input type="checkbox" id="cardCanDrive" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" onclick="event.stopPropagation()">
+            </div>
+
+            <div class="col-span-2">
+                <label class="block text-sm font-bold mb-2 text-gray-700">พื้นที่ที่อนุญาตให้เข้า (Area Access)</label>
+                <div id="cardAreaCheckboxes" class="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-white p-3 rounded-xl border border-gray-200 shadow-inner">
+                    <!-- Checkbox พื้นที่จะถูกสร้างอัตโนมัติด้วย JavaScript ตรงนี้ -->
+                </div>
+            </div>
             
             
             <div class="col-span-2 mt-2 pt-4 border-t border-gray-200 grid grid-cols-2 gap-4">
@@ -913,6 +950,10 @@
                 <div><p class="font-bold text-indigo-900 text-sm">ต้องมีผู้ติดตามร่วมด้วย</p><p class="text-xs text-indigo-600 mt-0.5">ระบบจะบังคับให้แสกนบัตรผู้ติดตามเสมอ</p></div>
                 <input type="checkbox" id="tcRequireComp" class="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500" onclick="event.stopPropagation()">
             </div>
+			<div class="bg-red-50 p-4 rounded-xl border border-red-100 flex items-center justify-between cursor-pointer mt-2" onclick="document.getElementById('tcIsTemp').click()">
+                <div><p class="font-bold text-red-900 text-sm">กำหนดให้เป็น "บัตรชั่วคราว"</p><p class="text-xs text-red-600 mt-0.5">ระบบจะพิมพ์ข้อความ บัตรชั่วคราว ลงบนบัตร</p></div>
+                <input type="checkbox" id="tcIsTemp" class="w-5 h-5 text-red-600 rounded focus:ring-red-500" onclick="event.stopPropagation()">
+            </div>
             <div><label class="block text-sm font-bold mb-2 text-gray-700">สถานะใช้งาน</label><select id="tcStatus" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 bg-white font-medium"><option value="active">เปิดใช้งาน (Active)</option><option value="inactive">ปิดใช้งาน (Inactive)</option></select></div>
         </div>
         <div class="p-4 border-t bg-white rounded-b-2xl flex justify-end gap-3 shadow-inner"><button onclick="closeTypeCardModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition">ยกเลิก</button><button onclick="saveTypeCard()" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg transition">บันทึก</button></div>
@@ -931,6 +972,24 @@
             <div><label class="block text-sm font-bold mb-2 text-gray-700">สถานะ</label><select id="gateStatus" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 bg-white font-medium"><option value="active">เปิดใช้งาน (Active)</option><option value="inactive">ปิดใช้งาน (Inactive)</option></select></div>
         </div>
         <div class="p-4 border-t bg-white rounded-b-2xl flex justify-end gap-3 shadow-inner"><button onclick="closeGateModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition">ยกเลิก</button><button onclick="saveGate()" class="px-6 py-2 btn-primary text-white font-bold rounded-xl shadow-lg transition">บันทึก</button></div>
+    </div>
+   </div>
+   
+   <!-- Modal: จัดการพื้นที่ (Area Access) -->
+   <div id="areaModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm modal-overlay" onclick="closeAreaModal()"></div>
+    <div class="relative bg-white rounded-2xl w-full max-w-md flex flex-col shadow-2xl animate-fadeIn">
+        <div class="bg-yellow-500 text-white p-4 rounded-t-2xl flex justify-between items-center"><h3 id="areaModalTitle" class="font-bold flex items-center gap-2 text-lg"><i data-lucide="map"></i> ข้อมูลพื้นที่</h3><button onclick="closeAreaModal()" class="hover:bg-white/20 p-1.5 rounded-lg transition"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+        <div class="p-6 space-y-4 bg-gray-50">
+            <input type="hidden" id="editAreaId">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="col-span-1"><label class="block text-sm font-bold mb-1 text-gray-700">หมายเลขพื้นที่ <span class="text-red-500">*</span></label><input type="number" id="areaNum" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-yellow-500 font-black text-center text-xl" placeholder="เช่น 1"></div>
+                <div class="col-span-1"><label class="block text-sm font-bold mb-1 text-gray-700">สีของพื้นที่ <span class="text-red-500">*</span></label><input type="color" id="areaColor" class="w-full h-12 border p-1 rounded-xl cursor-pointer" value="#ffeb3b"></div>
+            </div>
+            <div><label class="block text-sm font-bold mb-1 text-gray-700">ชื่อพื้นที่ (อธิบายเพิ่มเติม) <span class="text-red-500">*</span></label><input type="text" id="areaName" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-yellow-500 bg-white" placeholder="เช่น พื้นที่หวงห้าม, ลานจอดเครื่องบิน"></div>
+            <div><label class="block text-sm font-bold mb-2 text-gray-700">สถานะ</label><select id="areaStatus" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 bg-white font-medium"><option value="active">เปิดใช้งาน (Active)</option><option value="inactive">ปิดใช้งาน (Inactive)</option></select></div>
+        </div>
+        <div class="p-4 border-t bg-white rounded-b-2xl flex justify-end gap-3 shadow-inner"><button onclick="closeAreaModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition">ยกเลิก</button><button onclick="saveArea()" class="px-6 py-2 bg-yellow-500 hover:bg-yellow-600 text-white font-bold rounded-xl shadow-lg transition">บันทึก</button></div>
     </div>
    </div>
 
@@ -978,7 +1037,7 @@
     let systemSettings = { systemName: 'ระบบบันทึกการเข้าออกพื้นที่', systemSubName: 'AREA ACCESS CONTROL', footerText: 'Copyright', logoUrl: '', loginBgUrl: '', faviconUrl: '', bannerEnabled: true, bannerSpeed: 4, banners: [], autoCheckoutEnabled: true , aiThreshold: 0.38, aiCooldown: 10, aiInterval: 1000, aiPadX: 15, aiPadTop: 35 };
     
     // Data Caches
-    let allGates = [], typeCards = [], allCards = [], allSystemUsers = [];
+    let allGates = [], typeCards = [], allCards = [], allSystemUsers = [], allAreas = [];
     let recentLogs = []; // เก็บแค่ Array ของหน้าแรกเพื่อความเร็ว
     let cardStats = { total:0, active:0, inactive:0, byType:{} };
     let monthlyStats = { total: 0, in: 0, out: 0, gates: {} }; // <-- เพิ่มตัวแปรเก็บค่ายอดเดือนนี้
@@ -1232,6 +1291,7 @@
                         allCards = data.allCards || [];
                         cardStats = data.cardStats || { total:0, active:0, inactive:0, byType:{} };
                         monthlyStats = data.monthlyStats || { total: 0, in: 0, out: 0, gates: {} };
+						allAreas = data.areas || [];
 
                         updateGateSelects(); 
                         if(currentPage === 'home') {
@@ -1274,6 +1334,7 @@
                         allCards = data.allCards || [];
                         cardStats = data.cardStats || { total:0, active:0, inactive:0, byType:{} };
                         monthlyStats = data.monthlyStats || { total: 0, in: 0, out: 0, gates: {} };
+						allAreas = data.areas || [];
                         
                         updateGateSelects(); 
                         if(currentPage === 'home') {
@@ -1305,6 +1366,7 @@
                                 allCards = data.allCards || [];
                                 cardStats = data.cardStats || { total:0, active:0, inactive:0, byType:{} };
                                 monthlyStats = data.monthlyStats || { total: 0, in: 0, out: 0, gates: {} };
+								allAreas = data.areas || [];
                                 
                                 updateGateSelects();
                                 renderHomeDashboard(); 
@@ -1397,6 +1459,7 @@
             // ---------------------
             {id:'manageCards',icon:'credit-card',label:'ฐานข้อมูลบัตร',r:['admin']},
             {id:'manageTypeCards',icon:'tags',label:'ตั้งค่าประเภทบัตร',r:['admin']},
+			{id:'manageAreas',icon:'map',label:'ตั้งค่าพื้นที่ (Area)',r:['admin']},
             {id:'manageGates',icon:'boom-box',label:'จุดเข้าออกพื้นที่',r:['admin']},
             {id:'userManagement',icon:'users',label:'ผู้ใช้งานระบบ',r:['admin']},
             {id:'reports',icon:'file-spreadsheet',label:'รายงาน / ประวัติ',r:['admin']},
@@ -1421,6 +1484,7 @@
         else if(p==='activeInside') { fetchAllCardsAndRender().then(() => renderActiveInsideTable()); }
         // ---------------------
         else if(p==='manageTypeCards') renderTypeCardsTable();
+		else if(p==='manageAreas') renderAreasTable();
         else if(p==='manageGates') renderGatesGrid();
         else if(p==='userManagement') loadUsers();
         else if(p==='reports') { setupReportFilters(); }
@@ -3477,6 +3541,129 @@ function triggerFaceScanSuccess(cardId) {
         }
     }, 3000);
 }
+//---------------
+// ==========================================
+    // JS: จัดการพื้นที่ (Area Access)
+    // ==========================================
+    function renderAreasTable() {
+        const tbody = document.getElementById('areasTableBody');
+        if(allAreas.length === 0) { tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-gray-400">ยังไม่มีข้อมูลพื้นที่</td></tr>`; return; }
+        
+        // เรียงตามหมายเลขพื้นที่
+        let sorted = [...allAreas].sort((a,b) => parseInt(a.areaNumber) - parseInt(b.areaNumber));
+        
+        tbody.innerHTML = sorted.map(a => `
+            <tr class="hover:bg-gray-50 transition bg-white border-b">
+                <td class="px-6 py-4 text-center font-black text-xl text-gray-800">${a.areaNumber}</td>
+                <td class="px-6 py-4 font-bold text-gray-700">${a.areaName}</td>
+                <td class="px-6 py-4 text-center">
+                    <div class="w-10 h-10 rounded shadow-sm border-2 border-gray-300 mx-auto flex items-center justify-center font-bold text-gray-900" style="background-color: ${a.colorCode};">${a.areaNumber}</div>
+                </td>
+                <td class="px-6 py-4 text-center">${a.status==='active'?'<span class="text-green-600 bg-green-50 px-2 py-1 rounded font-bold text-xs">ใช้งาน</span>':'<span class="text-red-500 bg-red-50 px-2 py-1 rounded text-xs">ปิด</span>'}</td>
+                <td class="px-6 py-4 text-center">
+                    <button onclick="editArea(${a.id})" class="text-yellow-600 bg-yellow-50 hover:bg-yellow-100 px-3 py-1.5 rounded-lg text-xs font-bold transition mr-1">แก้ไข</button>
+                    <button onclick="deleteArea(${a.id})" class="text-red-500 bg-red-50 hover:bg-red-100 px-2 py-1.5 rounded-lg transition"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                </td>
+            </tr>`).join('');
+        lucide.createIcons();
+    }
+    
+    function openAreaModal() { document.getElementById('areaModalTitle').innerHTML='<i data-lucide="map"></i> เพิ่มพื้นที่ใหม่'; document.getElementById('editAreaId').value=''; ['areaNum','areaName'].forEach(id=>document.getElementById(id).value=''); document.getElementById('areaColor').value='#ffeb3b'; document.getElementById('areaStatus').value='active'; document.getElementById('areaModal').classList.remove('hidden'); }
+    function editArea(id) { const a = allAreas.find(x=>x.id===id); document.getElementById('areaModalTitle').innerHTML='<i data-lucide="edit"></i> แก้ไขพื้นที่'; document.getElementById('editAreaId').value=a.id; document.getElementById('areaNum').value=a.areaNumber; document.getElementById('areaName').value=a.areaName; document.getElementById('areaColor').value=a.colorCode; document.getElementById('areaStatus').value=a.status; document.getElementById('areaModal').classList.remove('hidden'); }
+    function closeAreaModal() { document.getElementById('areaModal').classList.add('hidden'); }
+    
+    async function saveArea() {
+        const id = document.getElementById('editAreaId').value;
+        const num = document.getElementById('areaNum').value;
+        const name = document.getElementById('areaName').value.trim();
+        const color = document.getElementById('areaColor').value;
+        if(!num || !name) return showToast('กรุณากรอกหมายเลขและชื่อพื้นที่', 'error');
+        
+        const d = { areaNumber: num, areaName: name, colorCode: color, status: document.getElementById('areaStatus').value };
+        if(id) { d.id = parseInt(id); await apiCall('updateArea', d); const idx = allAreas.findIndex(x=>x.id===d.id); if(idx!==-1) allAreas[idx]={...allAreas[idx], ...d}; showToast('แก้ไขสำเร็จ', 'success'); }
+        else { const res = await apiCall('addArea', d); allAreas.push(res); showToast('เพิ่มสำเร็จ', 'success'); }
+        closeAreaModal(); renderAreasTable();
+    }
+    async function deleteArea(id) { if(confirm('ยืนยันลบพื้นที่นี้?')) { await apiCall('deleteArea', {id}); allAreas = allAreas.filter(x=>x.id!==id); renderAreasTable(); showToast('ลบสำเร็จ','success'); } }
+
+    // ==========================================
+    // JS: อัปเดตการทำงานของ Type Cards (บัตรชั่วคราว)
+    // ==========================================
+    const originalOpenTypeCardModal = openTypeCardModal;
+    openTypeCardModal = function() { originalOpenTypeCardModal(); document.getElementById('tcIsTemp').checked = false; }
+    
+    const originalEditTypeCard = editTypeCard;
+    editTypeCard = function(id) { originalEditTypeCard(id); const t = typeCards.find(x => x.id === id); document.getElementById('tcIsTemp').checked = t.isTemporary === true || t.isTemporary === 'TRUE'; }
+    
+    const originalSaveTypeCard = saveTypeCard;
+    saveTypeCard = async function() {
+        // แก้ไขดักจับค่าก่อนส่ง Save ปกติ
+        const oldApiCall = window.apiCall;
+        window.apiCall = async function(action, data, hide) {
+            data.isTemporary = document.getElementById('tcIsTemp').checked;
+            return oldApiCall(action, data, hide);
+        };
+        await originalSaveTypeCard();
+        window.apiCall = oldApiCall; // คืนค่า
+    }
+
+    // ==========================================
+    // JS: อัปเดตการทำงานของ Cards (ตำแหน่ง, ขับรถ, พื้นที่)
+    // ==========================================
+    function renderAreaCheckboxes(selectedAreaStr) {
+        const container = document.getElementById('cardAreaCheckboxes');
+        if(allAreas.length === 0) { container.innerHTML = '<span class="text-xs text-gray-400 col-span-full">ยังไม่ได้ตั้งค่าพื้นที่ (ให้ข้ามไปก่อนได้)</span>'; return; }
+        
+        let selectedArr = [];
+        if(selectedAreaStr) selectedArr = selectedAreaStr.toString().split(',');
+
+        let html = '';
+        allAreas.filter(a => a.status === 'active').forEach(a => {
+            const isChecked = selectedArr.includes(String(a.areaNumber)) ? 'checked' : '';
+            html += `
+            <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-gray-50 border border-transparent hover:border-gray-200 transition">
+                <input type="checkbox" class="w-4 h-4 text-green-600 rounded input-area-cb" value="${a.areaNumber}" ${isChecked}>
+                <div class="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold text-gray-900 shadow-sm border border-gray-300" style="background-color: ${a.colorCode};">${a.areaNumber}</div>
+                <span class="text-xs font-bold text-gray-700 truncate">${a.areaName}</span>
+            </label>`;
+        });
+        container.innerHTML = html;
+    }
+
+    const originalOpenCardModal = openCardModal;
+    openCardModal = function() { 
+        originalOpenCardModal(); 
+        document.getElementById('cardPosition').value = '';
+        document.getElementById('cardCanDrive').checked = false;
+        renderAreaCheckboxes(''); // วาด Checkbox พื้นที่แบบว่างๆ
+    }
+    
+    const originalEditCard = editCard;
+    editCard = function(id) { 
+        originalEditCard(id); 
+        const c = allCards.find(x => x.id === id); 
+        document.getElementById('cardPosition').value = c.position || '';
+        document.getElementById('cardCanDrive').checked = c.canDrive === true || c.canDrive === 'TRUE';
+        renderAreaCheckboxes(c.areaAccessIds || ''); // วาด Checkbox และติ๊กอันที่เคยเลือก
+    }
+
+    const originalSaveCard = saveCard;
+    saveCard = async function() {
+        const oldApiCall = window.apiCall;
+        window.apiCall = async function(action, data, hide) {
+            data.position = document.getElementById('cardPosition').value.trim();
+            data.canDrive = document.getElementById('cardCanDrive').checked;
+            
+            // รวบรวมหมายเลขพื้นที่ที่ติ๊กถูก แล้วคั่นด้วยคอมม่า (เช่น "1,5")
+            const checkedBoxes = Array.from(document.querySelectorAll('.input-area-cb:checked')).map(cb => cb.value);
+            data.areaAccessIds = checkedBoxes.join(',');
+            
+            return oldApiCall(action, data, hide);
+        };
+        await originalSaveCard();
+        window.apiCall = oldApiCall;
+    }
+
     ///////////
   </script>
 </body>
