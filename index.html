@@ -36,16 +36,7 @@
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-/* ล็อคขนาดบัตรให้แม่นยำที่สุด */
-#printCardFront, #printCardBack {
-    width: 340px !important;
-    height: 540px !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    box-sizing: border-box !important; /* สำคัญมาก: ให้ขอบรวมอยู่ใน 540px */
-    position: relative !important;
-    overflow: hidden !important;
-}
+
 
 /* แถบขวาสำหรับวางสี่เหลี่ยมจัตุรัส */
 #renderAreaBoxes {
@@ -72,13 +63,6 @@
     text-align: center !important;
 }
 
-/* กำหนดจุดตัดหน้า PDF */
-.pdf-break {
-    page-break-after: always !important;
-    height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-}
   </style>
 </head>
 <body class="h-full bg-gray-50">
