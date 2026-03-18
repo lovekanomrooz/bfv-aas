@@ -8,8 +8,10 @@
   <link id="dynamicFavicon" rel="shortcut icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3125/3125713.png">
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <!-- เพิ่มไลบรารี html2pdf สำหรับโหลดบัตร PDF -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
    <!-- --- เพิ่มบรรทัดนี้เพื่อเรียกใช้ Face AI --- -->
@@ -4072,7 +4074,13 @@ if(c.areaAccessIds) {
     
     function closeIdCardModal() { document.getElementById('idCardModal').classList.add('hidden'); }
 
-    async function downloadPdfCard() {
+   async function downloadPdfCard() {
+    // 1. ตรวจสอบว่ามี Library ครบหรือไม่
+    if (typeof html2canvas === 'undefined') {
+        showAlert('ผิดพลาด', 'ไม่พบไลบรารี html2canvas กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต', 'error');
+        return;
+    }
+
     const cardIdText = document.getElementById('renderBarcodeText').textContent;
     const front = document.getElementById('printCardFront');
     const back = document.getElementById('printCardBack');
@@ -4082,52 +4090,43 @@ if(c.areaAccessIds) {
         return;
     }
 
-    showLoader('กำลังประมวลผล PDF (โปรดรอสักครู่)...');
+    showLoader('กำลังผลิต PDF คุณภาพสูง (0%)...');
 
     try {
-        // 1. ตรวจสอบว่าฟอนต์บาร์โค้ดโหลดเสร็จหรือยัง
-        await document.fonts.ready;
-
-        // 2. ฟังก์ชันสำหรับแปลง Element เป็น Image Data (Base64)
-        const elementToImage = async (el) => {
-            // ลบเงาชั่วคราวเพื่อให้ขอบคมชัด
-            const originalShadow = el.style.boxShadow;
-            el.style.boxShadow = 'none';
-
-            const canvas = await html2canvas(el, {
-                scale: 3, // ความละเอียดสูง
-                useCORS: true, // แก้ปัญหาหน้าขาวจากรูป Google Drive
-                allowTaint: false,
-                backgroundColor: "#ffffff",
-                width: 340,
-                height: 540,
-                logging: false
-            });
-
-            el.style.boxShadow = originalShadow; // คืนค่าเงา
-            return canvas.toDataURL('image/jpeg', 1.0);
-        };
-
-        // 3. วาดภาพหน้าบัตรและหลังบัตร
-        const frontImg = await elementToImage(front);
-        const backImg = await elementToImage(back);
-
-        // 4. สร้าง PDF โดยใช้ jsPDF โดยตรง (เสถียรกว่าการใช้ html2pdf หุ้ม)
-        const { jsPDF } = window.jspdf || { jsPDF: window.jsPDF }; // รองรับทั้ง v1 และ v2
+        // 2. ตั้งค่าการดึงคลาส jsPDF (รองรับหลายเวอร์ชั่น)
+        const { jsPDF } = window.jspdf;
         const pdf = new jsPDF({
             orientation: 'portrait',
             unit: 'px',
             format: [340, 540]
         });
 
-        // หน้าที่ 1 (หน้าบัตร)
-        pdf.addImage(frontImg, 'JPEG', 0, 0, 340, 540);
+        // 3. ฟังก์ชันช่วยแปลง Element เป็นรูป (เพิ่มการรอโหลดภาพ)
+        const capture = async (el, label) => {
+            showLoader(`กำลังประมวลผลหน้า ${label}...`);
+            return await html2canvas(el, {
+                scale: 3, // ความละเอียดสูงพิเศษ
+                useCORS: true, // แก้ปัญหาหน้าขาวจากรูป Drive
+                allowTaint: false,
+                backgroundColor: "#ffffff",
+                logging: false,
+                width: 340,
+                height: 540
+            });
+        };
 
-        // หน้าที่ 2 (หลังบัตร)
+        // 4. วาดหน้าบัตร
+        const canvasFront = await capture(front, 'ด้านหน้า');
+        const imgDataFront = canvasFront.toDataURL('image/jpeg', 1.0);
+        pdf.addImage(imgDataFront, 'JPEG', 0, 0, 340, 540);
+
+        // 5. วาดหลังบัตร (เพิ่มหน้าใหม่)
         pdf.addPage([340, 540], 'portrait');
-        pdf.addImage(backImg, 'JPEG', 0, 0, 340, 540);
+        const canvasBack = await capture(back, 'ด้านหลัง');
+        const imgDataBack = canvasBack.toDataURL('image/jpeg', 1.0);
+        pdf.addImage(imgDataBack, 'JPEG', 0, 0, 340, 540);
 
-        // 5. บันทึกไฟล์
+        // 6. ดาวน์โหลดไฟล์
         pdf.save(`ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`);
         
         hideLoader();
@@ -4136,7 +4135,7 @@ if(c.areaAccessIds) {
     } catch (err) {
         console.error("PDF Error: ", err);
         hideLoader();
-        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+        showAlert('เกิดข้อผิดพลาด', 'ไม่สามารถสร้าง PDF ได้: ' + err.message, 'error');
     }
 }
     ///////////
