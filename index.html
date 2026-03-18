@@ -62,7 +62,14 @@
     line-height: 1 !important;
     text-align: center !important;
 }
-
+/* CSS แนะนำสำหรับหน้าบัตร/หลังบัตร */
+#printCardFront, #printCardBack {
+    width: 340px !important;
+    height: 540px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    position: relative !important;
+}
   </style>
 </head>
 <body class="h-full bg-gray-50">
@@ -4069,54 +4076,78 @@ if(c.areaAccessIds) {
     const front = document.getElementById('printCardFront');
     const back = document.getElementById('printCardBack');
 
-    // 1. สร้างพื้นที่จำลองใน Body เพื่อให้ Browser เรนเดอร์ภาพและฟอนต์ให้เสร็จ
-    const pdfWrapper = document.createElement('div');
-    pdfWrapper.style.position = 'fixed';
-    pdfWrapper.style.left = '-9999px';
-    pdfWrapper.style.top = '0';
-    pdfWrapper.style.width = '340px';
-    pdfWrapper.style.backgroundColor = 'white';
-    pdfWrapper.style.zIndex = '-1';
+    if (!front || !back) {
+        showToast('ไม่พบข้อมูลบัตรหน้าหรือหลัง', 'error');
+        return;
+    }
+
+    // 1. สร้าง Wrapper ชั่วคราว และนำไปแปะไว้ใน Body จริง (เพื่อแก้หน้าขาว)
+    const printWrapper = document.createElement('div');
+    printWrapper.id = 'temp-print-wrapper';
+    printWrapper.style.position = 'fixed';
+    printWrapper.style.left = '-3000px'; // ย้ายไปไกลๆ ไม่ให้คนเห็น
+    printWrapper.style.top = '0';
+    printWrapper.style.width = '340px';
+    printWrapper.style.backgroundColor = 'white';
 
     // โคลนหน้า 1 และ 2
     const p1 = front.cloneNode(true);
     const p2 = back.cloneNode(true);
-    p1.style.boxShadow = 'none';
-    p2.style.boxShadow = 'none';
-    p2.style.pageBreakBefore = 'always'; // บังคับขึ้นหน้าใหม่ที่หน้า 2
 
-    pdfWrapper.appendChild(p1);
-    pdfWrapper.appendChild(p2);
-    document.body.appendChild(pdfWrapper);
+    // ลบเงาและปรับ Style ให้คลีนที่สุดสำหรับ PDF
+    [p1, p2].forEach(p => {
+        p.style.boxShadow = 'none';
+        p.style.margin = '0';
+        p.style.display = 'block';
+    });
 
-    showToast('กำลังเตรียมไฟล์ PDF และตรวจสอบรูปภาพ...', 'info');
+    // สร้างจุดตัดหน้า (Page Break)
+    const breakLine = document.createElement('div');
+    breakLine.className = 'html2pdf__page-break'; 
 
-    // 2. หน่วงเวลาเล็กน้อย (500ms) เพื่อให้รูปภาพและบาร์โค้ดเรนเดอร์เสร็จสมบูรณ์
-    await new Promise(resolve => setTimeout(resolve, 500));
+    printWrapper.appendChild(p1);
+    printWrapper.appendChild(breakLine);
+    printWrapper.appendChild(p2);
+
+    document.body.appendChild(printWrapper);
+
+    showToast('กำลังประมวลผลรูปภาพและสร้าง PDF...', 'info');
+
+    // 2. *** จุดสำคัญ: หน่วงเวลาเพื่อให้ Browser วาดภาพพิกเซลให้เสร็จ ***
+    // หากรูปภาพมาจาก Google Drive หรือ URL ภายนอก ต้องรอให้รูปโหลดเสร็จจริงๆ
+    await new Promise(resolve => setTimeout(resolve, 800)); 
 
     const opt = {
         margin: 0,
         filename: `ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`,
         image: { type: 'jpeg', quality: 1 },
         html2canvas: { 
-            scale: 2, 
-            useCORS: true, 
+            scale: 3, // ความละเอียดสูง
+            useCORS: true, // สำคัญ: เพื่อให้โหลดรูปจาก URL ภายนอกได้
             logging: false,
             letterRendering: true,
-            allowTaint: false
+            width: 340,
+            windowWidth: 340
         },
-        jsPDF: { unit: 'px', format: [340, 540], orientation: 'portrait' }
+        jsPDF: { 
+            unit: 'px', 
+            format: [340, 540], // ขนาดบัตรหน้าละ 340x540 px
+            orientation: 'portrait',
+            hotfixes: ['px_scaling']
+        }
     };
 
-    // 3. สั่งสร้าง PDF จาก Wrapper ที่ถูกแปะลงใน DOM แล้ว
-    html2pdf().set(opt).from(pdfWrapper).save().then(() => {
-        document.body.removeChild(pdfWrapper); // ลบทิ้งเมื่อเสร็จ
+    // 3. เริ่มการดาวน์โหลด
+    try {
+        await html2pdf().set(opt).from(printWrapper).save();
         showToast('ดาวน์โหลด PDF สำเร็จ!', 'success');
-    }).catch(err => {
-        console.error(err);
-        document.body.removeChild(pdfWrapper);
-        showToast('เกิดข้อผิดพลาดในการสร้าง PDF', 'error');
-    });
+    } catch (err) {
+        console.error("PDF Export Error: ", err);
+        showToast('เกิดข้อผิดพลาดในการสร้างไฟล์', 'error');
+    } finally {
+        // ลบ Element ชั่วคราวออกจากหน้าเว็บ
+        document.body.removeChild(printWrapper);
+    }
 }
     ///////////
   </script>
