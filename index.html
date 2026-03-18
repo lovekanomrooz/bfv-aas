@@ -1224,7 +1224,7 @@
            
            <div class="p-4 border-t bg-white flex justify-end gap-3 shrink-0">
                <button onclick="closeIdCardModal()" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition">ปิดหน้าต่าง</button>
-               <button onclick="downloadPdfCard()" class="px-6 py-2.5 bg-pink-600 hover:bg-pink-700 text-white font-bold rounded-xl shadow-lg transition flex items-center gap-2"><i data-lucide="download"></i> ดาวน์โหลด PDF</button>
+               <button onclick="downloadIdCardAsImages()" class="px-6 py-2.5 bg-pink-600 hover:bg-pink-700 text-white font-bold rounded-xl shadow-lg transition flex items-center gap-2"><i data-lucide="download"></i> ดาวน์โหลดรูปบัตร</button>
            </div>
        </div>
    </div>
@@ -4081,74 +4081,53 @@ if(c.areaAccessIds) {
     
     function closeIdCardModal() { document.getElementById('idCardModal').classList.add('hidden'); }
 
-  async function downloadPdfCard() {
+  async function downloadIdCardAsImages() {
     const cardIdText = document.getElementById('renderBarcodeText').textContent;
     const front = document.getElementById('printCardFront');
     const back = document.getElementById('printCardBack');
 
     if (!front || !back) return showToast('ไม่พบข้อมูลบัตรสำหรับดาวน์โหลด', 'error');
 
-    showToast('กำลังจัดตำแหน่งพิกัดและสร้าง PDF...', 'info');
+    showToast('กำลังเตรียมรูปภาพความละเอียดสูง...', 'info');
 
-    try {
-        const { jsPDF } = window.jspdf;
-
-        // ฟังก์ชันถ่ายภาพแบบ "ล็อคพิกัดศูนย์" (Zero-Offset Capture)
-        const capturePage = async (el) => {
-            return await html2canvas(el, {
-                scale: 3,
-                useCORS: true,
-                logging: false,
-                backgroundColor: "#ffffff",
-                width: 340,
-                height: 540,
-                // --- หัวใจสำคัญ: แก้ไขปัญหาข้อมูลเลื่อนลง ---
-                onclone: (clonedDoc) => {
-                    // หา Element ที่กำลังถูกถ่ายในหน้าจำลอง
-                    const clonedEl = clonedDoc.getElementById(el.id);
-                    if (clonedEl) {
-                        // บังคับให้ไปวางที่มุมบนซ้ายสุดของหน้ากระดาษจำลอง
-                        clonedEl.style.position = "fixed";
-                        clonedEl.style.top = "0";
-                        clonedEl.style.left = "0";
-                        clonedEl.style.margin = "0";
-                        clonedEl.style.transform = "none";
-                    }
-                }
-                // ---------------------------------------
-            });
-        };
-
-        // 1. ถ่ายภาพหน้าบัตร
-        const canvasFront = await capturePage(front);
-        const imgFront = canvasFront.toDataURL('image/jpeg', 1.0);
-
-        // 2. ถ่ายภาพหลังบัตร
-        const canvasBack = await capturePage(back);
-        const imgBack = canvasBack.toDataURL('image/jpeg', 1.0);
-
-        // 3. สร้าง PDF ขนาด 340x540 px
-        const pdf = new jsPDF({
-            orientation: 'p',
-            unit: 'px',
-            format: [340, 540]
+    // ฟังก์ชันช่วยดาวน์โหลดรูปภาพ
+    const saveAsImage = async (el, suffix) => {
+        // ใช้เทคนิค "Snapshot" เพื่อให้ภาพออกมาตรงเป๊ะ 100%
+        const canvas = await html2canvas(el, {
+            scale: 3, // ความชัดระดับ 300 DPI (เหมาะสำหรับพิมพ์)
+            useCORS: true,
+            backgroundColor: "#ffffff",
+            logging: false,
+            // ล็อคขนาดให้เท่ากับบัตรพนักงาน
+            width: 340,
+            height: 540,
+            // กำจัดช่องว่างรอบข้าง
+            x: 0, 
+            y: 0,
+            scrollX: 0,
+            scrollY: 0
         });
 
-        // วางหน้า 1
-        pdf.addImage(imgFront, 'JPEG', 0, 0, 340, 540);
+        // แปลง Canvas เป็นลิงก์ดาวน์โหลด
+        const link = document.createElement('a');
+        link.download = `ID_Card_${cardIdText.replace(/\//g, '-')}_${suffix}.png`;
+        link.href = canvas.toDataURL('image/png', 1.0);
+        link.click();
+    };
 
-        // วางหน้า 2
-        pdf.addPage([340, 540], 'p');
-        pdf.addImage(imgBack, 'JPEG', 0, 0, 340, 540);
-
-        // 4. บันทึกไฟล์
-        pdf.save(`ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`);
+    try {
+        // 1. ดาวน์โหลดหน้าบัตร
+        await saveAsImage(front, 'FRONT');
         
-        showToast('ดาวน์โหลด PDF สำเร็จแล้ว', 'success');
+        // 2. หน่วงเวลาเล็กน้อยเพื่อป้องกันเบราว์เซอร์บล็อคการโหลดพร้อมกัน
+        setTimeout(async () => {
+            await saveAsImage(back, 'BACK');
+            showToast('ดาวน์โหลดรูปภาพ หน้า-หลัง สำเร็จ!', 'success');
+        }, 800);
 
     } catch (err) {
-        console.error("PDF Final Error:", err);
-        showToast('เกิดข้อผิดพลาดในการจัดทำไฟล์', 'error');
+        console.error("PNG Export Error:", err);
+        showToast('เกิดข้อผิดพลาดในการสร้างรูปภาพ', 'error');
     }
 }
     ///////////
