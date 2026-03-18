@@ -4088,41 +4088,48 @@ if(c.areaAccessIds) {
 
     if (!front || !back) return showToast('ไม่พบข้อมูลบัตรสำหรับดาวน์โหลด', 'error');
 
-    showToast('กำลังประมวลผลรูปภาพ (วิธีพิเศษ)...', 'info');
+    showToast('กำลังประมวลผลรูปภาพ (วิธี Clean Buffer)...', 'info');
 
-    // ฟังก์ชันถ่ายภาพแบบ Atomic (ล้างโลกจำลองให้เหลือแค่บัตร)
-    const atomicCapture = async (el, suffix) => {
-        const canvas = await html2canvas(el, {
-            scale: 3, // ความคมชัดสูง
+    // ฟังก์ชันช่วยถ่ายภาพจาก "กล่องสำรอง"
+    const captureFromBuffer = async (originalEl, suffix) => {
+        // 1. สร้าง Buffer Div ไว้ที่มุมซ้ายบนสุดของหน้าเว็บ (นอก Modal)
+        const buffer = document.createElement('div');
+        buffer.style.position = 'absolute';
+        buffer.style.top = '0';
+        buffer.style.left = '0';
+        buffer.style.width = '340px';
+        buffer.style.height = '540px';
+        buffer.style.zIndex = '-9999'; // ซ่อนไว้ข้างหลัง ไม่ให้ผู้ใช้เห็น
+        buffer.style.backgroundColor = '#ffffff';
+        
+        // 2. ก๊อปปี้เนื้อหาภายในทั้งหมดไปใส่ใน Buffer
+        buffer.innerHTML = originalEl.innerHTML;
+        
+        // 3. บังคับสไตล์ให้ Buffer เป็น Relative (เพื่อให้ Absolute ภายในบัตรทำงานถูกต้อง)
+        buffer.className = originalEl.className; // ก๊อปปี้ Class มาด้วย (Tailwind)
+        buffer.style.position = 'absolute'; 
+        buffer.style.overflow = 'hidden';
+
+        document.body.appendChild(buffer);
+
+        // 4. สั่งถ่ายรูปจาก Buffer (พิกัดจะเริ่มที่ 0,0 เสมอ)
+        const canvas = await html2canvas(buffer, {
+            scale: 3, // ความชัดสูง
             useCORS: true,
-            backgroundColor: "#ffffff",
             logging: false,
+            backgroundColor: "#ffffff",
             width: 340,
             height: 540,
-            // --- จุดสำคัญ: สร้างโลกจำลองใหม่ที่สะอาด 100% ---
-            onclone: (clonedDoc) => {
-                const clonedEl = clonedDoc.getElementById(el.id);
-                if (clonedEl) {
-                    // 1. ล้างข้อมูลทุกอย่างใน Body ของหน้าจำลองทิ้งให้หมด
-                    clonedDoc.body.innerHTML = ''; 
-                    // 2. เอาเฉพาะตัวบัตรไปแปะไว้ที่ Body โดยตรง
-                    clonedDoc.body.appendChild(clonedEl);
-                    // 3. เซ็ตสไตล์ให้ชิดขอบซ้ายบนสุดของโลกจำลอง
-                    clonedEl.style.position = 'absolute';
-                    clonedEl.style.top = '0';
-                    clonedEl.style.left = '0';
-                    clonedEl.style.margin = '0';
-                    clonedEl.style.transform = 'none'; // ล้างค่า transform ทั้งหมด
-                }
-            },
-            // ล็อคพิกัดการถ่ายที่ 0,0 ของโลกจำลอง
             x: 0,
             y: 0,
             scrollX: 0,
             scrollY: 0
         });
 
-        // ดาวน์โหลดไฟล์
+        // 5. ลบ Buffer ทิ้ง
+        document.body.removeChild(buffer);
+
+        // 6. ดาวน์โหลดไฟล์ PNG
         const link = document.createElement('a');
         link.download = `ID_Card_${cardIdText.replace(/\//g, '-')}_${suffix}.png`;
         link.href = canvas.toDataURL('image/png', 1.0);
@@ -4130,18 +4137,18 @@ if(c.areaAccessIds) {
     };
 
     try {
-        // 1. ถ่ายหน้าบัตร
-        await atomicCapture(front, 'FRONT');
+        // ถ่ายรูปหน้าบัตร
+        await captureFromBuffer(front, 'FRONT');
         
-        // 2. รอเล็กน้อยแล้วถ่ายหลังบัตร
+        // รอ 1 วินาทีเพื่อป้องกันเบราว์เซอร์บล็อคการโหลดไฟล์ซ้อนกัน
         setTimeout(async () => {
-            await atomicCapture(back, 'BACK');
-            showToast('ดาวน์โหลดรูปภาพ หน้า-หลัง สำเร็จ!', 'success');
+            await captureFromBuffer(back, 'BACK');
+            showToast('ดาวน์โหลดรูปภาพสำเร็จครบถ้วน!', 'success');
         }, 1000);
 
     } catch (err) {
-        console.error("Atomic Export Error:", err);
-        showToast('เกิดข้อผิดพลาดในการจัดตำแหน่งรูปภาพ', 'error');
+        console.error("Buffer Export Error:", err);
+        showToast('เกิดข้อผิดพลาดในการสร้างรูปภาพ', 'error');
     }
 }
     ///////////
