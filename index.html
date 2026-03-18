@@ -1084,88 +1084,78 @@
            
            <div class="p-6 overflow-y-auto bg-gray-100 flex-1 flex flex-col items-center justify-center gap-8">
                
-               <!-- กล่อง Wrapper ป้องกันการหดตัว (แก้ปัญหาภาพโดนตัด) -->
-               <div class="w-full overflow-x-auto flex justify-center py-4">
+               <!-- กล่อง Wrapper ป้องกันหน้าเว็บโดนตัด (เพิ่ม p-4) -->
+               <div class="w-full overflow-x-auto flex justify-center p-4">
+                   
                    <!-- กล่องเป้าหมายที่จะถูกแปลงเป็น PDF -->
-                   <div id="printCardContainer" class="flex flex-col gap-6 bg-transparent">
+                   <!-- เอา gap-8 ออกตอนปริ้น เพื่อไม่ให้ดันกระดาษล้นเป็น 4 หน้า -->
+                   <div id="printCardContainer" class="flex flex-col xl:flex-row gap-8 bg-transparent">
                        
                        <!-- หน้าบัตร (Front) -->
-                       <div class="pdf-page relative w-[340px] h-[540px] bg-white rounded-xl overflow-hidden shadow-xl border border-gray-200 shrink-0 select-none box-border">
+                       <div id="printCardFront" class="relative w-[340px] h-[540px] bg-white rounded-xl overflow-hidden shadow-xl shrink-0 select-none box-border">
                            <img id="tplFrontImg" src="" class="absolute inset-0 w-full h-full object-cover z-0 bg-gray-50" crossorigin="anonymous">
                            
                            <div class="absolute inset-0 z-10 flex flex-col">
                                
-                               <!-- โซนด้านบน (รูปถ่าย + สถานะ) -->
-                               <div class="absolute top-[85px] left-[20px] right-[20px] flex justify-between items-start h-[250px]">
-                                   <!-- รูปโปรไฟล์ (ซ้าย) ปรับขนาดยาวลงมาครึ่งบัตร -->
-                                   <div class="w-[155px] h-full border border-gray-300 bg-gray-100 flex items-center justify-center overflow-hidden shadow-sm shrink-0">
+                               <!-- 1. โซนด้านบน (ห่างจากแถบสีน้ำเงิน 95px) -->
+                               <div class="absolute top-[95px] left-[20px] right-[20px] flex justify-between items-start h-[220px]">
+                                   <!-- รูปโปรไฟล์ (ปรับให้กว้างขึ้นเป็น 160px สมส่วน 3:4) -->
+                                   <div class="w-[160px] h-full bg-gray-100 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
                                        <img id="renderPhoto" src="" class="w-full h-full object-cover hidden" crossorigin="anonymous">
                                        <i id="renderPhotoIcon" data-lucide="user" class="w-12 h-12 text-gray-300"></i>
                                    </div>
                                    
-                                   <!-- สัญลักษณ์ (ขวา) บังคับความสูงเท่ารูป -->
-                                   <div class="w-[130px] h-full flex flex-col justify-start gap-1.5">
-                                       <div id="renderTemp" class="text-red-600 font-black text-[18px] text-center mb-0.5 shadow-sm bg-white/90 py-0.5 rounded border border-red-100 shrink-0">บัตรชั่วคราว</div>
+                                   <!-- สัญลักษณ์ขวามือ (บังคับความสูงเท่ารูป) -->
+                                   <div class="w-[125px] h-full flex flex-col justify-start gap-1.5">
+                                       <div id="renderTemp" class="text-red-600 font-black text-[18px] text-center mb-0.5 shadow-sm bg-white/90 py-0.5 rounded shrink-0">บัตรชั่วคราว</div>
                                        
-                                       <!-- กล่องพื้นที่ (ยืดหยุ่นเต็มพื้นที่ที่เหลือ) -->
                                        <div id="renderAreaBoxes" class="flex-1 flex flex-col w-full border-[3px] border-indigo-900 bg-white shadow-sm overflow-hidden">
-                                           <!-- กล่องพื้นที่จะถูกวาดตรงนี้ด้วย Flex-1 -->
+                                           <!-- กล่องพื้นที่จะถูกวาดตรงนี้ -->
                                        </div>
                                        
-                                       <div id="renderEscort" class="w-full bg-indigo-900 text-white text-center font-black py-1.5 text-[13px] hidden shadow-sm shrink-0 mt-0.5">ESCORT</div>
-                                       <div id="renderDrive" class="w-full bg-indigo-900 text-white text-center font-black py-1.5 text-[13px] hidden shadow-sm shrink-0 mt-0.5">DRIVE</div>
+                                       <div id="renderEscort" class="w-full bg-indigo-900 text-white text-center font-black py-1.5 text-[13px] hidden shadow-sm shrink-0">ESCORT</div>
+                                       <div id="renderDrive" class="w-full bg-indigo-900 text-white text-center font-black py-1.5 text-[13px] hidden shadow-sm shrink-0">DRIVE</div>
                                    </div>
                                </div>
                                
-                               <!-- โซนข้อมูลส่วนตัว (อยู่ใต้รูปถ่าย ห่างลงมา) -->
-                               <div class="absolute top-[350px] left-[20px] right-[20px] flex flex-col gap-1.5 text-indigo-900 font-bold text-[14px]">
-                                   <!-- ชื่อ-สกุล (ปรับ line-clamp ให้แสดง 2 บรรทัดได้ถ้ายาวไป) -->
-                                   <div id="renderName" class="text-[20px] font-black text-indigo-900 mb-1 leading-tight border-b-2 border-indigo-100 pb-2 line-clamp-2">ชื่อ นามสกุล</div>
+                               <!-- 2. โซนข้อมูลส่วนตัว (ขยับลงมาอยู่ใต้รูปที่ 330px และลบเส้นคั่นออก) -->
+                               <div class="absolute top-[330px] left-[20px] right-[20px] flex flex-col gap-1 text-indigo-900 font-bold text-[14px]">
+                                   <div id="renderName" class="text-[21px] font-black text-indigo-900 mb-1 leading-tight line-clamp-2">ชื่อ นามสกุล</div>
                                    
-                                   <div class="flex items-start mt-1"><span id="renderLblPos" class="w-[70px] shrink-0 text-indigo-700">ตำแหน่ง</span> <span id="renderPos" class="flex-1 leading-tight">-</span></div>
-                                   <div class="flex items-start"><span id="renderLblOrg" class="w-[70px] shrink-0 text-indigo-700">สังกัด</span> <span id="renderOrg" class="flex-1 leading-tight">-</span></div>
+                                   <div class="flex items-start"><span id="renderLblPos" class="w-[65px] shrink-0 text-indigo-700">ตำแหน่ง</span> <span id="renderPos" class="flex-1 leading-tight">-</span></div>
+                                   <div class="flex items-start"><span id="renderLblOrg" class="w-[65px] shrink-0 text-indigo-700">สังกัด</span> <span id="renderOrg" class="flex-1 leading-tight">-</span></div>
                                    
-                                   <!-- วันหมดอายุ -->
-                                   <div class="mt-2 pt-2 border-t border-gray-100 flex flex-col">
-                                       <span id="renderLblExp" class="text-[12px] text-red-500 mb-0.5">หมดอายุ</span> 
-                                       <span id="renderExp" class="text-[22px] font-black text-red-600 leading-none">-</span>
-                                   </div>
+                                   <div class="flex items-start mt-1.5"><span id="renderLblExp" class="w-[65px] shrink-0 text-red-500">หมดอายุ</span> <span id="renderExp" class="flex-1 text-[18px] font-black text-red-600 leading-none">-</span></div>
                                </div>
 
-                               <!-- โซนรหัสบัตรด้านล่างสุด -->
-                               <div class="absolute bottom-[15px] left-[20px] right-[20px] flex items-center justify-between">
-                                   <div class="text-[22px] font-black text-indigo-900 leading-none">NO. <span id="renderCardId">-</span></div>
+                               <!-- 3. โซนรหัสบัตรด้านล่างสุด (อยู่คงที่ ไม่ทับกับวันหมดอายุ) -->
+                               <div class="absolute bottom-[20px] left-[20px] right-[20px]">
+                                   <div class="text-[24px] font-black text-indigo-900 leading-none tracking-wide">NO. <span id="renderCardId">-</span></div>
                                </div>
                            </div>
                        </div>
 
                        <!-- หน้าบัตร (Back) -->
-                       <div id="printCardBack" class="pdf-page relative w-[340px] h-[540px] bg-white rounded-xl overflow-hidden shadow-xl border border-gray-200 shrink-0 select-none box-border">
+                       <div id="printCardBack" class="relative w-[340px] h-[540px] bg-white rounded-xl overflow-hidden shadow-xl shrink-0 select-none box-border">
                            <img id="tplBackImg" src="" class="absolute inset-0 w-full h-full object-cover z-0 bg-gray-50" crossorigin="anonymous">
                            
                            <div class="absolute inset-0 z-10 flex flex-col px-4 py-6">
-                               <!-- หัวข้อกฎระเบียบ 3 บรรทัด -->
                                <div class="flex flex-col items-center mb-3 bg-white/90 rounded-lg py-2 shadow-sm border border-red-50 w-full">
                                    <h3 id="renderRulesTitle1" class="text-red-600 font-black text-center text-[20px] leading-tight w-full truncate">ข้อควรปฏิบัติ</h3>
                                    <p id="renderRulesTitle2" class="text-red-600 font-bold text-center text-[12px] leading-tight mt-1 w-full truncate"></p>
                                    <p id="renderRulesTitle3" class="text-red-600 font-bold text-center text-[12px] leading-tight w-full truncate"></p>
                                </div>
                                
-                               <!-- กฎระเบียบ -->
                                <div id="renderRules" class="text-gray-800 text-[12px] leading-relaxed whitespace-pre-line flex-1 font-medium bg-white/80 p-3 rounded-xl backdrop-blur-sm shadow-sm border border-gray-100 w-full"></div>
                                
-                               <!-- โซนบาร์โค้ด และข้อความ 3 บรรทัด -->
                                <div class="mt-3 flex flex-col items-center pb-4 pt-4 px-2 bg-white/90 rounded-xl backdrop-blur-sm shadow-sm border border-gray-100 w-full overflow-hidden shrink-0">
-                                   <!-- บาร์โค้ด -->
                                    <div class="w-full flex justify-center">
                                        <div class="font-barcode text-5xl text-black leading-none transform scale-x-[0.9] origin-center" id="renderBarcode">*A001*</div>
                                    </div>
                                    <div class="font-bold text-[14px] text-gray-800 mt-1" id="renderBarcodeText">A001</div>
                                    
-                                   <!-- เส้นแบ่ง 40% -->
                                    <div class="w-[40%] h-[2px] bg-gray-300 my-3 rounded-full"></div>
                                    
-                                   <!-- ข้อความท้ายบัตร 3 บรรทัด -->
                                    <div class="flex flex-col items-center text-center text-[11px] font-bold text-gray-600 leading-tight gap-0.5 w-full px-2">
                                        <span id="renderFooter1" class="truncate w-full">-</span>
                                        <span id="renderFooter2" class="truncate w-full">-</span>
@@ -4027,21 +4017,33 @@ function triggerFaceScanSuccess(cardId) {
     function closeIdCardModal() { document.getElementById('idCardModal').classList.add('hidden'); }
 
     function downloadPdfCard() {
-        const element = document.getElementById('printCardContainer');
+        const container = document.getElementById('printCardContainer');
         const cardIdText = document.getElementById('renderBarcodeText').textContent;
+        const backCard = document.getElementById('printCardBack');
         
-        // ใช้ class .pdf-page บังคับตัดหน้าใหม่ 100%
+        // 1. ถอดคลาสช่องว่าง (gap) และขอบมน (rounded) ออกชั่วคราว เพื่อให้ได้ขนาด 340x540 เป๊ะๆ
+        container.classList.remove('gap-8', 'xl:flex-row', 'flex-col');
+        container.classList.add('block');
+        
+        // บังคับให้หลังบัตรขึ้นหน้าใหม่
+        backCard.style.pageBreakBefore = 'always';
+        
         const opt = {
           margin:       0,
           filename:     `ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`,
           image:        { type: 'jpeg', quality: 1 },
           html2canvas:  { scale: 3, useCORS: true, allowTaint: true, logging: false },
-          jsPDF:        { unit: 'px', format: [340, 540], orientation: 'portrait' }, // 1 หน้า = 1 บัตร
-          pagebreak:    { mode: 'css', before: '#printCardBack' } // บังคับตัดก่อนถึงหลังบัตร
+          jsPDF:        { unit: 'px', format: [340, 540], orientation: 'portrait' }
         };
         
         showToast('กำลังสร้างไฟล์ PDF กรุณารอสักครู่...', 'info');
-        html2pdf().set(opt).from(element).save().then(() => {
+        
+        html2pdf().set(opt).from(container).save().then(() => {
+            // 2. เมื่อโหลดเสร็จแล้ว ใส่คลาสช่องว่างกลับคืนมาให้หน้าเว็บพรีวิวดูสวยเหมือนเดิม
+            container.classList.add('gap-8', 'xl:flex-row', 'flex-col');
+            container.classList.remove('block');
+            backCard.style.pageBreakBefore = '';
+            
             showToast('ดาวน์โหลดไฟล์ PDF บัตรพนักงานสำเร็จ!', 'success');
         });
     }
