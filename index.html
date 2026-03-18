@@ -4075,48 +4075,58 @@ if(c.areaAccessIds) {
     function closeIdCardModal() { document.getElementById('idCardModal').classList.add('hidden'); }
 
     function downloadPdfCard() {
-        const cardIdText = document.getElementById('renderBarcodeText').textContent;
-        
-        // --- เทคนิคใหม่แก้ปัญหา PDF ล้นหน้า ---
-        // 1. สร้างกล่องจำลองที่ไม่มีช่องว่างเลย เพื่อส่งไป Gen PDF โดยเฉพาะ
-        const cloneContainer = document.createElement('div');
-        cloneContainer.style.width = '340px'; 
-        
-        const frontClone = document.getElementById('printCardFront').cloneNode(true);
-        const backClone = document.getElementById('printCardBack').cloneNode(true);
-        
-        // ลบเงาและปรับระยะให้ชิดกันสนิท
-        frontClone.style.boxShadow = 'none';
-        backClone.style.boxShadow = 'none';
-        
-        // บังคับให้หลังบัตรขึ้นหน้าใหม่
-        backClone.style.pageBreakBefore = 'always'; 
-        
-        cloneContainer.appendChild(frontClone);
-        cloneContainer.appendChild(backClone);
-        
-        // ซ่อนไว้ไม่ให้ผู้ใช้เห็น
-        cloneContainer.style.position = 'absolute';
-        cloneContainer.style.left = '-9999px';
-        document.body.appendChild(cloneContainer);
-        
-        // ใช้ความสูง 541 (บวกเผื่อ 1px) ป้องกันเศษพิกเซลเด้งไปหน้าถัดไป
-        const opt = {
-          margin:       0,
-          filename:     `ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`,
-          image:        { type: 'jpeg', quality: 1 },
-          html2canvas:  { scale: 3, useCORS: true, allowTaint: true, logging: false },
-          jsPDF:        { unit: 'px', format: [340, 541], orientation: 'portrait' } 
-        };
-        
-        showToast('กำลังสร้างไฟล์ PDF กรุณารอสักครู่...', 'info');
-        
-        html2pdf().set(opt).from(cloneContainer).save().then(() => {
-            // ทำลายกล่องจำลองทิ้งเมื่อเสร็จสิ้น
-            document.body.removeChild(cloneContainer);
-            showToast('ดาวน์โหลดไฟล์ PDF บัตรพนักงานสำเร็จ!', 'success');
-        });
-    }
+    const cardIdText = document.getElementById('renderBarcodeText').textContent;
+    const front = document.getElementById('printCardFront');
+    const back = document.getElementById('printCardBack');
+
+    // สร้าง Wrapper ชั่วคราวที่จัดระเบียบใหม่สำหรับ PDF
+    const pdfWrapper = document.createElement('div');
+    pdfWrapper.style.width = '340px';
+    pdfWrapper.style.background = 'white';
+
+    // หน้าที่ 1
+    const page1 = front.cloneNode(true);
+    page1.style.boxShadow = 'none';
+    page1.style.margin = '0 auto';
+    page1.style.display = 'block';
+
+    // หน้าที่ 2
+    const page2 = back.cloneNode(true);
+    page2.style.boxShadow = 'none';
+    page2.style.margin = '0 auto';
+    page2.style.display = 'block';
+    page2.style.pageBreakBefore = 'always'; // บังคับขึ้นหน้าใหม่
+
+    pdfWrapper.appendChild(page1);
+    pdfWrapper.appendChild(page2);
+    document.body.appendChild(pdfWrapper); // เพิ่มลง Body ชั่วคราวเพื่อให้ Library วัดขนาดได้
+
+    showToast('กำลังผลิต PDF 2 หน้า...', 'info');
+
+    const opt = {
+        margin: 0,
+        filename: `ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`,
+        image: { type: 'jpeg', quality: 1 },
+        html2canvas: { 
+            scale: 2, 
+            useCORS: true, 
+            logging: false,
+            width: 340,
+            y: 0,
+            scrollX: 0,
+            scrollY: 0
+        },
+        jsPDF: { unit: 'px', format: [340, 540], orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(pdfWrapper).save().then(() => {
+        document.body.removeChild(pdfWrapper); // ลบทิ้งเมื่อเสร็จ
+        showToast('ดาวน์โหลด PDF สำเร็จ', 'success');
+    }).catch(err => {
+        console.error(err);
+        document.body.removeChild(pdfWrapper);
+    });
+}
     ///////////
   </script>
 </body>
