@@ -4088,71 +4088,74 @@ if(c.areaAccessIds) {
 
     if (!front || !back) return showToast('ไม่พบข้อมูลบัตร', 'error');
 
-    showToast('กำลังสร้าง PDF 2 หน้า (ไม่มีหน้าเกิน)...', 'info');
+    showToast('กำลังจัดทำ PDF... กรุณารอสักครู่', 'info');
 
-    // 1. สร้าง Wrapper ที่บล็อกช่องว่างทุกชนิด (Line Height และ Font Size เป็น 0)
-    const pdfWrapper = document.createElement('div');
-    pdfWrapper.style.width = '340px';
-    pdfWrapper.style.margin = '0';
-    pdfWrapper.style.padding = '0';
-    pdfWrapper.style.lineHeight = '0'; // บล็อกช่องว่างระหว่างบรรทัด
-    pdfWrapper.style.fontSize = '0';   // บล็อกช่องว่างของตัวอักษรที่มองไม่เห็น
-    pdfWrapper.style.backgroundColor = 'white';
+    // 1. สร้าง Container ลับที่อยู่นอก Modal เพื่อป้องกันการดึง Style เลย์เอาต์ที่เพี้ยนมา
+    const workerElement = document.createElement('div');
+    workerElement.style.position = 'absolute';
+    workerElement.style.left = '-9999px'; // ซ่อนไว้ข้างนอก
+    workerElement.style.top = '0';
+    workerElement.style.width = '340px';
+    workerElement.style.backgroundColor = '#ffffff';
 
-    // 2. ปรับแต่ง Clone ของหน้าบัตร
-    const fClone = front.cloneNode(true);
-    fClone.style.display = 'block';
-    fClone.style.margin = '0';
-    fClone.style.padding = '0';
-    fClone.style.boxShadow = 'none'; // ลบเงาออกเพราะเงาทำให้ขนาดเกินหน้ากระดาษ
-    fClone.style.border = 'none';
-    fClone.style.width = '340px';
-    fClone.style.height = '540px';
+    // 2. ฟังก์ชันช่วยเตรียมหน้าบัตรให้สะอาด (ลดโอกาสตำแหน่งเพี้ยน)
+    const preparePage = (original) => {
+        const clone = original.cloneNode(true);
+        clone.style.width = '340px';
+        clone.style.height = '540px';
+        clone.style.display = 'block';
+        clone.style.position = 'relative'; // ล็อคตำแหน่งอ้างอิง
+        clone.style.margin = '0';
+        clone.style.padding = '0';
+        clone.style.boxShadow = 'none'; // ลบเงาที่ทำให้พิกัดเคลื่อน
+        clone.style.borderRadius = '0'; // ลบขอบมนเพื่อให้เต็มหน้ากระดาษพอดี
+        clone.style.transform = 'none'; // ลบการหมุนหรือย่อขยาย
+        return clone;
+    };
 
-    const bClone = back.cloneNode(true);
-    bClone.id = 'page2'; // กำหนด ID ให้หน้าหลัง
-    bClone.style.display = 'block';
-    bClone.style.margin = '0';
-    bClone.style.padding = '0';
-    bClone.style.boxShadow = 'none';
-    bClone.style.border = 'none';
-    bClone.style.width = '340px';
-    bClone.style.height = '540px';
-    bClone.style.pageBreakBefore = 'always'; // คำสั่งตัดหน้า
+    const frontPage = preparePage(front);
+    const backPage = preparePage(back);
 
-    pdfWrapper.appendChild(fClone);
-    pdfWrapper.appendChild(bClone);
+    // เพิ่มคลาสสำหรับสั่งตัดหน้าให้ html2pdf รู้จัก
+    backPage.classList.add('html2pdf__page-break');
+
+    workerElement.appendChild(frontPage);
+    workerElement.appendChild(backPage);
+    document.body.appendChild(workerElement);
 
     // 3. ตั้งค่า html2pdf
     const opt = {
         margin: 0,
         filename: `ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`,
-        image: { type: 'jpeg', quality: 1.0 }, // ใช้คุณภาพสูงสุด
+        image: { type: 'jpeg', quality: 1.0 },
         html2canvas: { 
-            scale: 2, 
-            useCORS: true, 
+            scale: 3, // เพิ่มความละเอียดเป็น 3 เท่าเพื่อให้ตัวหนังสือและบาร์โค้ดคมชัด
+            useCORS: true, // สำคัญมากสำหรับรูปภาพจาก Google Drive
             logging: false,
-            scrollX: 0,
-            scrollY: 0,
             width: 340,
-            height: 1080 // 540 * 2 = ความสูงรวมที่พอดีเป๊ะ
+            height: 1080, // ความสูงรวม 2 หน้า (540x2)
+            scrollY: 0,
+            scrollX: 0,
+            windowWidth: 340 // บังคับ Viewport ให้เท่ากับความกว้างบัตรเพื่อตำแหน่ง absolute ที่แม่นยำ
         },
         jsPDF: { 
             unit: 'px', 
             format: [340, 540], 
-            orientation: 'portrait',
-            hotfixes: ['px_scaling'] // แก้ไขเรื่องขนาดพิกเซลใน PDF
+            orientation: 'portrait' 
         },
-        pagebreak: { mode: 'css', before: '#page2' }
+        pagebreak: { mode: ['css', 'legacy'] }
     };
 
     try {
-        // ประมวลผลและดาวน์โหลด
-        await html2pdf().set(opt).from(pdfWrapper).save();
-        showToast('ดาวน์โหลด PDF สำเร็จ', 'success');
+        // ประมวลผลจาก workerElement ที่เราสร้างขึ้นมาใหม่
+        await html2pdf().set(opt).from(workerElement).save();
+        showToast('ดาวน์โหลด PDF สำเร็จแล้ว', 'success');
     } catch (err) {
         console.error("PDF Error:", err);
         showToast('เกิดข้อผิดพลาดในการสร้างไฟล์', 'error');
+    } finally {
+        // ลบ Element ลับทิ้ง
+        document.body.removeChild(workerElement);
     }
 }
     ///////////
