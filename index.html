@@ -36,6 +36,19 @@
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+	#printCardContainer {
+    padding: 10px; /* เพิ่มพื้นที่รอบๆ ไม่ให้บัตรชิดขอบ Modal เกินไป */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+@media (min-width: 768px) {
+    #printCardContainer {
+        flex-direction: row; /* ถ้าจอใหญ่ให้วางคู่กัน */
+        align-items: flex-start;
+    }
+}
   </style>
 </head>
 <body class="h-full bg-gray-50">
@@ -1091,7 +1104,7 @@
                    
                    <!-- หน้าบัตร (Front) -->
                    <div id="printCardFront" class="relative w-[340px] h-[540px] bg-white rounded-xl overflow-hidden shadow-xl shrink-0 select-none box-border">
-                       <img id="tplFrontImg" src="" class="absolute inset-0 w-full h-full object-cover z-0 bg-gray-50" crossorigin="anonymous">
+                       <img id="tplFrontImg" src="" class="absolute inset-0 w-full h-full object-fill z-0 bg-gray-50" crossorigin="anonymous">
                        
                        <div class="absolute inset-0 z-10 flex flex-col">
                            
@@ -1147,7 +1160,7 @@
 
                    <!-- หน้าบัตร (Back) -->
                    <div id="printCardBack" class="relative w-[340px] h-[540px] bg-white rounded-xl overflow-hidden shadow-xl shrink-0 select-none box-border">
-                       <img id="tplBackImg" src="" class="absolute inset-0 w-full h-full object-cover z-0 bg-gray-50" crossorigin="anonymous">
+                       <img id="tplBackImg" src="" class="absolute inset-0 w-full h-full object-fill z-0 bg-gray-50" crossorigin="anonymous">
                        
                        <div class="absolute inset-0 z-10 flex flex-col px-4 py-6">
                            <div class="flex flex-col items-center mb-3 bg-white/90 rounded-lg py-2 shadow-sm border border-red-50 w-full">
@@ -3997,26 +4010,38 @@ function triggerFaceScanSuccess(cardId) {
         t.requireCompanion === true || t.requireCompanion === 'TRUE' ? escortEl.classList.remove('hidden') : escortEl.classList.add('hidden');
         c.canDrive === true || c.canDrive === 'TRUE' ? driveEl.classList.remove('hidden') : driveEl.classList.add('hidden');
         
-        const areaContainer = document.getElementById('renderAreaBoxes');
-        let areaHtml = '';
-        if(c.areaAccessIds) {
-            const arr = c.areaAccessIds.split(',');
-            let aData = allAreas.filter(a => arr.includes(String(a.areaNumber)));
-            aData.sort((a,b) => parseInt(a.areaNumber) - parseInt(b.areaNumber));
-            
-            if(aData.length > 0) {
-                // คำนวณขนาดฟอนต์ให้เล็กลงถ้ายิ่งมีหลายกล่อง
-                const fSize = aData.length === 1 ? '5rem' : (aData.length === 2 ? '3.8rem' : '2.5rem');
-                
-                areaHtml = aData.map((a, idx) => `
-                    <div class="w-full flex-1 flex items-center justify-center font-black ${idx !== aData.length-1 ? 'border-b-[3px] border-indigo-900' : ''}" 
-                         style="background-color: ${a.colorCode}; color: ${getContrastYIQ(a.colorCode)}; font-size: ${fSize}; line-height: 1;">
-                        <span style="transform: translateY(2px);">${a.areaNumber}</span>
-                    </div>
-                `).join('');
-            }
-        }
-        areaContainer.innerHTML = areaHtml;
+        // แก้ไขส่วนสร้างกล่องพื้นที่ใน previewIdCard
+const areaContainer = document.getElementById('renderAreaBoxes');
+let areaHtml = '';
+if(c.areaAccessIds) {
+    const arr = c.areaAccessIds.split(',');
+    let aData = allAreas.filter(a => arr.includes(String(a.areaNumber)));
+    aData.sort((a,b) => parseInt(a.areaNumber) - parseInt(b.areaNumber));
+    
+    if(aData.length > 0) {
+        // ปรับการจัดวาง container ให้เนื้อหาอยู่กึ่งกลาง
+        areaContainer.className = "flex-1 flex flex-col items-center justify-center gap-1 w-full border-[3px] border-indigo-900 bg-white shadow-sm overflow-hidden rounded-sm";
+        
+        // กำหนดขนาดฟอนต์ตามจำนวนกล่อง
+        const fSize = aData.length === 1 ? '4.5rem' : (aData.length === 2 ? '3rem' : '2.2rem');
+        // กำหนดขนาดกล่อง (ถ้า 2 กล่องให้สูงประมาณ 100px จะได้เป็นจัตุรัส)
+        const boxSize = aData.length === 1 ? '160px' : '105px';
+
+        areaHtml = aData.map((a, idx) => `
+            <div class="flex items-center justify-center font-black" 
+                 style="background-color: ${a.colorCode}; 
+                        color: ${getContrastYIQ(a.colorCode)}; 
+                        font-size: ${fSize}; 
+                        width: ${boxSize}; 
+                        height: ${boxSize};
+                        line-height: 1;
+                        border: ${aData.length > 1 ? '1px solid rgba(0,0,0,0.1)' : 'none'}">
+                <span style="transform: translateY(2px);">${a.areaNumber}</span>
+            </div>
+        `).join('');
+    }
+}
+areaContainer.innerHTML = areaHtml;
         
         document.getElementById('renderBarcode').textContent = `*${c.cardId}*`;
         document.getElementById('renderBarcodeText').textContent = c.cardId;
@@ -4030,48 +4055,33 @@ function triggerFaceScanSuccess(cardId) {
     function closeIdCardModal() { document.getElementById('idCardModal').classList.add('hidden'); }
 
     function downloadPdfCard() {
-        const cardIdText = document.getElementById('renderBarcodeText').textContent;
-        
-        // --- เทคนิคใหม่แก้ปัญหา PDF ล้นหน้า ---
-        // 1. สร้างกล่องจำลองที่ไม่มีช่องว่างเลย เพื่อส่งไป Gen PDF โดยเฉพาะ
-        const cloneContainer = document.createElement('div');
-        cloneContainer.style.width = '340px'; 
-        
-        const frontClone = document.getElementById('printCardFront').cloneNode(true);
-        const backClone = document.getElementById('printCardBack').cloneNode(true);
-        
-        // ลบเงาและปรับระยะให้ชิดกันสนิท
-        frontClone.style.boxShadow = 'none';
-        backClone.style.boxShadow = 'none';
-        
-        // บังคับให้หลังบัตรขึ้นหน้าใหม่
-        backClone.style.pageBreakBefore = 'always'; 
-        
-        cloneContainer.appendChild(frontClone);
-        cloneContainer.appendChild(backClone);
-        
-        // ซ่อนไว้ไม่ให้ผู้ใช้เห็น
-        cloneContainer.style.position = 'absolute';
-        cloneContainer.style.left = '-9999px';
-        document.body.appendChild(cloneContainer);
-        
-        // ใช้ความสูง 541 (บวกเผื่อ 1px) ป้องกันเศษพิกเซลเด้งไปหน้าถัดไป
-        const opt = {
-          margin:       0,
-          filename:     `ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`,
-          image:        { type: 'jpeg', quality: 1 },
-          html2canvas:  { scale: 3, useCORS: true, allowTaint: true, logging: false },
-          jsPDF:        { unit: 'px', format: [340, 541], orientation: 'portrait' } 
-        };
-        
-        showToast('กำลังสร้างไฟล์ PDF กรุณารอสักครู่...', 'info');
-        
-        html2pdf().set(opt).from(cloneContainer).save().then(() => {
-            // ทำลายกล่องจำลองทิ้งเมื่อเสร็จสิ้น
-            document.body.removeChild(cloneContainer);
-            showToast('ดาวน์โหลดไฟล์ PDF บัตรพนักงานสำเร็จ!', 'success');
-        });
-    }
+    const cardIdText = document.getElementById('renderBarcodeText').textContent;
+    // เลือกเป้าหมายที่เป็น container หลัก
+    const element = document.getElementById('printCardContainer');
+    
+    showToast('กำลังเตรียมไฟล์ PDF...', 'info');
+
+    // ตั้งค่าตัวเลือก PDF
+    const opt = {
+        margin: [0, 0],
+        filename: `ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+            scale: 3, 
+            useCORS: true, 
+            letterRendering: true,
+            scrollX: 0,
+            scrollY: 0
+        },
+        jsPDF: { unit: 'px', format: [340, 541], orientation: 'portrait' },
+        pagebreak: { mode: 'avoid-all', before: '#printCardBack' } // บังคับตัดหน้าก่อนถึงหลังบัตร
+    };
+
+    // รันการผลิต PDF จาก Element ที่มองเห็น
+    html2pdf().set(opt).from(element).toPdf().get('pdf').then(function (pdf) {
+        showToast('ดาวน์โหลด PDF สำเร็จ', 'success');
+    }).save();
+}
     ///////////
   </script>
 </body>
