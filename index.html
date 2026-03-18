@@ -47,28 +47,29 @@
     overflow: hidden !important;
 }
 
-/* พื้นที่แถบขวา */
+/* แถบขวาสำหรับวางสี่เหลี่ยมจัตุรัส */
 #renderAreaBoxes {
     display: flex !important;
     flex-direction: column !important;
+    align-items: center !important; /* จัดให้กล่องอยู่กึ่งกลางแถบขวา */
+    justify-content: flex-start !important;
     width: 130px !important;
-    height: 230px !important;
-    padding: 0 !important;
-    margin: 0 !important;
+    height: 230px !important; /* สูงเท่ารูปถ่าย */
+    gap: 5px !important; /* ระยะห่างระหว่างกล่อง */
+    padding-top: 5px !important;
     box-sizing: border-box !important;
 }
 
-/* กล่องสี่เหลี่ยมพื้นที่ */
-.area-square {
-    flex: 1 1 0% !important; /* แบ่งพื้นที่เท่าๆ กัน */
-    width: 130px !important;
+/* บังคับสี่เหลี่ยมจัตุรัส */
+.area-square-fixed {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    font-family: 'Prompt', sans-serif !important;
+    border: 3px solid #1e1b4b !important; /* สีกรมท่าเข้ม */
     font-weight: 900 !important;
     box-sizing: border-box !important;
     line-height: 1 !important;
+    text-align: center !important;
 }
 
 /* กำหนดจุดตัดหน้า PDF */
@@ -4040,6 +4041,7 @@ function triggerFaceScanSuccess(cardId) {
         c.canDrive === true || c.canDrive === 'TRUE' ? driveEl.classList.remove('hidden') : driveEl.classList.add('hidden');
         
         // แก้ไขส่วนสร้างกล่องพื้นที่ใน previewIdCard
+// ค้นหาในฟังก์ชัน previewIdCard และแทนที่ส่วนพื้นที่ (Area Boxes)
 const areaContainer = document.getElementById('renderAreaBoxes');
 areaContainer.innerHTML = ''; 
 
@@ -4049,20 +4051,20 @@ if(c.areaAccessIds) {
     aData.sort((a,b) => parseInt(a.areaNumber) - parseInt(b.areaNumber));
     
     if(aData.length > 0) {
-        const areaHtml = aData.slice(0, 2).map((a, idx) => {
-            // ปรับฟอนต์ให้เล็กลงเล็กน้อยเพื่อไม่ให้ตกขอบ (1 พื้นที่ = 100, 2 พื้นที่ = 80)
-            const fSize = aData.length === 1 ? "100px" : "80px";
-            
-            return `
-                <div class="area-square" 
-                     style="background-color: ${a.colorCode}; 
-                            color: ${getContrastYIQ(a.colorCode)}; 
-                            font-size: ${fSize} !important;
-                            border: 2px solid #312e81;">
-                    ${a.areaNumber}
-                </div>
-            `;
-        }).join('');
+        // ตรรกะ: 1 พื้นที่ = กล่องใหญ่, 2 พื้นที่ = กล่องจัตุรัส 2 ใบ
+        const boxSize = aData.length === 1 ? "130px" : "110px";
+        const fontSize = aData.length === 1 ? "100px" : "80px";
+
+        const areaHtml = aData.slice(0, 2).map(a => `
+            <div class="area-square-fixed" 
+                 style="background-color: ${a.colorCode}; 
+                        color: ${getContrastYIQ(a.colorCode)}; 
+                        width: ${boxSize} !important;
+                        height: ${boxSize} !important;
+                        font-size: ${fontSize} !important;">
+                ${a.areaNumber}
+            </div>
+        `).join('');
         areaContainer.innerHTML = areaHtml;
     }
 }
@@ -4078,34 +4080,35 @@ if(c.areaAccessIds) {
     
     function closeIdCardModal() { document.getElementById('idCardModal').classList.add('hidden'); }
 
-    function downloadPdfCard() {
+    async function downloadPdfCard() {
     const cardIdText = document.getElementById('renderBarcodeText').textContent;
     const front = document.getElementById('printCardFront');
     const back = document.getElementById('printCardBack');
 
-    // สร้างกล่องเก็บหน้า PDF โดยไม่มี Margin/Padding เลย
-    const pdfContent = document.createElement('div');
-    pdfContent.style.width = '340px';
-    pdfContent.style.margin = '0';
-    pdfContent.style.padding = '0';
+    // 1. สร้างพื้นที่จำลองใน Body เพื่อให้ Browser เรนเดอร์ภาพและฟอนต์ให้เสร็จ
+    const pdfWrapper = document.createElement('div');
+    pdfWrapper.style.position = 'fixed';
+    pdfWrapper.style.left = '-9999px';
+    pdfWrapper.style.top = '0';
+    pdfWrapper.style.width = '340px';
+    pdfWrapper.style.backgroundColor = 'white';
+    pdfWrapper.style.zIndex = '-1';
 
-    // โคลนหน้า 1
+    // โคลนหน้า 1 และ 2
     const p1 = front.cloneNode(true);
-    p1.style.boxShadow = 'none';
-    
-    // โคลนหน้า 2
     const p2 = back.cloneNode(true);
+    p1.style.boxShadow = 'none';
     p2.style.boxShadow = 'none';
+    p2.style.pageBreakBefore = 'always'; // บังคับขึ้นหน้าใหม่ที่หน้า 2
 
-    // จุดตัดหน้า (ใส่อยู่ระหว่างหน้า 1 และ 2)
-    const br = document.createElement('div');
-    br.className = 'pdf-break';
+    pdfWrapper.appendChild(p1);
+    pdfWrapper.appendChild(p2);
+    document.body.appendChild(pdfWrapper);
 
-    pdfContent.appendChild(p1);
-    pdfContent.appendChild(br);
-    pdfContent.appendChild(p2);
+    showToast('กำลังเตรียมไฟล์ PDF และตรวจสอบรูปภาพ...', 'info');
 
-    showToast('กำลังผลิต PDF 2 หน้า...', 'info');
+    // 2. หน่วงเวลาเล็กน้อย (500ms) เพื่อให้รูปภาพและบาร์โค้ดเรนเดอร์เสร็จสมบูรณ์
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     const opt = {
         margin: 0,
@@ -4115,22 +4118,20 @@ if(c.areaAccessIds) {
             scale: 2, 
             useCORS: true, 
             logging: false,
-            width: 340, // ล็อคความกว้าง Canvas
-            x: 0,       // แก้ปัญหาเยื้องขวา
-            y: 0,
-            scrollX: 0,
-            scrollY: 0
+            letterRendering: true,
+            allowTaint: false
         },
-        jsPDF: { 
-            unit: 'px', 
-            format: [340, 540], // ขนาดหน้าต้องพอดีเป๊ะกับ Content
-            orientation: 'portrait',
-            hotfixes: ['px_scaling']
-        }
+        jsPDF: { unit: 'px', format: [340, 540], orientation: 'portrait' }
     };
 
-    html2pdf().set(opt).from(pdfContent).save().then(() => {
-        showToast('ดาวน์โหลด PDF สำเร็จ', 'success');
+    // 3. สั่งสร้าง PDF จาก Wrapper ที่ถูกแปะลงใน DOM แล้ว
+    html2pdf().set(opt).from(pdfWrapper).save().then(() => {
+        document.body.removeChild(pdfWrapper); // ลบทิ้งเมื่อเสร็จ
+        showToast('ดาวน์โหลด PDF สำเร็จ!', 'success');
+    }).catch(err => {
+        console.error(err);
+        document.body.removeChild(pdfWrapper);
+        showToast('เกิดข้อผิดพลาดในการสร้าง PDF', 'error');
     });
 }
     ///////////
