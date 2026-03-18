@@ -9,6 +9,7 @@
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <!-- เพิ่มไลบรารี html2pdf สำหรับโหลดบัตร PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
    <!-- --- เพิ่มบรรทัดนี้เพื่อเรียกใช้ Face AI --- -->
@@ -4081,72 +4082,61 @@ if(c.areaAccessIds) {
         return;
     }
 
-    // 1. สร้าง Wrapper ชั่วคราว และนำไปแปะไว้ใน Body จริง (เพื่อแก้หน้าขาว)
-    const printWrapper = document.createElement('div');
-    printWrapper.id = 'temp-print-wrapper';
-    printWrapper.style.position = 'fixed';
-    printWrapper.style.left = '-3000px'; // ย้ายไปไกลๆ ไม่ให้คนเห็น
-    printWrapper.style.top = '0';
-    printWrapper.style.width = '340px';
-    printWrapper.style.backgroundColor = 'white';
+    showLoader('กำลังประมวลผล PDF (โปรดรอสักครู่)...');
 
-    // โคลนหน้า 1 และ 2
-    const p1 = front.cloneNode(true);
-    const p2 = back.cloneNode(true);
-
-    // ลบเงาและปรับ Style ให้คลีนที่สุดสำหรับ PDF
-    [p1, p2].forEach(p => {
-        p.style.boxShadow = 'none';
-        p.style.margin = '0';
-        p.style.display = 'block';
-    });
-
-    // สร้างจุดตัดหน้า (Page Break)
-    const breakLine = document.createElement('div');
-    breakLine.className = 'html2pdf__page-break'; 
-
-    printWrapper.appendChild(p1);
-    printWrapper.appendChild(breakLine);
-    printWrapper.appendChild(p2);
-
-    document.body.appendChild(printWrapper);
-
-    showToast('กำลังประมวลผลรูปภาพและสร้าง PDF...', 'info');
-
-    // 2. *** จุดสำคัญ: หน่วงเวลาเพื่อให้ Browser วาดภาพพิกเซลให้เสร็จ ***
-    // หากรูปภาพมาจาก Google Drive หรือ URL ภายนอก ต้องรอให้รูปโหลดเสร็จจริงๆ
-    await new Promise(resolve => setTimeout(resolve, 800)); 
-
-    const opt = {
-        margin: 0,
-        filename: `ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`,
-        image: { type: 'jpeg', quality: 1 },
-        html2canvas: { 
-            scale: 3, // ความละเอียดสูง
-            useCORS: true, // สำคัญ: เพื่อให้โหลดรูปจาก URL ภายนอกได้
-            logging: false,
-            letterRendering: true,
-            width: 340,
-            windowWidth: 340
-        },
-        jsPDF: { 
-            unit: 'px', 
-            format: [340, 540], // ขนาดบัตรหน้าละ 340x540 px
-            orientation: 'portrait',
-            hotfixes: ['px_scaling']
-        }
-    };
-
-    // 3. เริ่มการดาวน์โหลด
     try {
-        await html2pdf().set(opt).from(printWrapper).save();
+        // 1. ตรวจสอบว่าฟอนต์บาร์โค้ดโหลดเสร็จหรือยัง
+        await document.fonts.ready;
+
+        // 2. ฟังก์ชันสำหรับแปลง Element เป็น Image Data (Base64)
+        const elementToImage = async (el) => {
+            // ลบเงาชั่วคราวเพื่อให้ขอบคมชัด
+            const originalShadow = el.style.boxShadow;
+            el.style.boxShadow = 'none';
+
+            const canvas = await html2canvas(el, {
+                scale: 3, // ความละเอียดสูง
+                useCORS: true, // แก้ปัญหาหน้าขาวจากรูป Google Drive
+                allowTaint: false,
+                backgroundColor: "#ffffff",
+                width: 340,
+                height: 540,
+                logging: false
+            });
+
+            el.style.boxShadow = originalShadow; // คืนค่าเงา
+            return canvas.toDataURL('image/jpeg', 1.0);
+        };
+
+        // 3. วาดภาพหน้าบัตรและหลังบัตร
+        const frontImg = await elementToImage(front);
+        const backImg = await elementToImage(back);
+
+        // 4. สร้าง PDF โดยใช้ jsPDF โดยตรง (เสถียรกว่าการใช้ html2pdf หุ้ม)
+        const { jsPDF } = window.jspdf || { jsPDF: window.jsPDF }; // รองรับทั้ง v1 และ v2
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'px',
+            format: [340, 540]
+        });
+
+        // หน้าที่ 1 (หน้าบัตร)
+        pdf.addImage(frontImg, 'JPEG', 0, 0, 340, 540);
+
+        // หน้าที่ 2 (หลังบัตร)
+        pdf.addPage([340, 540], 'portrait');
+        pdf.addImage(backImg, 'JPEG', 0, 0, 340, 540);
+
+        // 5. บันทึกไฟล์
+        pdf.save(`ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`);
+        
+        hideLoader();
         showToast('ดาวน์โหลด PDF สำเร็จ!', 'success');
+
     } catch (err) {
-        console.error("PDF Export Error: ", err);
-        showToast('เกิดข้อผิดพลาดในการสร้างไฟล์', 'error');
-    } finally {
-        // ลบ Element ชั่วคราวออกจากหน้าเว็บ
-        document.body.removeChild(printWrapper);
+        console.error("PDF Error: ", err);
+        hideLoader();
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
     }
 }
     ///////////
