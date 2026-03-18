@@ -65,13 +65,20 @@
     line-height: 1 !important;
     text-align: center !important;
 }
-/* CSS แนะนำสำหรับหน้าบัตร/หลังบัตร */
+/* บังคับขนาดให้ตายตัวและล้างระยะห่างส่วนเกิน */
 #printCardFront, #printCardBack {
     width: 340px !important;
     height: 540px !important;
+    margin: 0 !important;
+    padding: 0 !important;
     box-sizing: border-box !important;
     overflow: hidden !important;
     position: relative !important;
+    -webkit-print-color-adjust: exact; /* สำหรับรูปภาพพื้นหลัง */
+}
+/* ลบช่องว่างที่อาจเกิดขึ้นระหว่างหน้า */
+.pdf-page-break {
+    page-break-after: always;
 }
   </style>
 </head>
@@ -4074,56 +4081,71 @@ if(c.areaAccessIds) {
     
     function closeIdCardModal() { document.getElementById('idCardModal').classList.add('hidden'); }
 
-    function downloadPdfCard() {
+   function downloadPdfCard() {
     const cardIdText = document.getElementById('renderBarcodeText').textContent;
     const front = document.getElementById('printCardFront');
     const back = document.getElementById('printCardBack');
 
-    // สร้าง Wrapper ชั่วคราวที่จัดระเบียบใหม่สำหรับ PDF
+    // 1. สร้าง Wrapper ลับ (Hidden Container) ที่วางไว้ที่มุมซ้ายบนสุดของจอ
+    // เพื่อรีเซ็ตพิกัด X, Y ให้เป็น 0 เสมอ ลดปัญหาการเยื้อง
     const pdfWrapper = document.createElement('div');
-    pdfWrapper.style.width = '340px';
-    pdfWrapper.style.background = 'white';
+    pdfWrapper.style.position = 'fixed';
+    pdfWrapper.style.top = '0';
+    pdfWrapper.style.left = '0';
+    pdfWrapper.style.width = '340px'; // ขนาดเท่าหน้าบัตรพอดี
+    pdfWrapper.style.zIndex = '-9999';
+    pdfWrapper.style.backgroundColor = 'white';
+    pdfWrapper.style.lineHeight = '0'; // ป้องกันช่องว่างระหว่างบรรทัดที่ทำให้หน้าเกิน
 
-    // หน้าที่ 1
+    // 2. Clone หน้าบัตรมาวางใน Wrapper โดยลบ Style ที่อาจทำให้เคลื่อนออก
     const page1 = front.cloneNode(true);
     page1.style.boxShadow = 'none';
-    page1.style.margin = '0 auto';
+    page1.style.margin = '0';
+    page1.style.position = 'relative';
     page1.style.display = 'block';
 
-    // หน้าที่ 2
     const page2 = back.cloneNode(true);
     page2.style.boxShadow = 'none';
-    page2.style.margin = '0 auto';
+    page2.style.margin = '0';
+    page2.style.position = 'relative';
     page2.style.display = 'block';
-    page2.style.pageBreakBefore = 'always'; // บังคับขึ้นหน้าใหม่
+    page2.style.pageBreakBefore = 'always'; // บังคับขึ้นหน้าใหม่ให้ชัดเจน
 
     pdfWrapper.appendChild(page1);
     pdfWrapper.appendChild(page2);
-    document.body.appendChild(pdfWrapper); // เพิ่มลง Body ชั่วคราวเพื่อให้ Library วัดขนาดได้
+    document.body.appendChild(pdfWrapper);
 
-    showToast('กำลังผลิต PDF 2 หน้า...', 'info');
+    showToast('กำลังผลิต PDF...', 'info');
 
+    // 3. ตั้งค่า html2pdf
     const opt = {
         margin: 0,
         filename: `ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`,
-        image: { type: 'jpeg', quality: 1 },
+        image: { type: 'jpeg', quality: 1.0 },
         html2canvas: { 
-            scale: 2, 
+            scale: 3, // เพิ่มความชัด
             useCORS: true, 
             logging: false,
             width: 340,
-            y: 0,
+            height: 1080, // 540 * 2 หน้า
+            scrollY: 0,
             scrollX: 0,
-            scrollY: 0
+            windowWidth: 340 // บังคับ Viewport ให้แคบเท่าบัตร
         },
-        jsPDF: { unit: 'px', format: [340, 540], orientation: 'portrait' }
+        jsPDF: { 
+            unit: 'px', 
+            format: [340, 540], 
+            orientation: 'portrait',
+            compress: true
+        }
     };
 
+    // 4. เริ่มต้นการสร้าง PDF
     html2pdf().set(opt).from(pdfWrapper).save().then(() => {
         document.body.removeChild(pdfWrapper); // ลบทิ้งเมื่อเสร็จ
         showToast('ดาวน์โหลด PDF สำเร็จ', 'success');
     }).catch(err => {
-        console.error(err);
+        console.error("PDF Error:", err);
         document.body.removeChild(pdfWrapper);
     });
 }
