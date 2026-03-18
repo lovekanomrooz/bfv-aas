@@ -4092,7 +4092,7 @@ if(c.areaAccessIds) {
 
     // 1. สร้าง Container ชั่วคราว (Temporary Wrapper)
     const pdfWrapper = document.createElement('div');
-    pdfWrapper.style.width = '330px';
+    pdfWrapper.style.width = '340px';
     pdfWrapper.style.background = 'white';
     pdfWrapper.style.display = 'block'; // บังคับให้เรียงแนวตั้ง
 
@@ -4108,7 +4108,7 @@ if(c.areaAccessIds) {
     bClone.style.display = 'block';
     
     // บังคับคำสั่งขึ้นหน้าใหม่ (Page Break) ที่ตัวบัตรหลัง
-    bClone.style.pageBreakBefore = 'always'; 
+   // bClone.style.pageBreakBefore = 'always'; 
 
     pdfWrapper.appendChild(fClone);
     pdfWrapper.appendChild(bClone);
@@ -4117,7 +4117,7 @@ if(c.areaAccessIds) {
     const opt = {
         margin: 0,
         filename: `ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`,
-        image: { type: 'jpeg', quality: 0.90 },
+        image: { type: 'jpeg', quality: 1.00 },
         html2canvas: { 
             scale: 3, 
             useCORS: true, 
@@ -4127,7 +4127,7 @@ if(c.areaAccessIds) {
         },
         jsPDF: { 
             unit: 'px', 
-            format: [330, 530], 
+            format: [340, 540], 
             orientation: 'portrait' 
         },
         // ใช้โหมด CSS และ Legacy ร่วมกันเพื่อความชัวร์ในการแบ่งหน้า
