@@ -1224,7 +1224,7 @@
            
            <div class="p-4 border-t bg-white flex justify-end gap-3 shrink-0">
                <button onclick="closeIdCardModal()" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition">ปิดหน้าต่าง</button>
-               <button onclick="downloadIdCardAsImages()" class="px-6 py-2.5 bg-pink-600 hover:bg-pink-700 text-white font-bold rounded-xl shadow-lg transition flex items-center gap-2"><i data-lucide="download"></i> ดาวน์โหลดรูปบัตร</button>
+               <button onclick="downloadPdfCard()" class="px-6 py-2.5 bg-pink-600 hover:bg-pink-700 text-white font-bold rounded-xl shadow-lg transition flex items-center gap-2"><i data-lucide="download"></i> ดาวน์โหลด PDF</button>
            </div>
        </div>
    </div>
@@ -4081,90 +4081,66 @@ if(c.areaAccessIds) {
     
     function closeIdCardModal() { document.getElementById('idCardModal').classList.add('hidden'); }
 
-  async function downloadIdCardAsImages() {
-   const cardIdText = document.getElementById('renderBarcodeText').textContent;
+  async function downloadPdfCard() {
+    const cardIdText = document.getElementById('renderBarcodeText').textContent;
     const front = document.getElementById('printCardFront');
     const back = document.getElementById('printCardBack');
 
-    if (!front || !back) return showToast('ไม่พบข้อมูลบัตรสำหรับดาวน์โหลด', 'error');
+    if (!front || !back) return showToast('ไม่พบข้อมูลบัตร', 'error');
 
-    showToast('กำลังประมวลผลรูปภาพ (วิธี Manual Crop)...', 'info');
+    showToast('กำลังสร้าง PDF 2 หน้า...', 'info');
 
-    // ฟังก์ชันถ่ายรูปแบบตัดขอบด้วยมือ
-    const manualCropCapture = async (targetEl, suffix) => {
-        const mainApp = document.getElementById('app');
-        const originalDisplay = mainApp.style.display;
+    // 1. สร้าง Container ชั่วคราว (Temporary Wrapper)
+    const pdfWrapper = document.createElement('div');
+    pdfWrapper.style.width = '340px';
+    pdfWrapper.style.background = 'white';
+    pdfWrapper.style.display = 'block'; // บังคับให้เรียงแนวตั้ง
 
-        // 1. สร้างพื้นที่วางบัตรที่จุด (0,0)
-        const stage = document.createElement('div');
-        stage.id = 'manual-crop-stage';
-        stage.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 340px; height: 540px;
-            z-index: 999999; background: white; margin: 0; padding: 0;
-        `;
+    // 2. Clone หน้าบัตรมาใส่ และลบค่าที่ทำให้เลย์เอาท์เพี้ยน
+    const fClone = front.cloneNode(true);
+    fClone.style.margin = '0';
+    fClone.style.boxShadow = 'none';
+    fClone.style.display = 'block';
 
-        const clone = targetEl.cloneNode(true);
-        clone.style.margin = '0';
-        clone.style.boxShadow = 'none';
-        clone.style.borderRadius = '0';
-        clone.style.position = 'relative';
-        stage.appendChild(clone);
+    const bClone = back.cloneNode(true);
+    bClone.style.margin = '0';
+    bClone.style.boxShadow = 'none';
+    bClone.style.display = 'block';
+    
+    // บังคับคำสั่งขึ้นหน้าใหม่ (Page Break) ที่ตัวบัตรหลัง
+    bClone.style.pageBreakBefore = 'always'; 
 
-        // 2. ซ่อนเว็บหลัก และเลื่อนหน้าจอไปที่จุดสูงสุด
-        mainApp.style.display = 'none';
-        document.body.appendChild(stage);
-        window.scrollTo(0, 0);
+    pdfWrapper.appendChild(fClone);
+    pdfWrapper.appendChild(bClone);
 
-        await new Promise(resolve => setTimeout(resolve, 150));
-
-        // 3. ถ่ายรูป "ทั้งหน้าจอ" (ไม่ให้ไลบรารีตัดรูปเอง)
-        const scale = 3; // ความชัด 3 เท่า
-        const fullCanvas = await html2canvas(document.body, {
-            scale: scale,
-            useCORS: true,
+    // 3. ตั้งค่า html2pdf
+    const opt = {
+        margin: 0,
+        filename: `ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+            scale: 2, 
+            useCORS: true, 
             logging: false,
-            backgroundColor: "#ffffff",
             scrollX: 0,
-            scrollY: 0,
-            x: 0,
-            y: 0
-        });
-
-        // 4. *** ขั้นตอนสำคัญ: ตัดรูปด้วยมือ (Manual Crop) ***
-        // เราจะสร้าง Canvas ใหม่ขนาด 340x540 แล้วดึงข้อมูลจากจุด (0,0) ของรูปใหญ่มาวาง
-        const finalCanvas = document.createElement('canvas');
-        finalCanvas.width = 340 * scale;
-        finalCanvas.height = 540 * scale;
-        const ctx = finalCanvas.getContext('2d');
-        
-        // วาดรูปจากจุด (0,0) ของต้นฉบับ มาวางที่ (0,0) ของอันใหม่
-        ctx.drawImage(fullCanvas, 0, 0);
-
-        // 5. คืนค่าหน้าจอเดิม
-        document.body.removeChild(stage);
-        mainApp.style.display = originalDisplay;
-
-        // 6. ดาวน์โหลดไฟล์ PNG
-        const link = document.createElement('a');
-        link.download = `ID_Card_${cardIdText.replace(/\//g, '-')}_${suffix}.png`;
-        link.href = finalCanvas.toDataURL('image/png', 1.0);
-        link.click();
+            scrollY: 0
+        },
+        jsPDF: { 
+            unit: 'px', 
+            format: [340, 540], 
+            orientation: 'portrait' 
+        },
+        // ใช้โหมด CSS และ Legacy ร่วมกันเพื่อความชัวร์ในการแบ่งหน้า
+        pagebreak: { mode: ['css', 'legacy'] }
     };
 
     try {
-        // ถ่ายหน้าบัตร
-        await manualCropCapture(front, 'FRONT');
-        
-        // รอสักครู่แล้วถ่ายหลังบัตร
-        setTimeout(async () => {
-            await manualCropCapture(back, 'BACK');
-            showToast('ดาวน์โหลดรูปภาพสำเร็จและตำแหน่งตรงเป๊ะ!', 'success');
-        }, 1200);
-
+        // ส่ง pdfWrapper ที่เราสร้างขึ้น (เรียงแนวตั้งแล้ว) ไปประมวลผล
+        await html2pdf().set(opt).from(pdfWrapper).save();
+        showToast('ดาวน์โหลด PDF สำเร็จ', 'success');
     } catch (err) {
-        console.error("Manual Crop Error:", err);
-        document.getElementById('app').style.display = 'block';
-        showToast('เกิดข้อผิดพลาดในการตัดรูปภาพ', 'error');
+        console.error("PDF Error:", err);
+        showToast('เกิดข้อผิดพลาด', 'error');
     }
 }
     ///////////
