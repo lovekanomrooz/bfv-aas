@@ -4108,7 +4108,7 @@ if(c.areaAccessIds) {
     bClone.style.display = 'block';
     
     // บังคับคำสั่งขึ้นหน้าใหม่ (Page Break) ที่ตัวบัตรหลัง
-   // bClone.style.pageBreakBefore = 'always'; 
+    bClone.style.pageBreakBefore = 'always'; 
 
     pdfWrapper.appendChild(fClone);
     pdfWrapper.appendChild(bClone);
@@ -4117,7 +4117,7 @@ if(c.areaAccessIds) {
     const opt = {
         margin: 0,
         filename: `ID_Card_${cardIdText.replace(/\//g, '-')}.pdf`,
-        image: { type: 'jpeg', quality: 1.00 },
+        image: { type: 'jpeg', quality: 0.94 },
         html2canvas: { 
             scale: 3, 
             useCORS: true, 
