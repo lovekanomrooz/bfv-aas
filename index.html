@@ -1135,7 +1135,7 @@
                                    <div id="renderTemp" class="text-red-600 font-black text-[18px] text-center mb-0.5 shadow-sm bg-white/90 py-0.5 rounded shrink-0">บัตรชั่วคราว</div>
                                    
                                    <!-- กล่องพื้นที่ (ใช้ flex-1 ยืดหดอัตโนมัติให้พอดีช่องว่างที่เหลือ) -->
-                                   <div id="renderAreaBoxes" class="flex-1 flex flex-col w-full border-[3px] border-indigo-900 bg-white shadow-sm overflow-hidden rounded-sm">
+                                   <div id="renderAreaBoxes" class="flex-1 flex flex-col w-full border-[0px] border-indigo-900 bg-white shadow-sm overflow-hidden rounded-sm">
                                        <!-- กล่องพื้นที่จะถูกวาดตรงนี้ -->
                                    </div>
                                    
@@ -4036,8 +4036,8 @@ if(c.areaAccessIds) {
     
     if(aData.length > 0) {
         // ตรรกะ: 1 พื้นที่ = กล่องใหญ่, 2 พื้นที่ = กล่องจัตุรัส 2 ใบ
-        const boxSize = aData.length === 1 ? "130px" : "50px";
-        const fontSize = aData.length === 1 ? "100px" : "80px";
+        const boxSize = aData.length === 1 ? "130px" : "60px";
+        const fontSize = aData.length === 1 ? "100px" : "50px";
 
         const areaHtml = aData.slice(0, 2).map(a => `
             <div class="area-square-fixed" 
