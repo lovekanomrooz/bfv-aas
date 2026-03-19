@@ -4060,8 +4060,9 @@ function triggerFaceScanSuccess(cardId) {
         t.requireCompanion === true || t.requireCompanion === 'TRUE' ? escortEl.classList.remove('hidden') : escortEl.classList.add('hidden');
         c.canDrive === true || c.canDrive === 'TRUE' ? driveEl.classList.remove('hidden') : driveEl.classList.add('hidden');
         
-        // แก้ไขส่วนสร้างกล่องพื้นที่ใน previewIdCard
-// ค้นหาในฟังก์ชัน previewIdCard และแทนที่ส่วนพื้นที่ (Area Boxes)
+ // ==========================================
+// ส่วนพื้นที่ (Area Boxes) - รองรับสูงสุด 4 พื้นที่
+// ==========================================
 const areaContainer = document.getElementById('renderAreaBoxes');
 areaContainer.innerHTML = ''; 
 
@@ -4070,27 +4071,46 @@ if(c.areaAccessIds) {
     let aData = allAreas.filter(a => arr.includes(String(a.areaNumber)));
     aData.sort((a,b) => parseInt(a.areaNumber) - parseInt(b.areaNumber));
     
-    if(aData.length > 0) {
-        // ตรรกะ: 1 พื้นที่ = กล่องใหญ่, 2 พื้นที่ = กล่องจัตุรัส 2 ใบ
-        const boxSize = aData.length === 1 ? "130px" : "60px";
-        const fontSize = aData.length === 1 ? "120px" : "50px";
-const compensation = "0.2em"; 
-        const areaHtml = aData.slice(0, 2).map(a => `
-    <div class="area-square-fixed" 
-         style="background-color: ${a.colorCode}; 
-                    color: ${getContrastYIQ(a.colorCode)}; 
-                    width: ${boxSize} !important;
-                    height: ${boxSize} !important;
-                    font-size: ${fontSize} !important;
-                    display: flex !important;
-                    align-items: center !important;
-                    justify-content: center !important;
-                    line-height: 1 !important;
-                    padding-bottom: ${compensation} !important; /* ดันตัวเลขขึ้นเพื่อชดเชยการจมใน PDF */
-                    box-sizing: border-box !important;">
-            ${a.areaNumber}
-    </div>
-`).join('');
+    const count = aData.length;
+    if(count > 0) {
+        // --- ส่วนกำหนดขนาด (แก้ไขที่นี่) ---
+        let boxSize, fontSize, compensation;
+        
+        if (count === 1) {
+            // กรณี 1 พื้นที่ (กล่องใหญ่ใบเดียว)
+            boxSize = "130px"; fontSize = "120px"; compensation = "0.2em";
+            areaContainer.style.flexDirection = "column";
+        } else if (count === 2) {
+            // กรณี 2 พื้นที่ (เรียงแถวตอนลึก)
+            boxSize = "60px"; fontSize = "50px"; compensation = "0.2em";
+            areaContainer.style.flexDirection = "column";
+        } else {
+            // กรณี 3-4 พื้นที่ (เรียงตาราง 2x2)
+            boxSize = "62px"; fontSize = "45px"; compensation = "0.15em";
+            areaContainer.style.flexDirection = "row"; // สลับเป็นแนวนอนเพื่อให้ Wrap
+            areaContainer.style.flexWrap = "wrap";
+            areaContainer.style.justifyContent = "center";
+            areaContainer.style.gap = "2px"; // ระยะห่างระหว่างกล่องในตาราง
+        }
+        // ---------------------------------
+
+        const areaHtml = aData.slice(0, 4).map(a => `
+            <div class="area-square-fixed" 
+                 style="background-color: ${a.colorCode}; 
+                        color: ${getContrastYIQ(a.colorCode)}; 
+                        width: ${boxSize} !important;
+                        height: ${boxSize} !important;
+                        font-size: ${fontSize} !important;
+                        display: flex !important;
+                        align-items: center !important;
+                        justify-content: center !important;
+                        line-height: 1 !important;
+                        padding-bottom: ${compensation} !important;
+                        box-sizing: border-box !important;
+                        border: 1px solid #1e1b4b !important;">
+                ${a.areaNumber}
+            </div>
+        `).join('');
         areaContainer.innerHTML = areaHtml;
     }
 }
@@ -4169,6 +4189,17 @@ const compensation = "0.2em";
     }
 }
     ///////////
+	// ดักจับการคลิก Checkbox พื้นที่ในหน้าจัดการบัตร
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('input-area-cb')) {
+        const checkedCount = document.querySelectorAll('.input-area-cb:checked').length;
+        if (checkedCount > 4) {
+            e.target.checked = false; // ยกเลิกการเลือกช่องที่ 5
+            showToast('เลือกได้สูงสุด 4 พื้นที่เท่านั้น', 'warning');
+        }
+    }
+});
+////////////
   </script>
 </body>
 </html>
