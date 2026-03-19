@@ -61,7 +61,7 @@
     display: flex !important;
     align-items: center !important;  /* จัดกลางแนวตั้ง */
     justify-content: center !important; /* จัดกลางแนวนอน */
-	border: 2px solid #1e1b4b !important; /* สีกรมท่าเข้ม */
+	border: 1px solid #1e1b4b !important; /* สีกรมท่าเข้ม */
     font-weight: 900 !important;
     font-family: 'Prompt', sans-serif !important; /* บังคับใช้ฟอนต์ปกติ ไม่ให้หลุดไปใช้ฟอนต์บาร์โค้ด */
     box-sizing: border-box !important;
@@ -4074,7 +4074,7 @@ if(c.areaAccessIds) {
         // ตรรกะ: 1 พื้นที่ = กล่องใหญ่, 2 พื้นที่ = กล่องจัตุรัส 2 ใบ
         const boxSize = aData.length === 1 ? "130px" : "60px";
         const fontSize = aData.length === 1 ? "100px" : "50px";
-const compensation = "0.1em"; 
+const compensation = "0.3em"; 
         const areaHtml = aData.slice(0, 2).map(a => `
     <div class="area-square-fixed" 
          style="background-color: ${a.colorCode}; 
