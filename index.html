@@ -82,6 +82,14 @@
     position: relative !important;
     -webkit-print-color-adjust: exact; /* สำหรับรูปภาพพื้นหลัง */
 }
+/* สไตล์สำหรับ Checkbox ที่ถูกระงับ */
+.cb-disabled {
+    opacity: 0.3;
+    filter: grayscale(1);
+    cursor: not-allowed !important;
+    pointer-events: none;
+}
+
 /* ลบช่องว่างที่อาจเกิดขึ้นระหว่างหน้า */
 /*pdf-page-break {*/
 /*    page-break-after: always;*/
@@ -2251,6 +2259,7 @@
 
     function openCardModal() {
       removeCardImage(); // ล้างรูปตอนเปิดเพิ่มบัตร
+	  updateAreaCheckboxState();
         document.getElementById('cardModalTitle').innerHTML = '<i data-lucide="credit-card"></i> เพิ่มบัตรใหม่';
         document.getElementById('editCardDbId').value = '';
         
@@ -2296,7 +2305,7 @@
         tempCardImageBase64 = null;
         isRemovingCardImage = false; 
         document.getElementById('cardImageInput').value = '';
-        
+        updateAreaCheckboxState();
         // --- ดึงข้อมูล AI ของเดิมมาแสดง ---
         tempFaceDescriptor = c.faceDescriptor || null;
         
@@ -3859,6 +3868,7 @@ function triggerFaceScanSuccess(cardId) {
         document.getElementById('cardPosition').value = '';
         document.getElementById('cardCanDrive').checked = false;
         renderAreaCheckboxes(''); // วาด Checkbox พื้นที่แบบว่างๆ
+	updateAreaCheckboxState();
     }
     
     const originalEditCard = editCard;
@@ -3868,6 +3878,7 @@ function triggerFaceScanSuccess(cardId) {
         document.getElementById('cardPosition').value = c.position || '';
         document.getElementById('cardCanDrive').checked = c.canDrive === true || c.canDrive === 'TRUE';
         renderAreaCheckboxes(c.areaAccessIds || ''); // วาด Checkbox และติ๊กอันที่เคยเลือก
+	updateAreaCheckboxState();
     }
 
     const originalSaveCard = saveCard;
@@ -3940,6 +3951,30 @@ function triggerFaceScanSuccess(cardId) {
         });
         container.innerHTML = html;
     }
+	
+	function updateAreaCheckboxState() {
+    const checkboxes = document.querySelectorAll('.input-area-cb');
+    const checkedBoxes = document.querySelectorAll('.input-area-cb:checked');
+    
+    checkboxes.forEach(cb => {
+        const label = cb.closest('label');
+        if (checkedBoxes.length >= 4 && !cb.checked) {
+            // ถ้าเลือกครบ 4 และตัวนี้ไม่ได้ถูกเลือก ให้จางและคลิกไม่ได้
+            cb.disabled = true;
+            label.classList.add('cb-disabled');
+        } else {
+            cb.disabled = false;
+            label.classList.remove('cb-disabled');
+        }
+    });
+}
+
+// เพิ่ม Event Listener ให้กับ container ของ Checkbox
+document.getElementById('cardAreaCheckboxes').addEventListener('change', function(e) {
+    if (e.target.classList.contains('input-area-cb')) {
+        updateAreaCheckboxState();
+    }
+});
     renderAreaCheckboxes = function(selectedAreaStr) { renderAreaCheckboxesGen(selectedAreaStr, 'cardAreaCheckboxes', 'input-area-cb'); }
 
     const origOpenGateModal = openGateModal;
@@ -4061,9 +4096,10 @@ function triggerFaceScanSuccess(cardId) {
         c.canDrive === true || c.canDrive === 'TRUE' ? driveEl.classList.remove('hidden') : driveEl.classList.add('hidden');
         
  // ==========================================
-// ส่วนพื้นที่ (Area Boxes) - รองรับสูงสุด 4 พื้นที่
+// ส่วนพื้นที่ (Area Boxes) - ปรับปรุงการจัดวางแนวตั้งและตาราง
 // ==========================================
 const areaContainer = document.getElementById('renderAreaBoxes');
+areaContainer.style.display = "grid"; // เปลี่ยนเป็น Grid
 areaContainer.innerHTML = ''; 
 
 if(c.areaAccessIds) {
@@ -4073,33 +4109,37 @@ if(c.areaAccessIds) {
     
     const count = aData.length;
     if(count > 0) {
-        // --- ส่วนกำหนดขนาด (แก้ไขที่นี่) ---
-        let boxSize, fontSize, compensation;
+        let boxWidth, boxHeight, fontSize, compensation;
         
+        // ล้างค่า Grid เดิม
+        areaContainer.style.gridTemplateColumns = "";
+        areaContainer.style.gridTemplateRows = "";
+        areaContainer.style.gridAutoFlow = "";
+        areaContainer.style.gap = "0px";
+
         if (count === 1) {
-            // กรณี 1 พื้นที่ (กล่องใหญ่ใบเดียว)
-            boxSize = "130px"; fontSize = "120px"; compensation = "0.2em";
-            areaContainer.style.flexDirection = "column";
+            // 1 พื้นที่: กล่องใหญ่ 130x130
+            boxWidth = "130px"; boxHeight = "130px"; fontSize = "110px"; compensation = "0.2em";
         } else if (count === 2) {
-            // กรณี 2 พื้นที่ (เรียงแถวตอนลึก)
-            boxSize = "60px"; fontSize = "50px"; compensation = "0.2em";
-            areaContainer.style.flexDirection = "column";
+            // 2 พื้นที่: แนวตั้ง (กว้าง 130 สูง 65 ต่อใบ)
+            areaContainer.style.gridTemplateColumns = "130px";
+            areaContainer.style.gridTemplateRows = "65px 65px";
+            boxWidth = "130px"; boxHeight = "65px"; fontSize = "55px"; compensation = "0.2em";
         } else {
-            // กรณี 3-4 พื้นที่ (เรียงตาราง 2x2)
-            boxSize = "62px"; fontSize = "45px"; compensation = "0.15em";
-            areaContainer.style.flexDirection = "row"; // สลับเป็นแนวนอนเพื่อให้ Wrap
-            areaContainer.style.flexWrap = "wrap";
-            areaContainer.style.justifyContent = "center";
-            areaContainer.style.gap = "2px"; // ระยะห่างระหว่างกล่องในตาราง
+            // 3-4 พื้นที่: ตาราง 2 คอลัมน์ (กว้าง 65 สูง 65 ต่อใบ)
+            // ใช้ column flow เพื่อให้ 1-2 อยู่ซ้าย และ 3-4 อยู่ขวา
+            areaContainer.style.gridTemplateColumns = "65px 65px";
+            areaContainer.style.gridTemplateRows = "65px 65px";
+            areaContainer.style.gridAutoFlow = "column"; 
+            boxWidth = "65px"; boxHeight = "65px"; fontSize = "50px"; compensation = "0.15em";
         }
-        // ---------------------------------
 
         const areaHtml = aData.slice(0, 4).map(a => `
             <div class="area-square-fixed" 
                  style="background-color: ${a.colorCode}; 
                         color: ${getContrastYIQ(a.colorCode)}; 
-                        width: ${boxSize} !important;
-                        height: ${boxSize} !important;
+                        width: ${boxWidth} !important;
+                        height: ${boxHeight} !important;
                         font-size: ${fontSize} !important;
                         display: flex !important;
                         align-items: center !important;
