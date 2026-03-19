@@ -1149,15 +1149,19 @@
                                
                                <!-- สัญลักษณ์ขวามือ (ถูกล็อคความสูง h-full ให้เท่ากับรูปเป๊ะๆ) -->
                                <div class="w-[130px] h-full flex flex-col justify-start gap-1">
-                                   <div id="renderTemp" class="text-red-600 font-black text-[18px] text-center mb-0.5 shadow-sm bg-white/90 py-0.5 rounded shrink-0">บัตรชั่วคราว</div>
                                    
-                                   <!-- กล่องพื้นที่ (ใช้ flex-1 ยืดหดอัตโนมัติให้พอดีช่องว่างที่เหลือ) -->
+                                   <!-- ส่วนที่ 1: ประเภทบัตร -->
+                                   <!-- ใช้ opacity-0 เพื่อซ่อนแทน hidden เพื่อให้จองพื้นที่ไว้เสมอ กล่องด้านล่างจะได้ไม่ขยับขึ้นไปทับ -->
+                                   <div id="renderTemp" class="text-red-600 font-black text-[18px] text-center mb-0.5 shadow-sm bg-white/90 py-0.5 rounded shrink-0 opacity-0 transition-opacity">บัตรชั่วคราว</div>
+                                   
+                                   <!-- ส่วนที่ 2: กล่องพื้นที่ (อยู่กับที่เสมอ) -->
                                    <div id="renderAreaBoxes" class="flex-1 flex flex-col w-full border-[0px] border-indigo-900 bg-white shadow-sm overflow-hidden rounded-sm">
                                        <!-- กล่องพื้นที่จะถูกวาดตรงนี้ -->
                                    </div>
                                    
-                                   <div id="renderEscort" class="w-full bg-indigo-900 text-white text-center font-black py-1.5 text-[13px] hidden shadow-sm shrink-0 rounded-sm mt-0.5">ESCORT</div>
+                                   <!-- ส่วนที่ 3: DRIVE และ ESCORT (DRIVE อยู่บน, ถ้าถูกซ่อน มันจะเลื่อนขึ้นไปชิดกล่องพื้นที่เอง) -->
                                    <div id="renderDrive" class="w-full bg-indigo-900 text-white text-center font-black py-1.5 text-[13px] hidden shadow-sm shrink-0 rounded-sm mt-0.5">DRIVE</div>
+                                   <div id="renderEscort" class="w-full bg-indigo-900 text-white text-center font-black py-1.5 text-[13px] hidden shadow-sm shrink-0 rounded-sm mt-0.5">ESCORT</div>
                                </div>
                            </div>
                            
@@ -4033,11 +4037,20 @@ function triggerFaceScanSuccess(cardId) {
         const rT3 = document.getElementById('renderRulesTitle3'); rT3.textContent = systemSettings.cardRulesTitle3 || ''; rT3.classList.toggle('hidden', !systemSettings.cardRulesTitle3);
         document.getElementById('renderRules').innerHTML = (systemSettings.cardTplRules || '').replace(/\n/g, '<br>');
         
-        const tempEl = document.getElementById('renderTemp');
+       const tempEl = document.getElementById('renderTemp');
         const escortEl = document.getElementById('renderEscort');
         const driveEl = document.getElementById('renderDrive');
         
-        t.isTemporary === true || t.isTemporary === 'TRUE' ? tempEl.classList.remove('hidden') : tempEl.classList.add('hidden');
+        // 1. ควบคุมป้ายบัตรชั่วคราว (ใช้ opacity เพื่อรักษาตำแหน่ง Layout ไม่ให้กล่องพื้นที่เด้งขึ้น)
+        if (t.isTemporary === true || t.isTemporary === 'TRUE') {
+            tempEl.classList.remove('opacity-0');
+            tempEl.classList.add('opacity-100');
+        } else {
+            tempEl.classList.remove('opacity-100');
+            tempEl.classList.add('opacity-0');
+        }
+        
+        // 2. ควบคุม ESCORT และ DRIVE (ใช้ hidden เพื่อให้กล่องที่เหลือเลื่อนมาแทนที่)
         t.requireCompanion === true || t.requireCompanion === 'TRUE' ? escortEl.classList.remove('hidden') : escortEl.classList.add('hidden');
         c.canDrive === true || c.canDrive === 'TRUE' ? driveEl.classList.remove('hidden') : driveEl.classList.add('hidden');
         
