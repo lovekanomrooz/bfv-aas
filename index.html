@@ -43,17 +43,16 @@
 
 /* ลบหรือแก้ height เป็น auto */
 #renderAreaBoxes {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: flex-start !important;
+    display: flex; 
+    flex-direction: column;
+    align-items: center; 
+    justify-content: flex-start;
     width: 130px !important;
-    /* height: 230px !important;  <-- ลบบรรทัดนี้ออก หรือเปลี่ยนเป็น auto */
-  height: auto !important; 
-  gap: 0px !important; /* เพิ่ม gap เล็กน้อยเพื่อให้กล่องเลขไม่ติดกันเกินไป */
-  padding-top: 0px !important;
-  box-sizing: border-box !important;
-  text-align: center !important;
+    height: auto !important; 
+    gap: 0px !important; 
+    padding-top: 0px !important;
+    box-sizing: border-box !important;
+    text-align: center !important;
 }
 
 /* บังคับสี่เหลี่ยมจัตุรัส */
@@ -4096,10 +4095,9 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
         c.canDrive === true || c.canDrive === 'TRUE' ? driveEl.classList.remove('hidden') : driveEl.classList.add('hidden');
         
  // ==========================================
-// ส่วนพื้นที่ (Area Boxes) - ปรับปรุงการจัดวางแนวตั้งและตาราง
+// ส่วนพื้นที่ (Area Boxes) - แก้ไขการขึ้นคอลัมน์ใหม่สำหรับ 3-4 พื้นที่
 // ==========================================
 const areaContainer = document.getElementById('renderAreaBoxes');
-areaContainer.style.display = "grid"; // เปลี่ยนเป็น Grid
 areaContainer.innerHTML = ''; 
 
 if(c.areaAccessIds) {
@@ -4111,26 +4109,26 @@ if(c.areaAccessIds) {
     if(count > 0) {
         let boxWidth, boxHeight, fontSize, compensation;
         
-        // ล้างค่า Grid เดิม
-        areaContainer.style.gridTemplateColumns = "";
-        areaContainer.style.gridTemplateRows = "";
-        areaContainer.style.gridAutoFlow = "";
-        areaContainer.style.gap = "0px";
+        // ล้างค่า Style เดิมก่อน
+        areaContainer.style.removeProperty('display');
+        areaContainer.style.removeProperty('flex-direction');
 
         if (count === 1) {
             // 1 พื้นที่: กล่องใหญ่ 130x130
+            areaContainer.style.setProperty('display', 'flex', 'important');
+            areaContainer.style.setProperty('flex-direction', 'column', 'important');
             boxWidth = "130px"; boxHeight = "130px"; fontSize = "110px"; compensation = "0.2em";
         } else if (count === 2) {
-            // 2 พื้นที่: แนวตั้ง (กว้าง 130 สูง 65 ต่อใบ)
-            areaContainer.style.gridTemplateColumns = "130px";
-            areaContainer.style.gridTemplateRows = "65px 65px";
+            // 2 พื้นที่: เรียงแนวตั้ง (บน 1 ล่าง 2)
+            areaContainer.style.setProperty('display', 'flex', 'important');
+            areaContainer.style.setProperty('flex-direction', 'column', 'important');
             boxWidth = "130px"; boxHeight = "65px"; fontSize = "55px"; compensation = "0.2em";
         } else {
-            // 3-4 พื้นที่: ตาราง 2 คอลัมน์ (กว้าง 65 สูง 65 ต่อใบ)
-            // ใช้ column flow เพื่อให้ 1-2 อยู่ซ้าย และ 3-4 อยู่ขวา
-            areaContainer.style.gridTemplateColumns = "65px 65px";
-            areaContainer.style.gridTemplateRows = "65px 65px";
-            areaContainer.style.gridAutoFlow = "column"; 
+            // 3-4 พื้นที่: ตาราง 2 คอลัมน์ (ซ้าย 1-2, ขวา 3-4)
+            areaContainer.style.setProperty('display', 'grid', 'important');
+            areaContainer.style.setProperty('grid-template-columns', '65px 65px', 'important');
+            areaContainer.style.setProperty('grid-template-rows', '65px 65px', 'important');
+            areaContainer.style.setProperty('grid-auto-flow', 'column', 'important'); // บังคับไหลลงคอลัมน์ก่อนค่อยขึ้นใหม่
             boxWidth = "65px"; boxHeight = "65px"; fontSize = "50px"; compensation = "0.15em";
         }
 
@@ -4147,7 +4145,8 @@ if(c.areaAccessIds) {
                         line-height: 1 !important;
                         padding-bottom: ${compensation} !important;
                         box-sizing: border-box !important;
-                        border: 1px solid #1e1b4b !important;">
+                        border: 1px solid #1e1b4b !important;
+                        margin: 0 !important;">
                 ${a.areaNumber}
             </div>
         `).join('');
