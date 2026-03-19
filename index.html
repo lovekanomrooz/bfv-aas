@@ -4127,13 +4127,13 @@ if(c.areaAccessIds) {
         } else {
             // 3-4 พื้นที่: ตาราง 2 คอลัมน์ (ซ้าย 1-2, ขวา 3-4)
             areaContainer.style.setProperty('display', 'grid', 'important');
-            areaContainer.style.setProperty('grid-template-columns', '58px 58px', 'important');
-            areaContainer.style.setProperty('grid-template-rows', '58px 58px', 'important');
+            areaContainer.style.setProperty('grid-template-columns', '63px 63px', 'important');
+            areaContainer.style.setProperty('grid-template-rows', '64px 64px', 'important');
             areaContainer.style.setProperty('grid-auto-flow', 'column', 'important'); // บังคับไหลลงคอลัมน์ก่อนค่อยขึ้นใหม่
 	    // --- เพิ่มบรรทัดนี้เพื่อจัดตารางให้อยู่กึ่งกลางแนวนอน ---
             areaContainer.style.setProperty('justify-content', 'center', 'important');
             // ----------------------------------------------
-            boxWidth = "58px"; boxHeight = "58px"; fontSize = "50px"; compensation = "0.23em";
+            boxWidth = "63px"; boxHeight = "64px"; fontSize = "50px"; compensation = "0.23em";
         }
 
         const areaHtml = aData.slice(0, 4).map(a => `
