@@ -4064,18 +4064,19 @@ function triggerFaceScanSuccess(cardId) {
 const areaContainer = document.getElementById('renderAreaBoxes');
 areaContainer.innerHTML = ''; 
 
-// ค้นหาในฟังก์ชัน previewIdCard และแทนที่ส่วนสร้าง areaHtml
-const areaHtml = aData.slice(0, 2).map(a => {
-    const boxSizePx = aData.length === 1 ? 130 : 60;
-    const fontSizePx = aData.length === 1 ? 100 : 50;
+if(c.areaAccessIds) {
+    const arr = c.areaAccessIds.split(',').filter(x => x);
+    let aData = allAreas.filter(a => arr.includes(String(a.areaNumber)));
+    aData.sort((a,b) => parseInt(a.areaNumber) - parseInt(b.areaNumber));
     
-    // เทคนิค: ใน PDF ตัวเลขมักจะจมลง ให้ใช้ padding-bottom ดันขึ้นมา
-    // 0.1em หรือ 0.15em คือระยะชดเชยมาตรฐานสำหรับฟอนต์ Prompt ใน html2pdf
-    const compensation = "0.12em"; 
-
-    return `
-        <div class="area-square-fixed" 
-             style="background-color: ${a.colorCode}; 
+    if(aData.length > 0) {
+        // ตรรกะ: 1 พื้นที่ = กล่องใหญ่, 2 พื้นที่ = กล่องจัตุรัส 2 ใบ
+        const boxSize = aData.length === 1 ? "130px" : "60px";
+        const fontSize = aData.length === 1 ? "100px" : "50px";
+const compensation = "0.12em"; 
+        const areaHtml = aData.slice(0, 2).map(a => `
+    <div class="area-square-fixed" 
+         style="background-color: ${a.colorCode}; 
                     color: ${getContrastYIQ(a.colorCode)}; 
                     width: ${boxSizePx}px !important;
                     height: ${boxSizePx}px !important;
@@ -4087,10 +4088,11 @@ const areaHtml = aData.slice(0, 2).map(a => {
                     padding-bottom: ${compensation} !important; /* ดันตัวเลขขึ้นเพื่อชดเชยการจมใน PDF */
                     box-sizing: border-box !important;">
             ${a.areaNumber}
-        </div>
-    `;
-}).join('');
-areaContainer.innerHTML = areaHtml;
+    </div>
+`).join('');
+        areaContainer.innerHTML = areaHtml;
+    }
+}
         
         document.getElementById('renderBarcode').textContent = `*${c.cardId}*`;
         document.getElementById('renderBarcodeText').textContent = c.cardId;
