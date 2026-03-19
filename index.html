@@ -90,6 +90,12 @@ gap: 1px !important;
     pointer-events: none;
 }
 
+/* ค้นหา ID นี้ในส่วน HTML หรือ Style */
+#renderEscort {
+    ...
+    font-size: 11px !important; /* ปรับลดลงจาก 13px เป็น 11px หรือ 12px เพื่อให้คำว่า UNESCORT ดูพอดี */
+    letter-spacing: 0.5px; /* เพิ่มระยะห่างตัวอักษรนิดหน่อยเพื่อให้อ่านง่ายขึ้น */
+}
 /* ลบช่องว่างที่อาจเกิดขึ้นระหว่างหน้า */
 /*pdf-page-break {*/
 /*    page-break-after: always;*/
@@ -1175,7 +1181,7 @@ gap: 1px !important;
                                    
                                    <!-- ส่วนที่ 3: DRIVE และ ESCORT (DRIVE อยู่บน, ถ้าถูกซ่อน มันจะเลื่อนขึ้นไปชิดกล่องพื้นที่เอง) -->
                                    <div id="renderDrive" class="w-full bg-indigo-900 text-white text-center font-black py-1.5 text-[13px] hidden shadow-sm shrink-0 rounded-sm mt-0.5">DRIVE</div>
-                                   <div id="renderEscort" class="w-full bg-indigo-900 text-white text-center font-black py-1.5 text-[13px] hidden shadow-sm shrink-0 rounded-sm mt-0.5">ESCORT</div>
+                                   <div id="renderEscort" class="w-full bg-indigo-900 text-white text-center font-black py-1.5 text-[13px] hidden shadow-sm shrink-0 rounded-sm mt-0.5">UNESCORT</div>
                                </div>
                            </div>
                            
@@ -4091,8 +4097,21 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
             tempEl.classList.add('opacity-0');
         }
         
-        // 2. ควบคุม ESCORT และ DRIVE (ใช้ hidden เพื่อให้กล่องที่เหลือเลื่อนมาแทนที่)
-        t.requireCompanion === true || t.requireCompanion === 'TRUE' ? escortEl.classList.remove('hidden') : escortEl.classList.add('hidden');
+        // 2. ควบคุม ESCORT และ DRIVE (ใช้ hidden เพื่อให้กล่องที่เหลือเลื่อนมาแทนที่) 
+		
+		// ถ้า requireCompanion เป็น TRUE (ต้องมีผู้ติดตาม) ให้แสดงป้าย ESCORT
+       // t.requireCompanion === true || t.requireCompanion === 'TRUE' ? escortEl.classList.remove('hidden') : escortEl.classList.add('hidden');
+	   //////////////////////////////////////////////////////
+	   // ถ้า requireCompanion เป็น FALSE (ไม่ต้องมีผู้ติดตาม) ให้แสดงป้าย UNESCORT
+	   
+	    if (t.requireCompanion === false || t.requireCompanion === 'FALSE') {
+            escortEl.textContent = "UNESCORT"; // เปลี่ยนข้อความเป็น UNESCORT
+            escortEl.classList.remove('hidden'); // แสดงป้าย
+        } else {
+            // ถ้าต้องมีผู้ติดตาม (TRUE) ให้ซ่อนป้ายนี้ไปเลยตามเงื่อนไขใหม่
+            escortEl.classList.add('hidden'); 
+        }
+        // -----------------------
         c.canDrive === true || c.canDrive === 'TRUE' ? driveEl.classList.remove('hidden') : driveEl.classList.add('hidden');
         
  // ==========================================
