@@ -58,14 +58,17 @@
 
 /* บังคับสี่เหลี่ยมจัตุรัส */
 .area-square-fixed {
-    display: block !important; /* เปลี่ยนจาก flex เป็น block */
-    align-items: center !important;
-    justify-content: center !important;
-    border: 2px solid #1e1b4b !important; /* สีกรมท่าเข้ม */
+    display: flex !important;
+    align-items: center !important;  /* จัดกลางแนวตั้ง */
+    justify-content: center !important; /* จัดกลางแนวนอน */
     font-weight: 900 !important;
+    font-family: 'Prompt', sans-serif !important; /* บังคับใช้ฟอนต์ปกติ ไม่ให้หลุดไปใช้ฟอนต์บาร์โค้ด */
     box-sizing: border-box !important;
-    line-height: 1 !important;
+    line-height: 1 !important; /* สำคัญ: ตัดระยะเผื่อบรรทัด */
     text-align: center !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
 }
 /* บังคับขนาดให้ตายตัวและล้างระยะห่างส่วนเกิน */
 #printCardFront, #printCardBack {
@@ -4061,34 +4064,33 @@ function triggerFaceScanSuccess(cardId) {
 const areaContainer = document.getElementById('renderAreaBoxes');
 areaContainer.innerHTML = ''; 
 
-if(c.areaAccessIds) {
-    const arr = c.areaAccessIds.split(',').filter(x => x);
-    let aData = allAreas.filter(a => arr.includes(String(a.areaNumber)));
-    aData.sort((a,b) => parseInt(a.areaNumber) - parseInt(b.areaNumber));
+// ค้นหาในฟังก์ชัน previewIdCard และแทนที่ส่วนสร้าง areaHtml
+const areaHtml = aData.slice(0, 2).map(a => {
+    const boxSizePx = aData.length === 1 ? 130 : 60;
+    const fontSizePx = aData.length === 1 ? 100 : 50;
     
-    if(aData.length > 0) {
-        // ตรรกะ: 1 พื้นที่ = กล่องใหญ่, 2 พื้นที่ = กล่องจัตุรัส 2 ใบ
-        const boxSize = aData.length === 1 ? "130px" : "60px";
-        const fontSize = aData.length === 1 ? "100px" : "50px";
+    // เทคนิค: ใน PDF ตัวเลขมักจะจมลง ให้ใช้ padding-bottom ดันขึ้นมา
+    // 0.1em หรือ 0.15em คือระยะชดเชยมาตรฐานสำหรับฟอนต์ Prompt ใน html2pdf
+    const compensation = "0.12em"; 
 
-        const areaHtml = aData.slice(0, 2).map(a => `
-    <div class="area-square-fixed" 
-         style="background-color: ${a.colorCode}; 
-                color: ${getContrastYIQ(a.colorCode)}; 
-                width: ${boxSize} !important;
-                height: ${boxSize} !important;
-                line-height: ${boxSize} !important; /* เพิ่มบรรทัดนี้: บังคับความสูงบรรทัดเท่ากับความสูงกล่อง */
-                display: block !important; /* เปลี่ยนจาก flex เป็น block เพื่อให้ line-height ทำงานได้ดีที่สุดใน PDF */
-                text-align: center !important;
-                font-size: ${fontSize} !important;
-                padding: 0 !important;
-                margin: 0 !important;">
-        ${a.areaNumber}
-    </div>
-`).join('');
-        areaContainer.innerHTML = areaHtml;
-    }
-}
+    return `
+        <div class="area-square-fixed" 
+             style="background-color: ${a.colorCode}; 
+                    color: ${getContrastYIQ(a.colorCode)}; 
+                    width: ${boxSizePx}px !important;
+                    height: ${boxSizePx}px !important;
+                    font-size: ${fontSizePx}px !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    line-height: 1 !important;
+                    padding-bottom: ${compensation} !important; /* ดันตัวเลขขึ้นเพื่อชดเชยการจมใน PDF */
+                    box-sizing: border-box !important;">
+            ${a.areaNumber}
+        </div>
+    `;
+}).join('');
+areaContainer.innerHTML = areaHtml;
         
         document.getElementById('renderBarcode').textContent = `*${c.cardId}*`;
         document.getElementById('renderBarcodeText').textContent = c.cardId;
