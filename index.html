@@ -41,18 +41,19 @@
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
 
-/* แถบขวาสำหรับวางสี่เหลี่ยมจัตุรัส */
+/* ลบหรือแก้ height เป็น auto */
 #renderAreaBoxes {
     display: flex !important;
     flex-direction: column !important;
-    align-items: center !important; /* จัดให้กล่องอยู่กึ่งกลางแถบขวา */
+    align-items: center !important;
     justify-content: flex-start !important;
     width: 130px !important;
-    height: 230px !important; /* สูงเท่ารูปถ่าย */
-    gap: 0px !important; /* ระยะห่างระหว่างกล่อง */
-    padding-top: 0px !important;
-    box-sizing: border-box !important;
-    text-align: center !important;
+    /* height: 230px !important;  <-- ลบบรรทัดนี้ออก หรือเปลี่ยนเป็น auto */
+  height: auto !important; 
+  gap: 4px !important; /* เพิ่ม gap เล็กน้อยเพื่อให้กล่องเลขไม่ติดกันเกินไป */
+  padding-top: 0px !important;
+  box-sizing: border-box !important;
+  text-align: center !important;
 }
 
 /* บังคับสี่เหลี่ยมจัตุรัส */
@@ -1156,7 +1157,7 @@
                                    <div id="renderTemp" class="text-red-600 font-black text-[18px] text-center mb-0.5 shadow-sm bg-white/90 py-0.5 rounded shrink-0 opacity-0 transition-opacity">บัตรชั่วคราว</div>
                                    
                                    <!-- ส่วนที่ 2: กล่องพื้นที่ (อยู่กับที่เสมอ) -->
-                                   <div id="renderAreaBoxes" class="flex-1 flex flex-col w-full text-center border-[0px] border-indigo-900 bg-white shadow-sm overflow-hidden rounded-sm">
+                                   <div id="renderAreaBoxes" class="flex flex-col w-full text-center border-[0px] border-indigo-900 bg-white shadow-sm overflow-hidden rounded-sm">
                                        <!-- กล่องพื้นที่จะถูกวาดตรงนี้ -->
                                    </div>
                                    
@@ -4071,16 +4072,20 @@ if(c.areaAccessIds) {
         const fontSize = aData.length === 1 ? "100px" : "50px";
 
         const areaHtml = aData.slice(0, 2).map(a => `
-            <div class="area-square-fixed" 
-                 style="background-color: ${a.colorCode}; 
-                        color: ${getContrastYIQ(a.colorCode)}; 
-                        width: ${boxSize} !important;
-                        height: ${boxSize} !important;
-						text-align: center !important;
-                        font-size: ${fontSize} !important;">
-                ${a.areaNumber}
-            </div>
-        `).join('');
+    <div class="area-square-fixed" 
+         style="background-color: ${a.colorCode}; 
+                color: ${getContrastYIQ(a.colorCode)}; 
+                width: ${boxSize} !important;
+                height: ${boxSize} !important;
+                line-height: ${boxSize} !important; /* เพิ่มบรรทัดนี้: บังคับความสูงบรรทัดเท่ากับความสูงกล่อง */
+                display: block !important; /* เปลี่ยนจาก flex เป็น block เพื่อให้ line-height ทำงานได้ดีที่สุดใน PDF */
+                text-align: center !important;
+                font-size: ${fontSize} !important;
+                padding: 0 !important;
+                margin: 0 !important;">
+        ${a.areaNumber}
+    </div>
+`).join('');
         areaContainer.innerHTML = areaHtml;
     }
 }
