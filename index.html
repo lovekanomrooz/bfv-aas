@@ -3597,14 +3597,7 @@ function stopWebcam() {
 
 // โหลดฐานข้อมูลเข้า Face Matcher ตั้งค่าความเหมือนใบหน้า
 async function initFaceMatcherForWebcam() {
-// เพิ่มการตั้งค่า Hint ให้ ZXing อ่าน Code 39 ได้ดีขึ้น (ใส่ไว้ในจุดเริ่มระบบ)
-const hints = new Map();
-const formats = [ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.QR_CODE];
-hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
-hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
 
-// ผูก hints เข้ากับ reader
-barcodeReader.hints = hints;
     document.getElementById('faceScanStatus').innerHTML = '<i class="spinner inline-block w-4 h-4 border-2 border-orange-500 border-t-transparent mr-2"></i> กำลังเตรียมฐานข้อมูลใบหน้า...';
 
     if (!isFaceApiLoaded) {
@@ -3646,63 +3639,69 @@ barcodeReader.hints = hints;
 
 // ลูปตรวจจับใบหน้าจากวิดีโอ (ทำงานทุกๆ 400ms)
 // ตัวแปรสำหรับคุมการอ่านบาร์โค้ด (วางไว้นอกฟังก์ชัน หรือที่เดียวกับที่ประกาศตัวแปร Global อื่นๆ)
+// ตัวแปรตั้งค่าสำหรับอ่านบาร์โค้ด (เน้น Code 39 ตามรูปที่แนบ)
 const barcodeReader = new ZXing.BrowserMultiFormatReader();
+const hints = new Map();
+const formats = [ZXing.BarcodeFormat.CODE_39]; // เจาะจงเฉพาะ Code 39 เพื่อความไว
+hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+hints.set(ZXing.DecodeHintType.TRY_HARDER, true); // สั่งให้พยายามวิเคราะห์ภาพเบลอมากขึ้น
+barcodeReader.hints = hints;
 
 async function startFaceDetectionLoop() {
     const video = document.getElementById('webcamVideo');
     const canvas = document.getElementById('webcamCanvas');
+    const ctx = canvas.getContext('2d');
     
-    // ตั้งค่าขนาดกรอบวาดให้เท่ากับวิดีโอปัจจุบัน
+    // ตั้งค่าขนาดกรอบวาดให้เท่ากับวิดีโอ
     const displaySize = { width: video.clientWidth, height: video.clientHeight };
     faceapi.matchDimensions(canvas, displaySize);
 
-    // ล้าง Interval เก่าถ้ามี
     if (faceDetectionInterval) clearInterval(faceDetectionInterval);
 
     faceDetectionInterval = setInterval(async () => {
-        // ตรวจสอบสถานะกล้องและโหมดการแสกน
         if (!webcamStream || !faceMatcher || currentScanMode !== 'face') return;
 
-        // 1. ตรวจสอบว่าเลือกประตูหรือยัง
         const gateId = document.getElementById('scanGateSelect').value;
-        const ctx = canvas.getContext('2d');
         
+        // 1. ล้างหน้าจอ Canvas ทุกครั้งที่เริ่ม Loop ใหม่
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 2. วาด "กรอบนำสายตา" (Scanning Guide) เพื่อให้ผู้ใช้รู้ว่าระบบกำลังทำงาน
+        drawScannerOverlay(ctx, canvas);
+
         if (!gateId) {
             document.getElementById('faceScanStatus').innerHTML = '<span class="text-orange-500 animate-pulse"><i data-lucide="alert-triangle" class="w-4 h-4 inline mr-1"></i> กรุณาเลือกจุดเข้าออกด้านบนก่อน!</span>';
             if (window.lucide) lucide.createIcons();
-            ctx.clearRect(0, 0, canvas.width, canvas.height); 
             return;
         }
 
-        // --- เริ่มต้นกระบวนการตรวจจับขนานกัน ---
-
-        // ล้างภาพวาดเก่าบน Canvas ออกก่อนเริ่มเฟรมใหม่
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // --- ส่วนที่ 1: ตรวจจับบาร์โค้ดจากกล้อง (Barcode Detection) ---
+        // --- ส่วนที่ 1: ตรวจจับบาร์โค้ด (Barcode Scan) ---
         try {
-            // พยายามถอดรหัสบาร์โค้ดจากวิดีโอในวินาทีนั้น
+            // ดึงภาพจากวิดีโอมาถอดรหัส
             const barcodeResult = await barcodeReader.decodeOnceFromVideoElement(video);
             if (barcodeResult) {
                 const code = barcodeResult.getText().trim().toUpperCase();
                 
-                // ตรวจสอบ Cooldown (ไม่แสกนคนเดิมซ้ำรัวๆ)
+                // ตรวจสอบ Cooldown
                 if (code !== lastScannedFaceId) {
-                    console.log("📷 Detected Barcode:", code);
+                    console.log("📷 Barcode Read Success:", code);
                     
-                    // แจ้งสถานะบนหน้าจอ
-                    document.getElementById('faceScanStatus').innerHTML = `<span class="text-blue-600 font-black"><i data-lucide="barcode" class="w-4 h-4 inline mr-1"></i> อ่านบาร์โค้ดได้: ${code}</span>`;
-                    if (window.lucide) lucide.createIcons();
+                    // แสดงกรอบสีเหลืองกระพริบทับบาร์โค้ด (Visual Feedback)
+                    ctx.strokeStyle = '#facc15';
+                    ctx.lineWidth = 10;
+                    ctx.strokeRect(canvas.width*0.1, canvas.height*0.4, canvas.width*0.8, canvas.height*0.2);
 
-                    // ส่งรหัสเข้าสู่ระบบแสกน (ใช้ฟังก์ชันเดิมของคุณ)
+                    document.getElementById('faceScanStatus').innerHTML = `<span class="text-blue-600 font-black"><i data-lucide="barcode" class="w-4 h-4 inline mr-1"></i> อ่านบาร์โค้ดสำเร็จ: ${code}</span>`;
+                    if (window.lucide) lucide.createIcons();
+                    
                     triggerFaceScanSuccess(code);
                 }
             }
-        } catch (barcodeErr) {
-            // ZXing จะโยน Error ตลอดเวลาที่หาบาร์โค้ดไม่เจอ (เป็นเรื่องปกติ) จึงไม่ต้องทำอะไรในส่วนนี้
+        } catch (err) {
+            // หาไม่เจอในเฟรมนี้ ไม่ต้องแสดง Error
         }
 
-        // --- ส่วนที่ 2: ตรวจจับใบหน้า AI (Face Detection) ---
+        // --- ส่วนที่ 2: ตรวจจับใบหน้า AI (Face Scan) ---
         try {
             const detections = await faceapi.detectAllFaces(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
                                             .withFaceLandmarks()
@@ -3714,75 +3713,84 @@ async function startFaceDetectionLoop() {
                 const results = resizedDetections.map(d => faceMatcher.findBestMatch(d.descriptor));
 
                 results.forEach((result, i) => {
-                    // คำนวณกรอบใบหน้า (ใช้สูตรเดิมของคุณที่ปรับปรุงเรื่อง Padding)
                     const landmarks = resizedDetections[i].landmarks.positions;
                     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-                    
                     landmarks.forEach(pt => {
-                        if (pt.x < minX) minX = pt.x;
-                        if (pt.y < minY) minY = pt.y;
-                        if (pt.x > maxX) maxX = pt.x;
-                        if (pt.y > maxY) maxY = pt.y;
+                        if (pt.x < minX) minX = pt.x; if (pt.y < minY) minY = pt.y;
+                        if (pt.x > maxX) maxX = pt.x; if (pt.y > maxY) maxY = pt.y;
                     });
-
                     const exactWidth = maxX - minX;
                     const exactHeight = maxY - minY;
+                    const padX = exactWidth * (systemSettings.aiPadX / 100 || 0.15);
+                    const padTop = exactHeight * (systemSettings.aiPadTop / 100 || 0.35);
 
-                    const padXPercent = (systemSettings.aiPadX !== undefined ? systemSettings.aiPadX : 15) / 100;
-                    const padTopPercent = (systemSettings.aiPadTop !== undefined ? systemSettings.aiPadTop : 35) / 100;
-
-                    const padX = exactWidth * padXPercent;
-                    const padTop = exactHeight * padTopPercent;
-                    const padBottom = exactHeight * 0.10;
-
-                    const box = {
-                        x: minX - padX,
-                        y: minY - padTop,
-                        width: exactWidth + (padX * 2),
-                        height: exactHeight + padTop + padBottom
-                    };
-
+                    const box = { x: minX - padX, y: minY - padTop, width: exactWidth + (padX * 2), height: exactHeight + padTop + (exactHeight * 0.1) };
                     const matchPercent = Math.round((1 - result.distance) * 100);
-                    let displayName = '';
-                    let boxColor = 'red';
+                    
+                    let boxColor = result.label !== 'unknown' ? '#22c55e' : 'red';
+                    let displayName = result.label !== 'unknown' ? 
+                        `${(allCards.find(c => c.cardId === result.label)?.firstName || result.label)} (${matchPercent}%)` : 
+                        `ไม่รู้จัก (${matchPercent}%)`;
 
-                    if (result.label !== 'unknown') {
-                        const matchedCard = allCards.find(c => c.cardId === result.label);
-                        displayName = matchedCard ? `${matchedCard.firstName} (${matchPercent}%)` : `${result.label} (${matchPercent}%)`;
-                        boxColor = '#22c55e'; // สีเขียวเมื่อเจอคนในระบบ
-                        
-                        // ส่งเข้าสู่ระบบแสกน
-                        triggerFaceScanSuccess(result.label);
-                    } else {
-                        displayName = `ไม่รู้จัก (${matchPercent}%)`;
-                        boxColor = 'red';
-                    }
-
-                    // วาดกรอบสี่เหลี่ยมรอบใบหน้า
+                    // วาดกรอบใบหน้า
                     ctx.strokeStyle = boxColor;
                     ctx.lineWidth = 3;
                     ctx.strokeRect(box.x, box.y, box.width, box.height);
 
-                    // วาดป้ายชื่อ (Mirror Text เพื่อให้คนหน้ากล้องอ่านออก)
-                    ctx.save(); 
+                    // วาดป้ายชื่อ
+                    ctx.save();
                     ctx.translate(box.x + (box.width / 2), box.y - 10);
                     ctx.scale(-1, 1);
                     ctx.font = 'bold 16px Prompt';
                     ctx.textAlign = 'center';
-                    const textWidth = ctx.measureText(displayName).width;
+                    const tw = ctx.measureText(displayName).width;
                     ctx.fillStyle = boxColor;
-                    ctx.fillRect(-(textWidth / 2) - 8, -24, textWidth + 16, 28);
+                    ctx.fillRect(-(tw/2)-8, -24, tw+16, 28);
                     ctx.fillStyle = 'white';
                     ctx.fillText(displayName, 0, 0);
-                    ctx.restore(); 
+                    ctx.restore();
+
+                    if (result.label !== 'unknown') triggerFaceScanSuccess(result.label);
                 });
             }
-        } catch (faceErr) {
-            console.error("Face API Error during loop:", faceErr);
-        }
+        } catch (fErr) {}
 
-    // หน่วงเวลาตามค่า AI Interval ที่ตั้งไว้ (Default 1000ms)
     }, systemSettings.aiInterval || 1000); 
+}
+
+// ฟังก์ชันวาดกรอบนำสายตา (Scanner Overlay)
+function drawScannerOverlay(ctx, canvas) {
+    const w = canvas.width;
+    const h = canvas.height;
+    
+    // วาดพื้นหลังมืดจางๆ รอบนอก
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.fillRect(0, 0, w, h);
+    
+    // เจาะรูตรงกลาง (Scanning Zone)
+    const rw = w * 0.8;
+    const rh = h * 0.25;
+    const rx = (w - rw) / 2;
+    const ry = (h - rh) / 2.5; // ขยับขึ้นบนนิดหน่อยเพื่อให้พ้นมือที่ถือบัตร
+    
+    ctx.clearRect(rx, ry, rw, rh);
+    
+    // วาดเส้นขอบของ Scanning Zone
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([20, 10]); // เส้นประ
+    ctx.strokeRect(rx, ry, rw, rh);
+    ctx.setLineDash([]); // คืนค่าเส้นทึบ
+    
+    // ข้อความคำแนะนำ
+    ctx.save();
+    ctx.scale(-1, 1);
+    ctx.translate(-w, 0);
+    ctx.fillStyle = 'white';
+    ctx.font = '12px Prompt';
+    ctx.textAlign = 'center';
+    ctx.fillText("วางบาร์โค้ดให้อยู่ในกรอบประ", w/2, ry - 10);
+    ctx.restore();
 }
 
 // ฟังก์ชันเมื่อจับคู่หน้าผ่านแล้ว ส่งเข้ากระบวนการแสกน
