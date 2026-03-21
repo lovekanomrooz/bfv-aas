@@ -1388,7 +1388,8 @@ gap: 1px !important;
         if(showLoadingUI) hideLoader(); 
         // ถ้าไม่ใช่ Error ที่เราจงใจโยนออกมาจาก .then (ไม่ใช่ systemError) ค่อยโชว์แจ้งเตือนเน็ตหลุด
         if (!err.isSystemError) {
-            showAlert('การเชื่อมต่อล้มเหลว', 'โปรดตรวจสอบอินเทอร์เน็ตแล้วลองใหม่', 'error'); 
+            //showAlert('การเชื่อมต่อล้มเหลว', 'โปรดตรวจสอบอินเทอร์เน็ตแล้วลองใหม่', 'error'); 
+			showToast('การเชื่อมต่อล้มเหลว โปรดตรวจสอบอินเทอร์เน็ตแล้วลองใหม่', 'error'); 
         }
         console.error(err);
         throw err;
