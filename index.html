@@ -98,6 +98,34 @@ gap: 1px !important;
     font-size: 11px !important; /* ปรับลดลงจาก 13px เป็น 11px หรือ 12px เพื่อให้คำว่า UNESCORT ดูพอดี */
     letter-spacing: 0.5px; /* เพิ่มระยะห่างตัวอักษรนิดหน่อยเพื่อให้อ่านง่ายขึ้น */
 }
+
+/* กรอบเล็งบาร์โค้ดกลางจอ */
+.barcode-guide {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 280px;
+    height: 120px;
+    border: 3px dashed #facc15; /* สีเหลือง */
+    border-radius: 12px;
+    z-index: 20;
+    pointer-events: none;
+    display: none; /* จะเปิดโชว์เฉพาะโหมดกล้อง */
+}
+.barcode-guide::after {
+    content: "วางบาร์โค้ดในกรอบนี้";
+    position: absolute;
+    bottom: -30px;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    color: #facc15;
+    font-weight: bold;
+    font-size: 14px;
+    text-shadow: 1px 1px 2px black;
+}
+
 /* ลบช่องว่างที่อาจเกิดขึ้นระหว่างหน้า */
 /*pdf-page-break {*/
 /*    page-break-after: always;*/
@@ -240,6 +268,7 @@ gap: 1px !important;
             
             <!-- กรอบโฟกัสใบหน้า -->
             <div class="absolute inset-0 border-2 border-dashed border-white/30 m-8 rounded-xl pointer-events-none"></div>
+			<div id="barcodeGuide" class="barcode-guide"></div>
         </div>
         <div class="bg-gray-50 px-4 py-2 rounded-xl border border-gray-200 w-full text-center">
             <p id="faceScanStatus" class="text-sm font-bold text-gray-600 flex items-center justify-center gap-2">
@@ -3601,6 +3630,11 @@ function stopWebcam() {
         clearInterval(faceDetectionInterval);
         faceDetectionInterval = null;
     }
+    
+    // ซ่อนกรอบเล็งบาร์โค้ด
+    const guide = document.getElementById('barcodeGuide');
+    if(guide) guide.style.display = 'none';
+
     const canvas = document.getElementById('webcamCanvas');
     if (canvas) {
         const ctx = canvas.getContext('2d');
@@ -3651,137 +3685,109 @@ async function initFaceMatcherForWebcam() {
 }
 
 // ลูปตรวจจับใบหน้าจากวิดีโอ (ทำงานทุกๆ 400ms)
+// ตัวแปรสำหรับใช้งาน Barcode Reader ตัวเดียวตลอดการทำงาน
+let barcodeScannerInstance = null;
+
 async function startFaceDetectionLoop() {
     const video = document.getElementById('webcamVideo');
     const canvas = document.getElementById('webcamCanvas');
+    const guide = document.getElementById('barcodeGuide');
     
-    // ตั้งค่าขนาดกรอบวาดให้เท่ากับวิดีโอ
+    // 1. แสดงกรอบเล็งบาร์โค้ด
+    if (guide) { 
+        guide.style.display = 'block'; 
+    }
+
+    // 2. ตั้งค่าขนาด Canvas
     const displaySize = { width: video.clientWidth, height: video.clientHeight };
     faceapi.matchDimensions(canvas, displaySize);
 
-    faceDetectionInterval = setInterval(async () => {
-        if (!webcamStream || !faceMatcher || currentScanMode !== 'face') return;
+    if (!barcodeScannerInstance) {
+        barcodeScannerInstance = new Html5Qrcode("webcamCanvas");
+    }
 
-        // เช็คว่าเลือกประตูหรือยัง
-        const gateId = document.getElementById('scanGateSelect').value;
-        if (!gateId) {
-            document.getElementById('faceScanStatus').innerHTML = '<span class="text-orange-500 animate-pulse"><i data-lucide="alert-triangle" class="w-4 h-4 inline mr-1"></i> กรุณาเลือกจุดเข้าออกด้านบนก่อน!</span>';
-            lucide.createIcons();
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height); 
+    // 3. เริ่มลูปการทำงาน
+    faceDetectionInterval = setInterval(async () => {
+        
+        // ตรวจสอบเงื่อนไข (ใส่ปีกกาให้ if ทุกตัวเพื่อความชัดเจนของ IDE)
+        if (!webcamStream || currentScanMode !== 'face') {
             return;
         }
 
-        // --- เริ่มต้นวาดภาพบน Canvas ---
+        const gateId = document.getElementById('scanGateSelect').value;
+        if (!gateId) {
+            document.getElementById('faceScanStatus').innerHTML = '<span class="text-orange-500 animate-pulse">กรุณาเลือกจุดเข้าออกก่อน!</span>';
+            return;
+        }
+
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // --- ส่วนที่ 1: ตรวจจับใบหน้า (Face Recognition) ---
-        const detections = await faceapi.detectAllFaces(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
-                                        .withFaceLandmarks()
-                                        .withFaceDescriptors();
+        // --- ส่วนที่ 2.1: แสกนใบหน้า (Face Recognition) ---
+        try {
+            const detections = await faceapi.detectAllFaces(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+                                            .withFaceLandmarks()
+                                            .withFaceDescriptors();
 
-        const resizedDetections = faceapi.resizeResults(detections, displaySize);
-        
-        if (detections.length > 0) {
-            const results = resizedDetections.map(d => faceMatcher.findBestMatch(d.descriptor));
-
-            results.forEach((result, i) => {
-                const landmarks = resizedDetections[i].landmarks.positions;
-                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            const resizedDetections = faceapi.resizeResults(detections, displaySize);
+            
+            if (resizedDetections.length > 0) {
+                const results = resizedDetections.map(d => faceMatcher.findBestMatch(d.descriptor));
                 
-                landmarks.forEach(pt => {
-                    if (pt.x < minX) minX = pt.x;
-                    if (pt.y < minY) minY = pt.y;
-                    if (pt.x > maxX) maxX = pt.x;
-                    if (pt.y > maxY) maxY = pt.y;
+                results.forEach((result, i) => {
+                    const box = resizedDetections[i].detection.box;
+                    if (result.label !== 'unknown') {
+                        ctx.strokeStyle = '#22c55e';
+                        ctx.lineWidth = 4;
+                        ctx.strokeRect(box.x, box.y, box.width, box.height);
+                        triggerFaceScanSuccess(result.label, 'FACE');
+                    }
                 });
-
-                const exactWidth = maxX - minX;
-                const exactHeight = maxY - minY;
-                const padX = exactWidth * ((systemSettings.aiPadX || 15) / 100);
-                const padTop = exactHeight * ((systemSettings.aiPadTop || 35) / 100);
-
-                const box = {
-                    x: minX - padX,
-                    y: minY - padTop,
-                    width: exactWidth + (padX * 2),
-                    height: exactHeight + padTop + (exactHeight * 0.10)
-                };
-
-                const matchPercent = Math.round((1 - result.distance) * 100);
-                let displayName = result.label !== 'unknown' ? `${result.label} (${matchPercent}%)` : `ไม่รู้จัก (${matchPercent}%)`;
-                let boxColor = result.label !== 'unknown' ? '#22c55e' : 'red';
-
-                // วาดกรอบหน้า
-                ctx.strokeStyle = boxColor;
-                ctx.lineWidth = 3;
-                ctx.strokeRect(box.x, box.y, box.width, box.height);
-
-                // วาดป้ายชื่อ (Flip แกนให้ตัวหนังสือไม่อ่านกลับด้าน)
-                ctx.save();
-                ctx.translate(box.x + (box.width / 2), box.y - 10);
-                ctx.scale(-1, 1);
-                ctx.font = 'bold 16px Prompt';
-                ctx.textAlign = 'center';
-                const textWidth = ctx.measureText(displayName).width;
-                ctx.fillStyle = boxColor;
-                ctx.fillRect(-(textWidth / 2) - 8, -24, textWidth + 16, 28);
-                ctx.fillStyle = 'white';
-                ctx.fillText(displayName, 0, 0);
-                ctx.restore();
-
-                if (result.label !== 'unknown') {
-                    triggerFaceScanSuccess(result.label, 'FACE');
-                }
-            });
+            }
+        } catch (err) {
+            console.error("Face API Error:", err);
         }
 
-        // --- ส่วนที่ 2: ตรวจจับบาร์โค้ด (Hybrid Barcode Reader) พร้อมแก้ภาพเบลอ ---
+        // --- ส่วนที่ 2.2: แสกนบาร์โค้ด (เปลี่ยนมาใช้ await เพื่อให้ปีกกาน้อยลง) ---
         try {
             const tempCanvas = document.createElement('canvas');
-            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = 480;
+            tempCanvas.height = 320;
+            const tCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
             
-            // ตัดภาพเฉพาะ "ส่วนกลางกรอบ" ของวิดีโอ (พื้นที่ที่ชัดที่สุด)
-            const cropW = 400; 
-            const cropH = 200;
-            tempCanvas.width = cropW;
-            tempCanvas.height = cropH;
-            
-            // วาดภาพวิดีโอส่วนกลางลงใน Canvas ลับ
-            tempCtx.drawImage(video, 
-                (video.videoWidth - cropW) / 2, (video.videoHeight - cropH) / 2, cropW, cropH, 
-                0, 0, cropW, cropH
+            tCtx.drawImage(video, 
+                (video.videoWidth - 480) / 2, (video.videoHeight - 320) / 2, 480, 320, 
+                0, 0, 480, 320
             );
 
-            // --- เทคนิค Image Processing: ปรับภาพให้เป็น ขาว-ดำจัด (Binarization) ---
-            let imageData = tempCtx.getImageData(0, 0, cropW, cropH);
-            let data = imageData.data;
-            for (let i = 0; i < data.length; i += 4) {
-                // คำนวณความสว่างเฉลี่ย (Grayscale)
-                let avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-                // ปรับจุดตัด (Threshold) ให้เป็นขาวดำสนิท เพื่อลด Noise ของภาพที่เบลอ
-                let v = avg > 120 ? 255 : 0; 
-                data[i] = data[i + 1] = data[i + 2] = v; 
+            let imageData = tCtx.getImageData(0, 0, 480, 320);
+            let d = imageData.data;
+            for (let i = 0; i < d.length; i += 4) {
+                let v = (d[i] + d[i+1] + d[i+2]) / 3 > 110 ? 255 : 0;
+                d[i] = d[i+1] = d[i+2] = v;
             }
-            tempCtx.putImageData(imageData, 0, 0);
+            tCtx.putImageData(imageData, 0, 0);
 
-            // ใช้ไลบรารีแสกนภาพบาร์โค้ดที่ผ่านการปรับแต่งแล้ว
-            const html5QrCode = new Html5Qrcode("webcamCanvas"); 
-            Html5Qrcode.scanImage(tempCanvas, { 
-                formatsToSupport: [ Html5QrcodeSupportedFormats.CODE_39, Html5QrcodeSupportedFormats.CODE_128 ] 
-            })
-            .then(decodedText => {
-                if (decodedText) {
-                    triggerFaceScanSuccess(decodedText.trim().toUpperCase(), 'BARCODE');
-                }
-            })
-            .catch(err => { /* ไม่พบบาร์โค้ดในเฟรมนี้ ให้ข้ามไป */ });
+            // ใช้ await แทนการใช้ .then() เพื่อลดการเปิดปีกกาใหม่
+            const decodedText = await Html5Qrcode.scanImage(tempCanvas, { 
+                formatsToSupport: [ 
+                    Html5QrcodeSupportedFormats.CODE_39, 
+                    Html5QrcodeSupportedFormats.CODE_128 
+                ] 
+            });
 
-        } catch (e) { /* Error ในการประมวลผลเฟรม */ }
+            if (decodedText) {
+                console.log("Barcode Detected:", decodedText);
+                triggerFaceScanSuccess(decodedText.trim().toUpperCase(), 'BARCODE');
+            }
 
-    }, systemSettings.aiInterval || 1000); 
-}
+        } catch (e) {
+            // ปล่อยว่างไว้เมื่อแสกนไม่พบ (ไม่พ่น Error ลง Console)
+        }
+
+    }, 800); 
+
+} // ปิดฟังก์ชัน startFaceDetectionLoop อย่างสมบูรณ์
 
 // ฟังก์ชันเมื่อจับคู่หน้าผ่านแล้ว ส่งเข้ากระบวนการแสกน
 function triggerFaceScanSuccess(cardId, scanType) {
