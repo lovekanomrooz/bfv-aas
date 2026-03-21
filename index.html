@@ -225,18 +225,18 @@ gap: 1px !important;
 
         <!-- ช่องรับรหัสหลัก (Input) -->
         <div class="bg-gray-100 p-3 rounded-2xl border border-gray-200 mb-3 shadow-inner">
-            <input type="text" id="scanInput" class="w-full px-4 py-2 text-xl font-black border-2 border-green-400 rounded-xl focus:border-green-600 focus:ring-0 outline-none transition uppercase bg-white text-center tracking-widest" placeholder="รหัสบัตร..." onkeypress="if(event.key==='Enter') processMainScan()">
-        </div>
-
-        <!-- แถบแสดงสถานะระบบ (ย้ายมาไว้ข้างบนจอภาพ ไม่บังหน้าคน) -->
-        <div id="faceScanStatus" class="w-full py-1.5 mb-2 bg-indigo-50 text-indigo-700 rounded-lg text-center text-[11px] font-bold border border-indigo-100 animate-pulse">
-            ระบบพร้อมทำงาน...
+            <input type="text" id="scanInput" class="w-full px-4 py-2 text-xl font-black border-2 border-green-400 rounded-xl focus:border-green-600 focus:ring-0 outline-none transition uppercase bg-white text-center tracking-widest" placeholder="แสกนหรือกรอกรหัสบัตร ที่นี่!!" onkeypress="if(event.key==='Enter') processMainScan()">
         </div>
 
         <!-- ปุ่มเปิด/ปิดกล้อง -->
         <button id="btnToggleCamera" onclick="toggleHybridCamera()" class="w-full py-2.5 mb-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-md transition">
             <i data-lucide="camera" class="w-5 h-5"></i> <span id="cameraBtnText">เปิดแสกน (กล้อง AI)</span>
         </button>
+		
+        <!-- แถบแสดงสถานะระบบ (ย้ายมาไว้ข้างบนจอภาพ ไม่บังหน้าคน) -->
+        <div id="faceScanStatus" class="w-full py-1.5 mb-2 bg-indigo-50 text-indigo-700 rounded-lg text-center text-[11px] font-bold border border-indigo-100 animate-pulse">
+            ระบบพร้อมทำงาน...
+        </div>
     </div>
 
     <!-- จอแสดงผลกล้อง (ปรับขนาดอัตโนมัติตามพื้นที่ที่เหลือ) -->
