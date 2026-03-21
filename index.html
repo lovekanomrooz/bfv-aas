@@ -3699,43 +3699,56 @@ function drawTurboScannerOverlay(ctx, canvas) {
     const w = canvas.width;
     const h = canvas.height;
     
-    const rw = w * 0.85;
-    const rh = h * 0.3;
-    const rx = (w - rw) / 2;
-    const ry = (h - rh) / 2.5;
+    // ปรับกรอบเป็นสี่เหลี่ยมจัตุรัสขนาด 70% ของความกว้างจอ เพื่อให้แสกนแนวตั้ง/นอนได้โดยไม่ต้องถอยไกล
+    const side = Math.min(w, h) * 0.7;
+    const rx = (w - side) / 2;
+    const ry = (h - side) / 2;
 
-    // 2.2 ปรับ Overlay ให้จางลง และวาดเฉพาะขอบนอก
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; // ลดความมืดลงจาก 0.5 เหลือ 0.2
+    // Overlay โปร่งใสมากขึ้น (20%) เพื่อให้ภาพกล้องดูไม่มืด
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
     ctx.fillRect(0, 0, w, h);
-    ctx.clearRect(rx, ry, rw, rh); 
+    ctx.clearRect(rx, ry, side, side); 
 
     if (isBarcodeDetected) {
-        ctx.strokeStyle = '#22c55e';
-        ctx.lineWidth = 6;
-        ctx.strokeRect(rx, ry, rw, rh);
+        ctx.strokeStyle = '#22c55e'; // สีเขียว
+        ctx.lineWidth = 8;
         
-        // เส้นเลเซอร์
+        // วาดมุมกรอบ (Corner Brackets) ให้ดูเป็นมืออาชีพและไม่บังบาร์โค้ด
+        const len = side * 0.2;
         ctx.beginPath();
-        ctx.strokeStyle = '#ef4444';
+        // บนซ้าย
+        ctx.moveTo(rx, ry + len); ctx.lineTo(rx, ry); ctx.lineTo(rx + len, ry);
+        // บนขวา
+        ctx.moveTo(rx + side - len, ry); ctx.lineTo(rx + side, ry); ctx.lineTo(rx + side, ry + len);
+        // ล่างซ้าย
+        ctx.moveTo(rx, ry + side - len); ctx.lineTo(rx, ry + side); ctx.lineTo(rx + len, ry + side);
+        // ล่างขวา
+        ctx.moveTo(rx + side - len, ry + side); ctx.lineTo(rx + side, ry + side); ctx.lineTo(rx + side, ry + side - len);
+        ctx.stroke();
+
+        // เส้นเลเซอร์กึ่งกลาง (วิ่งขึ้นลง)
+        const scanLineY = ry + (Math.sin(Date.now() / 200) * (side/2) + (side/2));
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.8)';
         ctx.lineWidth = 2;
-        ctx.moveTo(rx + 20, ry + (rh/2));
-        ctx.lineTo(rx + rw - 20, ry + (rh/2));
+        ctx.moveTo(rx + 10, scanLineY);
+        ctx.lineTo(rx + side - 10, scanLineY);
         ctx.stroke();
     } else {
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
         ctx.lineWidth = 2;
-        ctx.strokeRect(rx, ry, rw, rh);
+        ctx.strokeRect(rx, ry, side, side);
     }
 
-    // ข้อความคำแนะนำ
+    // ข้อความคำแนะนำ (ขยับมาไว้ด้านบนสุดของกรอบ)
     ctx.save();
     ctx.scale(-1, 1);
     ctx.translate(-w, 0);
-    ctx.fillStyle = isBarcodeDetected ? '#4ade80' : 'white';
-    ctx.font = '500 14px Prompt';
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 16px Prompt';
     ctx.textAlign = 'center';
-    const msg = isBarcodeDetected ? "--- ตรวจพบบาร์โค้ด ถือค้างไว้ ---" : "วางบาร์โค้ดให้อยู่ในกรอบ";
-    ctx.fillText(msg, w/2, ry - 15);
+    ctx.shadowBlur = 4; ctx.shadowColor = "black";
+    ctx.fillText(isBarcodeDetected ? "ตรวจพบรหัส... ถือนิ่งๆ" : "วางบาร์โค้ดในกรอบนี้", w/2, ry - 20);
     ctx.restore();
 }
 
@@ -3751,15 +3764,20 @@ function initQuagga(videoElement) {
             type: "LiveStream",
             target: videoElement,
             constraints: { width: 1280, height: 720, facingMode: "user" },
-            // 2.3 ปรับโฟกัสพื้นที่ให้กว้างขึ้นเล็กน้อยเพื่อรองรับการตะแคงบัตร
-            area: { top: "20%", right: "5%", left: "5%", bottom: "20%" }
+            // ปรับ Area ให้เป็นสี่เหลี่ยมจัตุรัสตาม UI ใหม่
+            area: { top: "15%", right: "15%", left: "15%", bottom: "15%" }
         },
         numberOfWorkers: 4,
-        locate: true, // ตัวนี้สำคัญมากสำหรับการหาบาร์โค้ดแนวตั้ง/เอียง
+        locate: true,
         frequency: 10,
         decoder: {
-            readers: ["code_39_reader"] // Code 39 ปกติรองรับการหมุนได้ระดับหนึ่งในตัว
-        }
+            readers: ["code_39_reader"],
+            // เพิ่มการลองสุ่มทิศทางของบาร์โค้ด
+            multiple: false
+        },
+        // ปรับจูนให้สู้กับภาพแนวตั้งและภาพเบลอ
+        patchSize: "large", 
+        halfSample: false // ใช้ภาพเต็มความละเอียดเพื่อให้เส้นบาร์โค้ดไม่จางหายไป
     }, function(err) {
         if (err) return;
         Quagga.start();
@@ -3908,21 +3926,21 @@ stopWebcam = function() {
 
 // ฟังก์ชันเมื่อจับคู่หน้าผ่านแล้ว ส่งเข้ากระบวนการแสกน
 function triggerFaceScanSuccess(cardId) {
-    // ป้องกันการแสกนคนเดิมซ้ำๆ รัวๆ (ติด Cooldown 10 วินาทีต่อ 1 คน)
+    // 1. เช็คว่ามี Modal แจ้งเตือน หรือ Modal ผู้ติดตามเปิดอยู่หรือไม่
+    const isAlertOpen = !document.getElementById('customAlertModal').classList.contains('hidden');
+    const isCompModalOpen = !document.getElementById('companionModal').classList.contains('hidden');
+    
+    // ถ้ามีอย่างใดอย่างหนึ่งเปิดอยู่ ให้หยุดทำงานทันที (ไม่รับคนใหม่)
+    if (isAlertOpen || isCompModalOpen) return;
+
+    // 2. ป้องกันการแสกนคนเดิมซ้ำ (Cooldown เดิม)
     if (lastScannedFaceId === cardId) return;
     
     lastScannedFaceId = cardId;
-    clearTimeout(faceScanCooldownTimer);
-    //ดึงเวลา Cooldown จากที่แอดมินตั้งไว้แปลงเป็นมิลลิวินาที (ถ้าไม่มีให้ใช้ 10 วิ)
-    
-	const cooldownMs = (systemSettings.aiCooldown || 10) * 1000;
+    const cooldownMs = (systemSettings.aiCooldown || 10) * 1000;
     faceScanCooldownTimer = setTimeout(() => { lastScannedFaceId = null; }, cooldownMs);
 
-    // แจ้งเตือนกระพริบ
-    document.getElementById('faceScanStatus').innerHTML = `<span class="text-green-600 font-black"><i data-lucide="check-circle" class="w-4 h-4 inline mr-1"></i> พบใบหน้า: ${cardId}</span>`;
-    lucide.createIcons();
-
-    // เลียนแบบการพิมพ์บาร์โค้ดลงไป แล้วเรียกใช้ processMainScan() เดิมได้เลย!
+    // เลียนแบบการพิมพ์รหัส
     const mainInput = document.getElementById('scanInput');
     mainInput.value = cardId;
     processMainScan();
