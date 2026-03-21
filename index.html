@@ -3690,7 +3690,7 @@ async function startFaceDetectionLoop() {
                 });
             } catch (err) { /* กรณี AI ค้างชั่วขณะให้ข้ามไป */ }
         }
-    }, 1000); 
+   }, systemSettings.aiInterval || 1000); 
 }
 
 // ฟังก์ชันวาดกรอบเล็งแบบ Turbo
