@@ -234,9 +234,10 @@ gap: 1px !important;
 
     <!-- โซน 2: แสกนใบหน้า (เพิ่มใหม่) -->
     <div id="scanFaceSection" class="hidden flex flex-col items-center">
-        <div class="relative w-full aspect-[3/4] bg-gray-900 rounded-2xl overflow-hidden mb-3 border-4 border-gray-100 shadow-inner">
+       <!-- ปรับจาก aspect-[3/4] เป็น aspect-square หรือกำหนดความสูงสูงสุด -->
+    <div class="relative w-full max-w-[400px] aspect-square bg-gray-900 rounded-2xl overflow-hidden mb-3 border-4 border-gray-100 shadow-inner">
             <video id="webcamVideo" class="absolute inset-0 w-full h-full object-cover transform -scale-x-100" autoplay muted playsinline></video>
-            <canvas id="webcamCanvas" class="absolute inset-0 w-full h-full object-cover z-10 transform -scale-x-100"></canvas>
+        <canvas id="webcamCanvas" class="absolute inset-0 w-full h-full object-cover z-10 transform -scale-x-100"></canvas>
             
             <!-- กรอบโฟกัสใบหน้า -->
             <div class="absolute inset-0 border-2 border-dashed border-white/30 m-8 rounded-xl pointer-events-none"></div>
@@ -3698,48 +3699,43 @@ function drawTurboScannerOverlay(ctx, canvas) {
     const w = canvas.width;
     const h = canvas.height;
     
-    // พิกัดกรอบแสกน
-    const rw = w * 0.8;
-    const rh = h * 0.25;
+    const rw = w * 0.85;
+    const rh = h * 0.3;
     const rx = (w - rw) / 2;
     const ry = (h - rh) / 2.5;
 
-    // 1. วาดพื้นหลังมืดจางๆ รอบนอก
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    // 2.2 ปรับ Overlay ให้จางลง และวาดเฉพาะขอบนอก
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; // ลดความมืดลงจาก 0.5 เหลือ 0.2
     ctx.fillRect(0, 0, w, h);
-    ctx.clearRect(rx, ry, rw, rh); // เจาะรูตรงกลาง
+    ctx.clearRect(rx, ry, rw, rh); 
 
-    // 2. ตั้งค่าสีกรอบตามสถานะ Detection
     if (isBarcodeDetected) {
-        ctx.strokeStyle = '#22c55e'; // สีเขียวสด
-        ctx.lineWidth = 8;
+        ctx.strokeStyle = '#22c55e';
+        ctx.lineWidth = 6;
+        ctx.strokeRect(rx, ry, rw, rh);
         
-        // วาดเลเซอร์เส้นสีแดงวิ่งตรงกลาง
+        // เส้นเลเซอร์
         ctx.beginPath();
         ctx.strokeStyle = '#ef4444';
-        ctx.lineWidth = 3;
-        ctx.moveTo(rx + 10, ry + (rh/2));
-        ctx.lineTo(rx + rw - 10, ry + (rh/2));
+        ctx.lineWidth = 2;
+        ctx.moveTo(rx + 20, ry + (rh/2));
+        ctx.lineTo(rx + rw - 20, ry + (rh/2));
         ctx.stroke();
     } else {
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; // สีขาว
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
         ctx.lineWidth = 2;
+        ctx.strokeRect(rx, ry, rw, rh);
     }
-    
-    ctx.strokeRect(rx, ry, rw, rh);
 
-    // 3. วาดข้อความคำแนะนำ (จัดการเรื่อง Mirror Mode ให้ตัวหนังสืออยู่ตรงกลาง)
+    // ข้อความคำแนะนำ
     ctx.save();
     ctx.scale(-1, 1);
-    ctx.translate(-w, 0); // ย้ายพิกัดกลับมาจากการกลับด้าน
-    
+    ctx.translate(-w, 0);
     ctx.fillStyle = isBarcodeDetected ? '#4ade80' : 'white';
-    ctx.font = 'bold 16px Prompt';
+    ctx.font = '500 14px Prompt';
     ctx.textAlign = 'center';
-    
-    const statusMsg = isBarcodeDetected ? "--- พบตำแหน่งรหัสแล้ว ถือค้างไว้ ---" : "วางบาร์โค้ดแนวนอนให้อยู่ในกรอบประ";
-    ctx.fillText(statusMsg, w/2, ry - 15);
-    
+    const msg = isBarcodeDetected ? "--- ตรวจพบบาร์โค้ด ถือค้างไว้ ---" : "วางบาร์โค้ดให้อยู่ในกรอบ";
+    ctx.fillText(msg, w/2, ry - 15);
     ctx.restore();
 }
 
@@ -3754,38 +3750,30 @@ function initQuagga(videoElement) {
             name: "Live",
             type: "LiveStream",
             target: videoElement,
-            constraints: {
-                width: 1280,
-                height: 720,
-                facingMode: "user"
-            },
-            // โฟกัสการอ่านเฉพาะบริเวณกลางจอ (Matching กับกรอบประบนหน้าจอ)
-            area: { top: "30%", right: "10%", left: "10%", bottom: "30%" }
+            constraints: { width: 1280, height: 720, facingMode: "user" },
+            // 2.3 ปรับโฟกัสพื้นที่ให้กว้างขึ้นเล็กน้อยเพื่อรองรับการตะแคงบัตร
+            area: { top: "20%", right: "5%", left: "5%", bottom: "20%" }
         },
-        numberOfWorkers: 4, // ใช้ CPU 4 core รุมอ่านรหัส
-        locate: true,
-        frequency: 10, // อ่าน 10 เฟรมต่อวินาที
+        numberOfWorkers: 4,
+        locate: true, // ตัวนี้สำคัญมากสำหรับการหาบาร์โค้ดแนวตั้ง/เอียง
+        frequency: 10,
         decoder: {
-            readers: ["code_39_reader"] // บังคับอ่านเฉพาะ Code 39 เท่านั้น
+            readers: ["code_39_reader"] // Code 39 ปกติรองรับการหมุนได้ระดับหนึ่งในตัว
         }
     }, function(err) {
-        if (err) return console.error(err);
+        if (err) return;
         Quagga.start();
     });
 
-    // ตรวจจับตำแหน่งบาร์โค้ดในภาพ (แม้ยังอ่านค่าไม่ได้) เพื่อเปลี่ยนสีกรอบเป็นสีเขียว
     Quagga.onProcessed(function(result) {
         isBarcodeDetected = (result && result.boxes && result.boxes.some(box => box.length > 0));
     });
 
-    // เมื่ออ่านรหัสบาร์โค้ดได้สำเร็จ 100%
     Quagga.onDetected(function(result) {
         const code = result.codeResult.code;
-        // ป้องกัน Code 39 อ่านพลาดเป็นรหัสสั้นๆ (ปกติรหัสพนักงานจะยาวเกิน 3 ตัว)
         if (code && code.length > 3 && code !== lastScannedFaceId) {
-            console.log("Turbo Barcode Scanned:", code);
-            triggerFaceScanSuccess(code); // ส่งบันทึกเข้า-ออก
-            showToast("แสกนบาร์โค้ดสำเร็จ: " + code, "success");
+            triggerFaceScanSuccess(code);
+            showToast("แสกนบาร์โค้ดสำเร็จ", "success");
         }
     });
 }
@@ -3847,23 +3835,63 @@ function drawSmartScannerOverlay(ctx, canvas) {
 
 // ฟังก์ชันวาดกรอบใบหน้า (แยกออกมาเพื่อให้โค้ดหลักสะอาดขึ้น)
 function drawFaceBox(ctx, detection, result) {
-    const box = detection.detection.box;
+    const landmarks = detection.landmarks.positions;
     const matchPercent = Math.round((1 - result.distance) * 100);
-    const boxColor = result.label !== 'unknown' ? '#22c55e' : '#ef4444';
     
+    // 1.3 คำนวณกรอบใหม่ให้พอดีใบหน้าโดยใช้จุดบนใบหน้า (Landmarks) แทนกล่องเดิมที่มักจะเบี้ยว
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    landmarks.forEach(pt => {
+        if (pt.x < minX) minX = pt.x;
+        if (pt.y < minY) minY = pt.y;
+        if (pt.x > maxX) maxX = pt.x;
+        if (pt.y > maxY) maxY = pt.y;
+    });
+
+    const exactWidth = maxX - minX;
+    const exactHeight = maxY - minY;
+
+    // ดึงค่าการเผื่อขอบ (Padding) จากหน้าตั้งค่า
+    const padX = exactWidth * (systemSettings.aiPadX / 100 || 0.15);
+    const padTop = exactHeight * (systemSettings.aiPadTop / 100 || 0.35);
+    const box = { 
+        x: minX - padX, 
+        y: minY - padTop, 
+        width: exactWidth + (padX * 2), 
+        height: exactHeight + padTop + (exactHeight * 0.1) 
+    };
+
+    // 1.1 และ 1.2 กำหนดชื่อที่จะแสดงและสี
+    let displayName = "";
+    let boxColor = "";
+
+    if (result.label !== 'unknown') {
+        // กรณีเจอในระบบ: หาชื่อ-นามสกุล
+        const matched = allCards.find(c => c.cardId === result.label);
+        const fullName = matched ? `${matched.firstName} ${matched.lastName}` : result.label;
+        displayName = `${fullName} (${matchPercent}%)`;
+        boxColor = '#22c55e'; // สีเขียว
+    } else {
+        // กรณีไม่เจอ: แสดง "ไม่พบข้อมูล" พร้อม % ความคล้าย
+        displayName = `ไม่พบข้อมูล (${matchPercent}%)`;
+        boxColor = matchPercent > 30 ? '#f59e0b' : '#ef4444'; // สีส้มถ้าเริ่มใกล้เคียง สีแดงถ้าไม่เหมือนเลย
+    }
+
+    // วาดกรอบใบหน้า
     ctx.strokeStyle = boxColor;
     ctx.lineWidth = 3;
     ctx.strokeRect(box.x, box.y, box.width, box.height);
 
+    // วาดป้ายชื่อ
     ctx.save();
     ctx.translate(box.x + (box.width / 2), box.y - 10);
     ctx.scale(-1, 1);
     ctx.font = 'bold 16px Prompt';
     ctx.textAlign = 'center';
-    const displayName = result.label !== 'unknown' ? `${result.label} (${matchPercent}%)` : "ไม่รู้จัก";
+    
     const tw = ctx.measureText(displayName).width;
     ctx.fillStyle = boxColor;
-    ctx.fillRect(-(tw/2)-8, -24, tw+16, 28);
+    ctx.fillRect(-(tw/2)-10, -28, tw+20, 32); // พื้นหลังป้ายชื่อ
+    
     ctx.fillStyle = 'white';
     ctx.fillText(displayName, 0, 0);
     ctx.restore();
