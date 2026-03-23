@@ -4153,40 +4153,46 @@ function stopWebcam() {
  */
 async function initFaceMatcherForWebcam() {
     const statusEl = document.getElementById('faceScanStatus');
-    statusEl.innerHTML = '<i class="spinner inline-block w-3 h-3 border-2 border-orange-500 border-t-transparent mr-2"></i> กำลังเชื่อมต่อ AI...';
-    
+    statusEl.innerHTML = 'กำลังโหลด AI...';
     if (!isFaceApiLoaded) { setTimeout(initFaceMatcherForWebcam, 1000); return; }
 
     const labeledDescriptors = [];
     let countTotalFaces = 0;
 
     allCards.forEach(card => {
-        if (card.status === 'active' && card.faceDescriptors) {
+        if (card.status === 'active') {
+            let validForThisCard = [];
             try {
-                const descriptorsArray = JSON.parse(card.faceDescriptors);
-                let validForThisCard = [];
-                descriptorsArray.forEach(desc => {
-                    if (desc && typeof desc === 'object') {
-                        const vals = Object.values(desc);
-                        if (vals.length === 128) validForThisCard.push(new Float32Array(vals));
+                // ตรวจสอบทั้งคอลัมน์ใหม่ และคอลัมน์เก่า
+                let rawData = card.faceDescriptors || card.faceDescriptor;
+                if (rawData) {
+                    let parsed = JSON.parse(rawData);
+                    // ถ้าเป็น Array (แบบใหม่) ให้วนลูปเอาค่าข้างใน
+                    if (Array.isArray(parsed)) {
+                        parsed.forEach(desc => {
+                            if (desc) validForThisCard.push(new Float32Array(Object.values(desc)));
+                        });
+                    } 
+                    // ถ้าเป็น Object เดียว (แบบเก่า)
+                    else {
+                        validForThisCard.push(new Float32Array(Object.values(parsed)));
                     }
-                });
+                }
                 if (validForThisCard.length > 0) {
                     labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(card.cardId, validForThisCard));
                     countTotalFaces += validForThisCard.length;
                 }
-            } catch (e) { }
+            } catch (e) { console.warn("Skip ID:", card.cardId); }
         }
     });
 
     if (labeledDescriptors.length > 0) {
         faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, systemSettings.aiThreshold || 0.38);
-        statusEl.innerHTML = `<i data-lucide="check-circle" class="w-3 h-3 inline mr-1 text-green-600"></i> พร้อม (ใบหน้าในระบบ: ${countTotalFaces})`;
+        statusEl.innerHTML = `<i data-lucide="check-circle" class="w-3 h-3 inline mr-1 text-green-600"></i> พร้อม (ฐานข้อมูล: ${countTotalFaces} ชุด)`;
     } else {
-        statusEl.innerHTML = '<span class="text-orange-500 font-bold">โหมดบาร์โค้ด (ยังไม่มีข้อมูลใบหน้า)</span>';
+        statusEl.innerHTML = '<span class="text-orange-500">โหมดแสกนบาร์โค้ด (ยังไม่มีใบหน้า)</span>';
     }
-    
-    if (window.lucide) lucide.createIcons();
+    lucide.createIcons();
     startFaceDetectionLoop();
 }
 
