@@ -2251,28 +2251,55 @@ function clearAllFailedScans() {
 /**
  * 6. ปรับปรุงการยืนยันสถานะ: เพิ่ม Success Toast สำหรับคนที่แสกนผ่านไปแล้ว
  */
+/**
+ * ฟังก์ชันยืนยันและแสดงผลสถานะการบันทึกสำเร็จบนหน้าจอ
+ * ปรับปรุง: ให้ปุ่มเพิ่มรูปเสริมแสดงเสมอหากเปิดโหมดกล้องอยู่
+ */
 function confirmStatusUI(finalStatus, logTime, fullRes = null) {
-    // 1. ถ้าเป็นคนที่ "กำลังโชว์บนหน้าจอ" (คนล่าสุด)
+    // 1. ตรวจสอบว่าคนที่เพิ่งบันทึกสำเร็จ คือคนที่กำลังโชว์ข้อมูลบนหน้าจอหลักหรือไม่
     if (fullRes && String(fullRes.cardInfo.cardId).toUpperCase() === currentDisplayCardId) {
+        
+        // --- อัปเดต Badge สถานะ (IN/OUT) ---
         const badge = document.getElementById('resIoBadge');
-        // ลบไอคอนหมุนออก เหลือแค่ตัวหนังสือสถานะ
         badge.innerHTML = finalStatus; 
         badge.className = `absolute top-0 right-0 px-20 py-6 rounded-bl-[40px] font-black text-5xl text-white shadow-2xl z-10 tracking-widest transition-all duration-500 ${finalStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
         
+        // --- อัปเดตเวลาที่บันทึก ---
         document.getElementById('resTime').innerHTML = formatDateTime(logTime).replace(' | ', '<br>');
         
+        // --- จัดการข้อมูลผู้ติดตาม (ถ้ามี) ---
         if (fullRes.companionName && fullRes.companionName.trim() !== "") {
             document.getElementById('resCompanionName').textContent = fullRes.companionName;
             document.getElementById('resCompanionId').textContent = fullRes.companionCardId;
             document.getElementById('resCompanionOrg').textContent = fullRes.companionOrg || '-';
             document.getElementById('resCompanionBox').classList.remove('hidden');
+        } else {
+            document.getElementById('resCompanionBox').classList.add('hidden');
+        }
+
+        // --- ส่วนที่เพิ่มใหม่: แสดงปุ่ม Improve AI (ปุ่มรูปเสริม) เสมอถ้าเปิดกล้องอยู่ ---
+        if (isCameraActive) { 
+            const improveBox = document.getElementById('improveAiBox');
+            if (improveBox) {
+                // ถ้าแสกนบาร์โค้ดมา เราจะแสดงเป็น 100% หรือไม่ระบุ
+                document.getElementById('lowScoreVal').textContent = "100"; 
+                improveBox.classList.remove('hidden');
+
+                // สำคัญ: เก็บข้อมูลรหัสบัตรไว้ใน lastMatchData เพื่อให้ Modal ถ่ายรูปรู้ว่าต้องเซฟลง ID ไหน
+                lastMatchData = {
+                    cardId: fullRes.cardInfo.cardId,
+                    descriptor: "[]", // จะถูกสร้างใหม่ตอนกดถ่ายรูป
+                    score: 100
+                };
+            }
         }
     } 
-    // 2. ถ้าเป็นคนที่ "แสกนผ่านไปแล้ว" แต่เพิ่งได้รับคำยืนยันจาก Server
+    // 2. ถ้าเป็นคนที่แสกนผ่านไปแล้ว (แต่ข้อมูลเพิ่งตอบกลับจาก Server) ให้โชว์ Toast แจ้งเตือนมุมขวา
     else if (fullRes) {
         showSuccessToast(fullRes.cardInfo.cardId, fullRes.cardInfo.firstName, finalStatus);
     }
 
+    // 3. อัปเดตรายการประวัติการแสกนล่าสุด (Recent Logs) ในตารางหน้าหลัก
     if (fullRes) {
         updateRecentLogsList(fullRes, logTime, finalStatus);
     }
@@ -4214,6 +4241,7 @@ function switchScanMode(mode) {
 
 // ฟังก์ชันเปิดกล้อง
 async function startWebcam() {
+isCameraActive = true;
     const video = document.getElementById('webcamVideo');
     document.getElementById('faceScanStatus').innerHTML = 'กำลังเตรียมกล้อง...';
     try {
@@ -4235,49 +4263,45 @@ async function startWebcam() {
 // let webcamStream = null; <--- ตรวจสอบว่ามีบรรทัดนี้ด้านบนสุดของสคริปต์แล้ว
 
 function forceShutdownCamera() {
-    console.warn("CRITICAL: Executing Hardware Camera Shutdown...");
+    console.log("CRITICAL: Full Hardware Camera Shutdown...");
 
-    // 1. สั่งหยุด Quagga ทันที (ตัวการหลักที่ทำให้กล้องไม่ยอมปิด)
+    // 1. หยุด Quagga (บาร์โค้ด)
     if (typeof Quagga !== 'undefined') {
-        try {
-            Quagga.stop();
-            console.log("Quagga: Scanner Stopped.");
-        } catch (e) { console.log("Quagga already idle."); }
+        try { Quagga.stop(); } catch(e) {}
     }
 
-    // 2. หยุดลูป AI
+    // 2. หยุดสัญญาณ Hardware (หยุดเลนส์กล้อง)
+    // เราจะดึง Stream จากทั้งตัวแปร Global และจาก Video Element โดยตรง
+    const videoElements = ['webcamVideo', 'captureVideo'];
+    
+    videoElements.forEach(id => {
+        const v = document.getElementById(id);
+        if (v && v.srcObject) {
+            const stream = v.srcObject;
+            const tracks = stream.getTracks();
+            tracks.forEach(track => {
+                track.stop();         // ปิดไฟเซนเซอร์
+                track.enabled = false; // ตัดการส่งข้อมูล
+            });
+            v.srcObject = null;
+            v.pause();
+            v.load();
+        }
+    });
+
+    if (webcamStream) {
+        webcamStream.getTracks().forEach(t => t.stop());
+        webcamStream = null;
+    }
+
+    // 3. หยุดลูป AI
     if (faceDetectionInterval) {
         clearInterval(faceDetectionInterval);
         faceDetectionInterval = null;
     }
 
-    // 3. หยุดสัญญาณ Hardware ทุกตัว
-    if (webcamStream) {
-        const tracks = webcamStream.getTracks();
-        tracks.forEach(track => {
-            track.stop();         // สั่งปิดตัวเซนเซอร์
-            track.enabled = false; // ปิดสถานะการส่งข้อมูล
-        });
-        console.log("Hardware: All tracks stopped.");
-        webcamStream = null;
-    }
-
-    // 4. ล้างค่าออกจาก Video Elements ทั้งหมด (บังคับ Clean)
-    const videoIds = ['webcamVideo', 'captureVideo'];
-    videoIds.forEach(id => {
-        const videoElement = document.getElementById(id);
-        if (videoElement) {
-            videoElement.pause();
-            videoElement.srcObject = null;
-            videoElement.load(); // รีเซ็ตสถานะภายใน
-            videoElement.removeAttribute('src'); // ล้าง attribute
-        }
-    });
-
     isCameraActive = false;
-    if (document.getElementById('faceScanStatus')) {
-        document.getElementById('faceScanStatus').innerHTML = 'สถานะ: ปิดระบบกล้องแล้ว';
-    }
+    if(document.getElementById('faceScanStatus')) document.getElementById('faceScanStatus').innerHTML = 'สถานะ: ปิดระบบกล้อง';
 }
 
 // ตรวจสอบว่า navigateTo มีการเรียกใช้ตัวใหม่นี้
@@ -4924,41 +4948,50 @@ function startReturnCooldown() {
 // ฟังก์ชันสำหรับวาดรายการใบหน้าในหน้าแก้ไขบัตร
 async function renderCardFacesList(cardId) {
     const listContainer = document.getElementById('cardFacesList');
-    listContainer.innerHTML = '<div class="col-span-full py-5 text-center text-xs text-gray-400 italic">กำลังค้นหาข้อมูลในโฟลเดอร์...</div>';
+    listContainer.innerHTML = '<div class="col-span-full py-5 text-center text-xs text-gray-400">กำลังโหลด...</div>';
     
     try {
         const allFaces = await apiCall('getCardFaces', {}, false);
-        // กรองเอาเฉพาะของ ID นี้
         const myFaces = allFaces.filter(f => String(f.cardId) === String(cardId));
         
-        if (myFaces.length === 0) {
-            listContainer.innerHTML = '<p class="text-xs text-gray-400 col-span-full text-center py-8">ไม่มีข้อมูลรูปภาพในระบบ</p>';
-            return;
-        }
+        // ค้นหาข้อมูลบัตรหลักเพื่อเอารูปตั้งต้นมาโชว์ (ถ้าใน cardFaces ยังไม่มี)
+        const mainCard = allCards.find(c => String(c.cardId) === String(cardId));
+        
+        let html = '';
 
-        // จัดเรียง: เอา Main ขึ้นก่อนเสมอ
-        myFaces.sort((a,b) => (a.faceType === 'main' ? -1 : 1));
-
-        listContainer.innerHTML = myFaces.map((f, idx) => {
-            const isMain = f.faceType === 'main';
-            return `
-            <div class="relative group bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition">
-                <img src="${f.imageUrl}" class="w-full h-24 object-cover cursor-pointer hover:scale-105 transition" onclick="openImagePreview('${f.imageUrl}')">
-                <div class="p-1.5 bg-gray-50 flex justify-between items-center border-t">
-                    <span class="text-[9px] font-black ${isMain ? 'text-blue-600' : 'text-gray-500'} uppercase">
-                        ${isMain ? '<i data-lucide="star" class="w-2.5 h-2.5 inline fill-blue-600"></i> รูปหลัก' : `รูปเสริม ${idx}`}
-                    </span>
-                    ${!isMain ? `
-                        <button onclick="deleteFace(${f.id}, '${f.cardId}')" class="text-red-500 hover:bg-red-50 p-1 rounded transition">
-                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                        </button>
-                    ` : `
-                        <i data-lucide="lock" class="w-3 h-3 text-gray-300" title="รูปหลักต้องแก้ไขที่ปุ่มจัดการรูปด้านบน"></i>
-                    `}
+        // 1. แสดงรูปหลัก (ถ้ามี)
+        const mainFace = myFaces.find(f => f.faceType === 'main');
+        if (mainFace || (mainCard && mainCard.imageUrl)) {
+            const imgUrl = mainFace ? mainFace.imageUrl : mainCard.imageUrl;
+            html += `
+            <div class="relative group bg-white border-2 border-indigo-200 rounded-xl overflow-hidden shadow-md">
+                <img src="${imgUrl}" class="w-full h-24 object-cover">
+                <div class="p-1.5 bg-indigo-50 flex justify-between items-center">
+                    <span class="text-[9px] font-black text-indigo-600 uppercase"><i data-lucide="star" class="w-2 h-2 inline fill-indigo-600"></i> รูปหลัก (Main)</span>
+                    <i data-lucide="lock" class="w-3 h-3 text-gray-400"></i>
                 </div>
             </div>`;
-        }).join('');
+        }
+
+        // 2. แสดงรูปเสริมอื่นๆ
+        const supplementalFaces = myFaces.filter(f => f.faceType !== 'main');
+        supplementalFaces.forEach((f, idx) => {
+            html += `
+            <div class="relative group bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                <img src="${f.imageUrl}" class="w-full h-24 object-cover cursor-pointer" onclick="openImagePreview('${f.imageUrl}')">
+                <div class="p-1.5 bg-gray-50 flex justify-between items-center">
+                    <span class="text-[9px] font-black text-gray-500 uppercase">รูปเสริม ${idx + 1}</span>
+                    <button onclick="deleteFace(${f.id}, '${f.cardId}')" class="text-red-500 hover:bg-red-50 p-1 rounded">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>`;
+        });
+
+        if (html === '') html = '<p class="text-xs text-gray-400 col-span-full text-center py-8">ไม่มีข้อมูลรูปภาพ</p>';
+        listContainer.innerHTML = html;
         lucide.createIcons();
+
     } catch(e) {
         listContainer.innerHTML = '<p class="text-xs text-red-400 col-span-full">ดึงข้อมูลล้มเหลว</p>';
     }
