@@ -290,25 +290,6 @@ gap: 1px !important;
                                        <p class="font-bold text-indigo-900 text-base" id="resCompanionName">-</p>
                                        <p class="text-xs text-indigo-700 mt-0.5"><span id="resCompanionId"></span> | <span id="resCompanionOrg"></span></p>
                                    </div>
-							
-
-<div id="optimizeFaceContainer" class="mt-6 hidden animate-fadeIn">
-    <div class="bg-indigo-50 border-2 border-dashed border-indigo-300 rounded-2xl p-4 flex flex-col items-center text-center">
-        <div class="w-12 h-12 bg-indigo-600 text-white rounded-full flex items-center justify-center mb-3 shadow-lg">
-            <i data-lucide="scan-face" class="w-6 h-6"></i>
-        </div>
-        <h4 class="text-indigo-900 font-bold text-sm mb-1">ต้องการเพิ่มความแม่นยำให้บุคคลนี้?</h4>
-        <p class="text-indigo-600 text-[11px] mb-4">หากแสกนติดยาก หรือแสงน้อย คุณสามารถกดปุ่มเพื่อบันทึกใบหน้าในสภาพแสงปัจจุบันเพิ่มได้</p>
-        
-        <button id="btnSaveOptimize" onclick="captureAndSaveExtraFace()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-sm flex items-center justify-center gap-2 shadow-md transition active:scale-95">
-            <i data-lucide="plus-circle" class="w-5 h-5"></i> บันทึกใบหน้านี้เพิ่ม
-        </button>
-        
-        <div id="optimizeStatus" class="hidden mt-3 text-xs font-bold text-indigo-500 animate-pulse">
-            กำลังประมวลผลใบหน้าที่ใหญ่ที่สุด...
-        </div>
-    </div>
-</div>
                                </div>
                            </div>
                        </div>
@@ -1499,7 +1480,7 @@ setTimeout(initVoices, 1000);
     // ==========================================
     
     // 🔥 นำ URL ที่คัดลอกมาจาก Step 1 มาวางในเครื่องหมายคำพูดด้านล่างนี้เลยครับ
-    const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyO3_Ut-515FwZXzCOvGjxWweEhznr2wtxXrVMb47qLz6F7qyZU5yw06Zv_6WQtID6Z/exec'; 
+    const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyb96CV1nYhUO433e0RUAtfk6nvxU7VzRQb6yvMxxbv0CRWIjoEv7yGG6Ftg8vpAQ_jyg/exec'; 
 
     function apiCall(action, data={}, showLoadingUI = true) {
     if(showLoadingUI) showLoader();
@@ -1988,13 +1969,14 @@ function toggleHybridCamera() {
     // --- ฟังก์ชันการสแกน ส่ง recordedBy ไปด้วย ---
 	// LOGIC ใหม่ /////////////////////
 	
+	// 3. ฟังก์ชันประมวลผลการแสกนหลัก (ฝั่งหน้าเว็บ)
 // ตัวแปรเก็บรหัสบัตรล่าสุดที่กำลังแสดงบนหน้าจอ
 let currentDisplayCardId = "";
 // คิวเก็บรายการที่แสกนล้มเหลว
 let failedScansQueue = [];
 
 /**
- * 3. ฟังก์ชันประมวลผลการแสกนหลัก (ฝั่งหน้าเว็บ)
+ * 3. ปรับปรุงฟังก์ชันแสกนหลัก: เพิ่มระบบ Request ID
  */
 function processMainScan() {
     const gateId = document.getElementById('scanGateSelect').value;
@@ -2026,7 +2008,7 @@ function processMainScan() {
     const typeInfo = typeCards.find(t => String(t.id) === String(card.typeId));
     let predictedStatus = (card.currentStatus === 'IN') ? 'OUT' : 'IN';
 
-    if (typeInfo && typeInfo.requireCompanion && predictedStatus === 'IN') {
+    if (typeInfo.requireCompanion && predictedStatus === 'IN') {
         document.getElementById('companionModalMainCardId').value = card.cardId;
         document.getElementById('compBarcode').value = '';
         document.getElementById('companionModal').classList.remove('hidden');
@@ -2034,60 +2016,57 @@ function processMainScan() {
         return;
     }
 
+    // --- จดจำว่าตอนนี้กำลังโชว์รหัสอะไร ---
     currentDisplayCardId = card.cardId;
     mainInput.value = ''; mainInput.focus();
 
-    // พูดชื่อทักทายทันที (Instant Greeting)
-    speakStatus(card.firstName, card.lastName, 'GREET'); 
-
+    // แสดงผล UI ทันที (สถานะจางๆ)
     showInstantUI(card, typeInfo, predictedStatus);
+
+    // ส่งไป Server
     executeScanFinal(gateId, card.cardId, null, predictedStatus, `${card.firstName} ${card.lastName}`);
 }
 
 /**
- * 4. ฟังก์ชันแสดงผลทันที: ล้างข้อมูลเก่า (Reset) ป้องกันบัครูปค้าง/ผู้ติดตามค้าง
+ * 4. ปรับปรุงการแสดงผล: สีเข้มชัดเจน + ไอคอนกำลังประมวลผล
  */
 function showInstantUI(card, typeInfo, predictedStatus) {
     const imgEl = document.getElementById('resCardImage');
     const iconEl = document.getElementById('resCardIcon');
     const compBox = document.getElementById('resCompanionBox');
 
-    // ล้างข้อมูลภาพและไอคอน (Transparent Pixel เพื่อป้องกัน Broken Image Icon)
+    // ล้างรูปและผู้ติดตามเดิม
     imgEl.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
-    imgEl.style.display = 'none';
     imgEl.classList.add('hidden');
-    iconEl.style.display = 'block';
     iconEl.classList.remove('hidden');
-    
-    // ล้างข้อมูลผู้ติดตาม
     compBox.classList.add('hidden');
-    document.getElementById('resCompanionName').textContent = "-";
 
     document.getElementById('scanResultEmpty').classList.add('hidden');
     document.getElementById('scanResultData').classList.remove('hidden');
     
-    // Badge สถานะ: สีเข้ม + ไอคอนกำลังประมวลผล
+    // --- ปรับปรุง Badge: สีเข้ม + ไอคอนนาฬิกา (Processing) ---
     const badge = document.getElementById('resIoBadge');
-    badge.innerHTML = `<span class="flex items-center gap-3">${predictedStatus} <i data-lucide="loader-2" class="w-10 h-10 animate-spin text-white/70"></i></span>`;
+    badge.innerHTML = `<span class="flex items-center gap-3">
+        ${predictedStatus} 
+        <i data-lucide="loader-2" class="w-10 h-10 animate-spin text-white/70"></i>
+    </span>`;
     badge.className = `absolute top-0 right-0 px-12 py-6 rounded-bl-[40px] font-black text-5xl text-white shadow-xl z-10 tracking-widest ${predictedStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
     
     document.getElementById('resCardId').textContent = card.cardId;
     document.getElementById('resFullName').textContent = `${card.firstName} ${card.lastName}`;
     document.getElementById('resOrg').textContent = card.organization || 'ไม่ระบุหน่วยงาน';
-    document.getElementById('resCardType').textContent = typeInfo ? typeInfo.typeName : '-';
+    document.getElementById('resCardType').textContent = typeInfo.typeName;
     document.getElementById('resVehicle').textContent = card.vehicleReg || '-';
     document.getElementById('resExpiry').textContent = formatDateOnly(card.expiryDate);
-    document.getElementById('resTime').innerHTML = `<span class="text-orange-500 flex items-center gap-1"><i data-lucide="cloud-upload" class="w-4 h-4"></i> กำลังบันทึก...</span>`;
+    document.getElementById('resTime').innerHTML = `<span class="text-orange-500 flex items-center gap-1"><i data-lucide="cloud-upload" class="w-4 h-4"></i> กำลังส่งข้อมูล...</span>`;
 
-    lucide.createIcons();
+    lucide.createIcons(); // วาดไอคอนใหม่
 
     if (card.imageUrl && card.imageUrl.trim() !== '') {
         const tempImg = new Image();
         tempImg.onload = function() {
             imgEl.src = card.imageUrl;
-            imgEl.style.display = 'block';
             imgEl.classList.remove('hidden');
-            iconEl.style.display = 'none';
             iconEl.classList.add('hidden');
         };
         tempImg.src = card.imageUrl;
@@ -2095,7 +2074,7 @@ function showInstantUI(card, typeInfo, predictedStatus) {
 }
 
 /**
- * 5. ฟังก์ชันส่งข้อมูลและรับคำยืนยัน
+ * 5. ปรับปรุงการจัดการ Error: ระบบคิวแจ้งเตือน
  */
 async function executeScanFinal(gateId, cardId, companionCardId, predictedStatus, fullName) {
     const recordedBy = `${currentUser.firstName} ${currentUser.lastName}`;
@@ -2114,10 +2093,13 @@ async function executeScanFinal(gateId, cardId, companionCardId, predictedStatus
             if (res.success) {
                 const idx = allCards.findIndex(c => String(c.cardId) === String(cardId));
                 if (idx !== -1) allCards[idx].currentStatus = res.newStatus;
+                
                 confirmStatusUI(res.newStatus, res.logTime, res);
+                handleScanSounds(res.newStatus, res.cardInfo.firstName, res.cardInfo.lastName);
             }
         } catch (err) {
-            console.error("Scan Failed:", err);
+            // กรณี Error เช่น Timeout (รอเกิน 10 วินาที)
+            console.error("Scan Error:", err);
             addToFailedQueue(cardId, fullName);
         }
     }
@@ -2192,56 +2174,74 @@ function clearAllFailedScans() {
 }
 	  
 /**
- * 4. ปรับปรุง confirmStatusUI: แสดงปุ่ม Optimize
+ * 6. ปรับปรุงการยืนยันสถานะ: เพิ่ม Success Toast สำหรับคนที่แสกนผ่านไปแล้ว
  */
 function confirmStatusUI(finalStatus, logTime, fullRes = null) {
+    // 1. ถ้าเป็นคนที่ "กำลังโชว์บนหน้าจอ" (คนล่าสุด)
     if (fullRes && String(fullRes.cardInfo.cardId).toUpperCase() === currentDisplayCardId) {
         const badge = document.getElementById('resIoBadge');
+        // ลบไอคอนหมุนออก เหลือแค่ตัวหนังสือสถานะ
         badge.innerHTML = finalStatus; 
         badge.className = `absolute top-0 right-0 px-20 py-6 rounded-bl-[40px] font-black text-5xl text-white shadow-2xl z-10 tracking-widest transition-all duration-500 ${finalStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
         
         document.getElementById('resTime').innerHTML = formatDateTime(logTime).replace(' | ', '<br>');
         
-        // ปุ่มเพิ่มรูปจะโชว์เฉพาะถ้าเจ้าหน้าที่เปิดโหมดกล้องไว้
-        const optContainer = document.getElementById('optimizeFaceContainer');
-        if (optContainer) {
-            if (isCameraActive) optContainer.classList.remove('hidden');
-            else optContainer.classList.add('hidden');
+        if (fullRes.companionName && fullRes.companionName.trim() !== "") {
+            document.getElementById('resCompanionName').textContent = fullRes.companionName;
+            document.getElementById('resCompanionId').textContent = fullRes.companionCardId;
+            document.getElementById('resCompanionOrg').textContent = fullRes.companionOrg || '-';
+            document.getElementById('resCompanionBox').classList.remove('hidden');
         }
     } 
+    // 2. ถ้าเป็นคนที่ "แสกนผ่านไปแล้ว" แต่เพิ่งได้รับคำยืนยันจาก Server
     else if (fullRes) {
         showSuccessToast(fullRes.cardInfo.cardId, fullRes.cardInfo.firstName, finalStatus);
     }
-    if (fullRes) updateRecentLogsList(fullRes, logTime, finalStatus);
+
+    if (fullRes) {
+        updateRecentLogsList(fullRes, logTime, finalStatus);
+    }
 }
 
 /**
  * ระบบแจ้งเตือนบันทึกสำเร็จ (Success Toast) สำหรับคนที่แสกนผ่านไปแล้ว
  * ปรับปรุง: เลื่อนตำแหน่งลงมาที่ top-64 เพื่อไม่ให้ทับกับ Badge ของคนล่าสุด
  */
-/**
- * 7. ระบบแจ้งเตือนสำเร็จ (Success Toast)
- */
 function showSuccessToast(cardId, name, status) {
     let container = document.getElementById('successToastContainer');
+    
+    // หากยังไม่มี Container ให้สร้างใหม่
     if (!container) {
         container = document.createElement('div');
         container.id = 'successToastContainer';
+        // เปลี่ยนจาก top-32 เป็น top-64 (หรือปรับเป็น top-72 ถ้ายังทับอยู่)
+        // เพิ่ม margin-top เล็กน้อยเพื่อความสวยงาม
         container.className = 'fixed top-64 right-4 z-[180] flex flex-col gap-3 pointer-events-none w-72 sm:w-80 mt-10';
         document.body.appendChild(container);
     }
 
     const toast = document.createElement('div');
-    toast.className = `animate-fadeIn flex items-center gap-4 px-5 py-4 rounded-2xl shadow-2xl border-2 text-white font-bold pointer-events-auto transition-all duration-500 ${status === 'IN' ? 'bg-green-700 border-green-400' : 'bg-orange-700 border-orange-400'}`;
-    toast.innerHTML = `<div class="bg-white/20 p-2 rounded-full shrink-0"><i data-lucide="${status === 'IN' ? 'check-circle' : 'log-out'}" class="w-6 h-6"></i></div>
-        <div class="flex-1 overflow-hidden"><p class="text-[10px] uppercase opacity-80 mb-0.5 truncate">บันทึกสำเร็จ (${cardId})</p>
-        <p class="text-base truncate leading-tight">${name}</p><p class="text-xl font-black mt-1 leading-none">สถานะ: ${status}</p></div>`;
+    // ปรับสไตล์ให้ขอบมนและเงาฟุ้งขึ้น (shadow-2xl)
+    toast.className = `animate-fadeIn flex items-center gap-4 px-5 py-4 rounded-2xl shadow-2xl border-2 text-white font-bold pointer-events-auto transition-all duration-500 transform translate-x-0 ${status === 'IN' ? 'bg-green-700 border-green-400' : 'bg-orange-700 border-orange-400'}`;
+    
+    toast.innerHTML = `
+        <div class="bg-white/20 p-2 rounded-full shrink-0">
+            <i data-lucide="${status === 'IN' ? 'check-circle' : 'log-out'}" class="w-6 h-6"></i>
+        </div>
+        <div class="flex-1 overflow-hidden">
+            <p class="text-[10px] uppercase tracking-widest opacity-80 mb-0.5 truncate">บันทึกสำเร็จ (รหัส: ${cardId})</p>
+            <p class="text-base truncate leading-tight">${name}</p>
+            <p class="text-xl font-black mt-1 leading-none">สถานะ: ${status}</p>
+        </div>
+    `;
     
     container.appendChild(toast);
     lucide.createIcons();
+
+    // ตั้งเวลาให้หายไป (4 วินาที)
     setTimeout(() => {
         toast.style.opacity = '0';
-        toast.style.transform = 'translateX(100px)';
+        toast.style.transform = 'translateX(100px)'; // เลื่อนออกทางขวาตอนหาย
         setTimeout(() => toast.remove(), 500);
     }, 4000);
 }
@@ -4148,55 +4148,50 @@ function stopWebcam() {
     console.log("Camera hardware fully released.");
 }
 
-/**
- * 1. ปรับปรุงการโหลด Face Matcher (ทนทานต่อข้อมูลผิดพลาด)
- */
+// โหลดฐานข้อมูลเข้า Face Matcher ตั้งค่าความเหมือนใบหน้า
 async function initFaceMatcherForWebcam() {
     const statusEl = document.getElementById('faceScanStatus');
-    statusEl.innerHTML = 'กำลังเตรียม AI...';
-    if (!isFaceApiLoaded) { setTimeout(initFaceMatcherForWebcam, 1000); return; }
+    statusEl.innerHTML = '<i class="spinner inline-block w-3 h-3 border-2 border-orange-500 border-t-transparent mr-2"></i> กำลังโหลดฐานข้อมูลใบหน้า...';
+
+    if (!isFaceApiLoaded) {
+        setTimeout(initFaceMatcherForWebcam, 1000);
+        return;
+    }
 
     const labeledDescriptors = [];
-    let countPeople = 0;
-    let countTotalSamples = 0;
+    let countFaces = 0;
 
     allCards.forEach(card => {
-        if (card.status === 'active') {
-            let validSamples = [];
+        if (card.status === 'active' && card.faceDescriptor && card.faceDescriptor.trim() !== '') {
             try {
-                let descriptorsArray = JSON.parse(card.faceDescriptors);
-                descriptorsArray.forEach(desc => {
-                    if (desc) {
-                        // บังคับให้เป็น Float32Array 128 ตำแหน่ง
-                        const vals = Object.values(desc);
-                        if (vals.length === 128) {
-                            validSamples.push(new Float32Array(vals));
-                        }
-                    }
-                });
-
-                if (validSamples.length > 0) {
-                    labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(card.cardId, validSamples));
-                    countPeople++; // นับจำนวนคน
-                    countTotalSamples += validSamples.length; // นับจำนวนชุดใบหน้า
-                }
-            } catch (e) { }
+                const descArray = new Float32Array(JSON.parse(card.faceDescriptor));
+                labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(card.cardId, [descArray]));
+                countFaces++;
+            } catch (e) {}
         }
     });
 
-    if (labeledDescriptors.length > 0) {
-        faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, systemSettings.aiThreshold || 0.38);
-        statusEl.innerHTML = `<i data-lucide="check-circle" class="w-3 h-3 inline mr-1 text-green-600"></i> พร้อม (พนักงาน: ${countPeople} คน | ใบหน้า: ${countTotalSamples} ชุด)`;
-    } else {
-        statusEl.innerHTML = '<span class="text-orange-500 font-bold">รอแสกนบาร์โค้ด (ไม่มีข้อมูลใบหน้า)</span>';
+    if (labeledDescriptors.length === 0) {
+        statusEl.innerHTML = '<span class="text-red-500">ไม่พบข้อมูลใบหน้าในระบบ</span>';
+        return;
     }
-    lucide.createIcons();
+  // ค่าความแม่นยำ (0.38 = เข้มงวดมาก ป้องกันหน้าคล้าย, 0.45 = ปานกลาง, 0.6 = หละหลวม)
+    // ดึงค่าความเข้มงวดจากที่แอดมินตั้งไว้ (ถ้าไม่มีให้ใช้ 0.38)
+    const currentThreshold = systemSettings.aiThreshold || 0.38;
+    faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, currentThreshold);
+    
+    // แสดงสถานะที่แถบด้านบน (ไม่บังกล้องแล้ว)
+    statusEl.classList.remove('animate-pulse');
+    statusEl.innerHTML = `<i data-lucide="check-circle" class="w-3 h-3 inline mr-1 text-green-600"></i> พร้อมสแกนแล้ว (โหลดแล้ว ${countFaces} ใบหน้า)`;
+    if (window.lucide) lucide.createIcons();
+    
     startFaceDetectionLoop();
 }
 
-/**
- * 2. ปรับปรุงระบบวาดหน้าจอ (ให้กรอบบาร์โค้ดขึ้นเสมอ)
- */
+// ลูปตรวจจับใบหน้าจากวิดีโอ (ทำงานทุกๆ 400ms)
+////////////
+// ตัวแปรสถานะสำหรับการเช็คบาร์โค้ดในเฟรม
+
 async function startFaceDetectionLoop() {
     const video = document.getElementById('webcamVideo');
     const canvas = document.getElementById('webcamCanvas');
@@ -4209,89 +4204,23 @@ async function startFaceDetectionLoop() {
 
     faceDetectionInterval = setInterval(async () => {
         if (!webcamStream || currentScanMode !== 'face') return;
-        
-        // --- ส่วนการวาดภาพทับหน้าจอ (ต้องทำทุกรอบ) ---
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawTurboScannerOverlay(ctx, canvas); // วาดกรอบบาร์โค้ดเสมอ
+        drawTurboScannerOverlay(ctx, canvas);
 
-        // --- ส่วนประมวลผลใบหน้า (ทำเฉพาะเมื่อมีฐานข้อมูล) ---
         if (faceMatcher) {
             try {
                 const detections = await faceapi.detectAllFaces(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
                                                 .withFaceLandmarks()
                                                 .withFaceDescriptors();
                 const resizedDetections = faceapi.resizeResults(detections, displaySize);
-                if (resizedDetections.length > 0) {
-                    let largestFace = resizedDetections[0];
-                    let maxArea = 0;
-                    resizedDetections.forEach(det => {
-                        const area = det.detection.box.width * det.detection.box.height;
-                        if (area > maxArea) { maxArea = area; largestFace = det; }
-                    });
-                    const result = faceMatcher.findBestMatch(largestFace.descriptor);
-                    drawFaceBox(ctx, largestFace, result);
+                resizedDetections.forEach((detection) => {
+                    const result = faceMatcher.findBestMatch(detection.descriptor);
+                    drawFaceBox(ctx, detection, result);
                     if (result.label !== 'unknown') triggerFaceScanSuccess(result.label);
-                }
-            } catch (err) { }
+                });
+            } catch (err) {}
         }
     }, systemSettings.aiInterval || 1000); 
-}
-
-/**
- * 3. ฟังก์ชันเพิ่มรูปใบหน้าเสริม (Optimize Face)
- */
-async function captureAndSaveExtraFace() {
-    const video = document.getElementById('webcamVideo');
-    const statusEl = document.getElementById('optimizeStatus');
-    const btn = document.getElementById('btnSaveOptimize');
-
-    statusEl.classList.remove('hidden');
-    btn.disabled = true;
-    btn.classList.add('opacity-50');
-
-    try {
-        // 1. ตรวจจับหน้าปัจจุบันจากกล้อง
-        const detection = await faceapi.detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.7 }))
-                                        .withFaceLandmarks()
-                                        .withFaceDescriptor();
-
-        if (!detection) {
-            showAlert('ไม่พบใบหน้า', 'กรุณามองตรงไปที่กล้องแล้วลองอีกครั้ง', 'warning');
-            throw new Error("No face detected");
-        }
-
-        // 2. ถ่ายภาพและ Crop เฉพาะใบหน้า (เพื่อประหยัดที่เก็บและให้ Admin ตรวจง่าย)
-        const canvas = document.createElement('canvas');
-        const box = detection.detection.box;
-        canvas.width = 300; canvas.height = 300;
-        const ctx = canvas.getContext('2d');
-        // วาดภาพจากวิดีโอลง canvas โดยเน้นไปที่ส่วนของใบหน้า
-        ctx.drawImage(video, box.x - 50, box.y - 80, box.width + 100, box.height + 150, 0, 0, 300, 300);
-        const base64Img = canvas.toDataURL('image/jpeg', 0.8);
-
-        // 3. ส่งข้อมูลไปที่ Server
-        const res = await apiCall('addFaceSample', {
-            cardId: currentDisplayCardId,
-            faceDescriptor: JSON.stringify(Array.from(detection.descriptor)),
-            faceImageBase64: base64Img
-        });
-
-        if (res.status === 'approved') {
-            showToast('บันทึกใบหน้าเสริมสำเร็จ (ใช้งานได้ทันที)', 'success');
-        } else {
-            showToast('ส่งข้อมูลใบหน้าให้ Admin ตรวจสอบแล้ว', 'success');
-        }
-        
-        // ปิดส่วน Optimize
-        document.getElementById('optimizeFaceContainer').classList.add('hidden');
-
-    } catch (err) {
-        console.error(err);
-    } finally {
-        statusEl.classList.add('hidden');
-        btn.disabled = false;
-        btn.classList.remove('opacity-50');
-    }
 }
 
 // ฟังก์ชันวาดกรอบเล็งแบบ Turbo
@@ -4998,28 +4927,30 @@ document.addEventListener('change', function(e) {
 ////////////ฟังชั่น AI พูดชื่อ
 	systemSettings.ttsRate = 1.0; 
 
-/**
- * 5. ปรับปรุง speakStatus: รองรับการทักทายชื่อทันที
- */
 function speakStatus(firstName, lastName, type) {
     if (!('speechSynthesis' in window)) return;
+ // บังคับชื่อเป็น String ก่อนประมวลผล
+    const fName = String(firstName || "");
+    const lName = String(lastName || "");
     window.speechSynthesis.cancel(); 
 
     const msg = new SpeechSynthesisUtterance();
     let nameToSpeak = (systemSettings.ttsNameMode === 'first') ? firstName : `${firstName} ${lastName}`;
+    let prefix = systemSettings.ttsPrefix || "";
+    let suffix = (type === 'IN') ? (systemSettings.ttsInSuffix || "") : (systemSettings.ttsOutSuffix || "");
     
-    // โหมดทักทายทันที (ก่อน Server ตอบ)
-    if (type === 'GREET') {
-        msg.text = `สวัสดีค่ะ คุณ${nameToSpeak}`;
-    } else {
-        // โหมดแจ้งผล (หลัง Server ตอบ - ถ้าคุณยังอยากใช้อยู่)
-        let suffix = (type === 'IN') ? (systemSettings.ttsInSuffix || "") : (systemSettings.ttsOutSuffix || "");
-        msg.text = `${nameToSpeak}, ${suffix}`;
-    }
-    
+    msg.text = `${prefix}, ${nameToSpeak}, ${suffix}`;
     msg.lang = 'th-TH';
-    msg.volume = parseFloat(systemSettings.ttsVolume || 1.0);
-    msg.rate = parseFloat(systemSettings.ttsRate || 1.0);
+
+    if (systemSettings.ttsVoiceName) {
+        const voice = voices.find(v => v.name === systemSettings.ttsVoiceName);
+        if (voice) msg.voice = voice;
+    }
+
+    // --- เพิ่มการกำหนดระดับความดัง (0.0 ถึง 1.0) ---
+    msg.volume = parseFloat(systemSettings.ttsVolume) || 1.0;
+    
+    msg.rate = parseFloat(systemSettings.ttsRate) || 1.0;
     window.speechSynthesis.speak(msg);
 }
 
