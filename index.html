@@ -4149,11 +4149,11 @@ function stopWebcam() {
 }
 
 /**
- * 1. ปรับปรุงการโหลด Face Matcher (แก้ไขอาการ AI ค้าง)
+ * 1. ปรับปรุงการโหลด Face Matcher (ทนทานต่อข้อมูลผิดพลาด)
  */
 async function initFaceMatcherForWebcam() {
     const statusEl = document.getElementById('faceScanStatus');
-    statusEl.innerHTML = '<i class="spinner inline-block w-3 h-3 border-2 border-orange-500 border-t-transparent mr-2"></i> กำลังโหลด AI...';
+    statusEl.innerHTML = '<i class="spinner inline-block w-3 h-3 border-2 border-orange-500 border-t-transparent mr-2"></i> กำลังเตรียมฐานข้อมูล...';
     
     if (!isFaceApiLoaded) { setTimeout(initFaceMatcherForWebcam, 1000); return; }
 
@@ -4161,47 +4161,42 @@ async function initFaceMatcherForWebcam() {
     let countTotalFaces = 0;
 
     allCards.forEach(card => {
-        if (card.status === 'active') {
-            let validDescriptors = [];
+        if (card.status === 'active' && card.faceDescriptors) {
             try {
-                // กรณีที่ 1: ข้อมูลแบบใหม่ (Array 5 ชุด)
-                if (card.faceDescriptors) {
-                    const descriptorsArray = JSON.parse(card.faceDescriptors);
-                    descriptorsArray.forEach(desc => {
-                        if (desc && typeof desc === 'object') {
-                            const vals = Object.values(desc);
-                            if (vals.length === 128) validDescriptors.push(new Float32Array(vals));
-                        }
-                    });
-                } 
-                // กรณีที่ 2: ข้อมูลแบบเก่า (รหัสเดียว)
-                else if (card.faceDescriptor) {
-                    const desc = JSON.parse(card.faceDescriptor);
-                    const vals = Object.values(desc);
-                    if (vals.length === 128) validDescriptors.push(new Float32Array(vals));
-                }
+                const descriptorsArray = JSON.parse(card.faceDescriptors);
+                let validForThisCard = [];
 
-                if (validDescriptors.length > 0) {
-                    labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(card.cardId, validDescriptors));
-                    countTotalFaces += validDescriptors.length;
+                descriptorsArray.forEach(desc => {
+                    if (desc && typeof desc === 'object') {
+                        const vals = Object.values(desc);
+                        if (vals.length === 128) {
+                            validForThisCard.push(new Float32Array(vals));
+                        }
+                    }
+                });
+
+                if (validForThisCard.length > 0) {
+                    labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(card.cardId, validForThisCard));
+                    countTotalFaces += validForThisCard.length;
                 }
-            } catch (e) { console.warn("Skip invalid face for:", card.cardId); }
+            } catch (e) { }
         }
     });
 
-    if (labeledDescriptors.length === 0) {
-        statusEl.innerHTML = '<span class="text-red-500">ไม่พบข้อมูลใบหน้าที่พร้อมใช้งาน</span>';
-        return;
+    if (labeledDescriptors.length > 0) {
+        faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, systemSettings.aiThreshold || 0.38);
+        statusEl.innerHTML = `<i data-lucide="check-circle" class="w-3 h-3 inline mr-1 text-green-600"></i> พร้อม (ฐานข้อมูลใบหน้า: ${countTotalFaces} ชุด)`;
+    } else {
+        statusEl.innerHTML = '<span class="text-orange-500">พร้อมแสกนบาร์โค้ด (ยังไม่มีข้อมูลใบหน้า)</span>';
     }
-
-    faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, systemSettings.aiThreshold || 0.38);
-    statusEl.innerHTML = `<i data-lucide="check-circle" class="w-3 h-3 inline mr-1 text-green-600"></i> พร้อม (ฐานข้อมูล: ${countTotalFaces} ชุด)`;
+    
     if (window.lucide) lucide.createIcons();
+    // บังคับเริ่ม Loop วาดหน้าจอทันที ไม่ว่าจะมีข้อมูลใบหน้าหรือไม่
     startFaceDetectionLoop();
 }
 
 /**
- * 2. ปรับปรุง Detection Loop: ใช้กฎ "ใบหน้าที่ใหญ่ที่สุด" (Largest Face)
+ * 2. ปรับปรุงระบบวาดหน้าจอ (ให้กรอบบาร์โค้ดขึ้นเสมอ)
  */
 async function startFaceDetectionLoop() {
     const video = document.getElementById('webcamVideo');
@@ -4215,9 +4210,12 @@ async function startFaceDetectionLoop() {
 
     faceDetectionInterval = setInterval(async () => {
         if (!webcamStream || currentScanMode !== 'face') return;
+        
+        // --- 1. วาดกรอบบาร์โค้ดเสมอ ---
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         drawTurboScannerOverlay(ctx, canvas);
 
+        // --- 2. ตรวจจับใบหน้า (ถ้ามีฐานข้อมูล) ---
         if (faceMatcher) {
             try {
                 const detections = await faceapi.detectAllFaces(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
@@ -4227,28 +4225,18 @@ async function startFaceDetectionLoop() {
                 const resizedDetections = faceapi.resizeResults(detections, displaySize);
 
                 if (resizedDetections.length > 0) {
-                    // --- กฎใบหน้าที่ใหญ่ที่สุด (Largest Face) ---
                     let largestFace = resizedDetections[0];
                     let maxArea = 0;
-
                     resizedDetections.forEach(det => {
-                        const { width, height } = det.detection.box;
-                        const area = width * height;
-                        if (area > maxArea) {
-                            maxArea = area;
-                            largestFace = det;
-                        }
+                        const area = det.detection.box.width * det.detection.box.height;
+                        if (area > maxArea) { maxArea = area; largestFace = det; }
                     });
 
-                    // ประมวลผลเฉพาะหน้าที่ใหญ่ที่สุดหน้าเดียว
                     const result = faceMatcher.findBestMatch(largestFace.descriptor);
                     drawFaceBox(ctx, largestFace, result);
-                    
-                    if (result.label !== 'unknown') {
-                        triggerFaceScanSuccess(result.label);
-                    }
+                    if (result.label !== 'unknown') triggerFaceScanSuccess(result.label);
                 }
-            } catch (err) {}
+            } catch (err) { console.error("Face Detect Error:", err); }
         }
     }, systemSettings.aiInterval || 1000); 
 }
