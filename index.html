@@ -1046,6 +1046,30 @@ gap: 1px !important;
         </div>
     </div>
    </div>
+   
+   <!-- Modal สำหรับถ่ายรูปเสริมโดยเฉพาะ -->
+<div id="captureModal" class="fixed inset-0 z-[250] hidden flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+    <div class="relative bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl animate-fadeIn">
+        <div id="captureCountdownUI" class="absolute inset-0 z-30 flex flex-col items-center justify-center bg-indigo-600/90 hidden">
+            <span id="capNum" class="text-white text-9xl font-black italic animate-bounce">3</span>
+            <p class="text-white font-bold text-xl mt-4">เตรียมตัวบันทึกใบหน้า...</p>
+        </div>
+        <div class="p-6 text-center">
+            <h3 class="text-xl font-black text-gray-800 mb-2">บันทึกใบหน้าเสริม</h3>
+            <p class="text-sm text-gray-500 mb-4">ปรับตำแหน่งใบหน้าให้อยู่ในกรอบ และกดยืนยัน</p>
+            <div class="relative rounded-2xl overflow-hidden border-4 border-indigo-100 bg-black aspect-square">
+                <video id="captureVideo" class="w-full h-full object-cover transform -scale-x-100" autoplay muted playsinline></video>
+                <div class="absolute inset-0 border-[30px] border-black/40 pointer-events-none">
+                    <div class="w-full h-full border-2 border-dashed border-white/50 rounded-full"></div>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mt-6">
+                <button onclick="closeCaptureModal()" class="py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200">ยกเลิก</button>
+                <button onclick="runCaptureSequence()" class="py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700">เริ่มนับถอยหลัง</button>
+            </div>
+        </div>
+    </div>
+</div>
 
    <!-- Modal: จัดการบัตร (Cards) -->
    <div id="cardModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
@@ -4196,15 +4220,13 @@ async function startWebcam() {
 function stopWebcam() {
     // 1. หยุดการทำงานของ Quagga (บาร์โค้ด)
     if (typeof Quagga !== 'undefined') {
-        try {
-            Quagga.stop();
-        } catch(e) { console.log("Quagga already stopped"); }
+        try { Quagga.stop(); } catch(e) {}
     }
 
-    // 2. หยุดการทำงานของ Stream (ปิดเลนส์กล้อง)
+    // 2. หยุดการทำงานของเลนส์กล้อง (Release Hardware) - สำคัญมาก
     if (webcamStream) {
         webcamStream.getTracks().forEach(track => {
-            track.stop(); // สั่งหยุดการรับสัญญาณภาพจาก Hardware
+            track.stop(); // ปิดไฟสถานะกล้องและเลนส์
         });
         webcamStream = null;
     }
@@ -4222,8 +4244,8 @@ function stopWebcam() {
         faceDetectionInterval = null;
     }
 
-    document.getElementById('faceScanStatus').innerHTML = 'กล้องถูกปิดการใช้งาน';
-    console.log("Camera hardware fully released.");
+    document.getElementById('faceScanStatus').innerHTML = 'ปิดกล้องเรียบร้อยแล้ว';
+    isCameraActive = false; // รีเซ็ตสถานะปุ่ม
 }
 
 // ตัวแปรเก็บข้อมูลใบหน้าที่โหลดมาแล้ว
@@ -4441,20 +4463,30 @@ function drawFaceBox(ctx, detection, result) {
     const landmarks = detection.landmarks.positions;
     const matchPercent = Math.round((1 - result.distance) * 100);
     
-    // ตั้งค่าช่วงความแม่นยำ (ปรับแต่งได้)
-    const threshold = systemSettings.aiThreshold ? (1 - systemSettings.aiThreshold) * 100 : 62;
-    const highConfidence = 75; // เกิน 75% คือสีเขียว (ดีเยี่ยม)
+    // เกณฑ์การตัดสินใจ (ปรับแต่งได้ใน Settings)
+    const threshold = systemSettings.aiThreshold ? Math.round((1 - systemSettings.aiThreshold) * 100) : 62;
+    const highConfidence = 75; 
 
     let boxColor = "";
+    let displayMsg = "";
+
     if (result.label !== 'unknown') {
-        if (matchPercent >= highConfidence) boxColor = '#22c55e'; // เขียว
-        else if (matchPercent >= threshold) boxColor = '#f59e0b'; // ส้ม (คาบเส้น)
-        else boxColor = '#ef4444'; // แดง
+        const matched = allCards.find(c => c.cardId === result.label);
+        const fullName = matched ? `${matched.firstName} ${matched.lastName}` : result.label;
+        
+        if (matchPercent >= highConfidence) {
+            boxColor = '#22c55e'; // เขียว
+            displayMsg = `${result.label}: ${fullName} (${matchPercent}%)`;
+        } else {
+            boxColor = '#f59e0b'; // ส้ม
+            displayMsg = `${result.label}: ${fullName} (${matchPercent}%) - คาบเส้น`;
+        }
     } else {
-        boxColor = '#ef4444'; // แดง (ไม่พบ)
+        boxColor = '#ef4444'; // แดง
+        displayMsg = `ไม่พบข้อมูลในระบบ (${matchPercent}%)`;
     }
 
-    // วาดกรอบ... (ใช้ Logic คำนวณ x, y, width, height ตัวเดิมของคุณ)
+    // คำนวณขนาดกรอบ
     const exactWidth = Math.max(...landmarks.map(p => p.x)) - Math.min(...landmarks.map(p => p.x));
     const exactHeight = Math.max(...landmarks.map(p => p.y)) - Math.min(...landmarks.map(p => p.y));
     const padX = exactWidth * (systemSettings.aiPadX / 100 || 0.15);
@@ -4466,19 +4498,26 @@ function drawFaceBox(ctx, detection, result) {
         height: exactHeight + padTop + (exactHeight * 0.1) 
     };
 
+    // วาดกรอบและข้อความ
     ctx.strokeStyle = boxColor;
     ctx.lineWidth = 6;
     ctx.strokeRect(box.x, box.y, box.width, box.height);
 
-    // --- ตรวจสอบการแสดงปุ่ม Improve AI (เฉพาะตอนที่ไม่ได้อยู่ในกระบวนการถ่ายรูป) ---
-    if (!isCapturingSupplemental && result.label !== 'unknown' && matchPercent < highConfidence && matchPercent >= threshold) {
-        lastMatchData = {
-            cardId: result.label,
-            descriptor: JSON.stringify(Array.from(detection.descriptor)),
-            score: matchPercent
-        };
-        document.getElementById('lowScoreVal').textContent = matchPercent;
-        document.getElementById('improveAiBox').classList.remove('hidden');
+    ctx.save();
+    ctx.translate(box.x + (box.width / 2), box.y - 15);
+    ctx.scale(-1, 1);
+    ctx.font = 'bold 18px Prompt';
+    ctx.textAlign = 'center';
+    const tw = ctx.measureText(displayMsg).width;
+    ctx.fillStyle = boxColor;
+    ctx.fillRect(-(tw/2)-10, -32, tw+20, 38);
+    ctx.fillStyle = 'white';
+    ctx.fillText(displayMsg, 0, 0);
+    ctx.restore();
+
+    // จัดการระบบหยุดแสกนเมื่อมี Modal เปิดค้างอยู่
+    if (result.label !== 'unknown' && matchPercent >= threshold) {
+        triggerFaceScanSuccess(result.label, matchPercent, detection.descriptor);
     }
 }
 
@@ -4589,40 +4628,64 @@ stopWebcam = function() {
 ///////////////
 
 // ฟังก์ชันเมื่อจับคู่หน้าผ่านแล้ว ส่งเข้ากระบวนการแสกน
-function triggerFaceScanSuccess(cardId) {
-    // 1. ตัวล็อค: ห้ามแสกนซ้ำขณะมี Alert หรือ Modal เปิดอยู่
+let isSystemBusy = false; // ตัวแปรสถานะระบบ
+
+function triggerFaceScanSuccess(cardId, matchPercent, descriptor) {
+    // 1. ตรวจสอบว่าระบบถูกล็อคอยู่หรือไม่
     const isAlertOpen = !document.getElementById('customAlertModal').classList.contains('hidden');
     const isCompModalOpen = !document.getElementById('companionModal').classList.contains('hidden');
-    if (isAlertOpen || isCompModalOpen) return;
-
-    // 2. Cooldown ป้องกันแสกนรัว (ใช้ cardId เดิมซ้ำในเวลาใกล้กันไม่ได้)
-    if (lastScannedFaceId === cardId) return;
+    const isCaptureModalOpen = !document.getElementById('captureModal').classList.contains('hidden');
     
+    if (isAlertOpen || isCompModalOpen || isCaptureModalOpen || isSystemBusy) return;
+
+    // 2. Cooldown
+    if (lastScannedFaceId === cardId) return;
     lastScannedFaceId = cardId;
-    const cooldownMs = (systemSettings.aiCooldown || 10) * 1000;
-    faceScanCooldownTimer = setTimeout(() => { lastScannedFaceId = null; }, cooldownMs);
+    setTimeout(() => { lastScannedFaceId = null; }, (systemSettings.aiCooldown || 10) * 1000);
 
-    // 3. แสดงสถานะที่แถบด้านบนเพื่อให้เจ้าหน้าที่เห็นว่า "อ่านค่ารหัสได้แล้ว"
-    const statusEl = document.getElementById('faceScanStatus');
-    if (statusEl) {
-        statusEl.innerHTML = `<span class="text-green-600 font-black">✔ อ่านรหัสได้: ${cardId}</span>`;
-        statusEl.classList.remove('bg-indigo-50', 'text-indigo-700');
-        statusEl.classList.add('bg-green-50');
-        
-        // คืนค่าสถานะปกติหลังจาก 2 วินาที
-        setTimeout(() => {
-            statusEl.classList.remove('bg-green-50');
-            statusEl.classList.add('bg-indigo-50', 'text-indigo-700');
-            statusEl.innerHTML = 'ระบบพร้อมทำงาน...';
-        }, 2000);
-    }
+    // 3. เก็บข้อมูลไว้เผื่อเลือก Improve AI
+    lastMatchData = {
+        cardId: cardId,
+        descriptor: JSON.stringify(Array.from(descriptor)),
+        score: matchPercent
+    };
 
-    // 4. ส่งค่าเข้าช่อง Input และประมวลผลการเข้า-ออก
+    // 4. สั่งแสกนเข้า-ออก
     const mainInput = document.getElementById('scanInput');
-    if (mainInput) {
-        mainInput.value = cardId;
-        processMainScan(); // ฟังก์ชันนี้จะไปเช็ควันหมดอายุ/สถานะบัตรต่อเอง
-    }
+    mainInput.value = cardId;
+    processMainScan();
+}
+
+// ฟังก์ชันเปิด Modal ถ่ายรูปเสริม
+function openCaptureModal() {
+    document.getElementById('captureModal').classList.remove('hidden');
+    const video = document.getElementById('captureVideo');
+    if (webcamStream) video.srcObject = webcamStream;
+}
+
+function closeCaptureModal() {
+    document.getElementById('captureModal').classList.add('hidden');
+    document.getElementById('captureCountdownUI').classList.add('hidden');
+}
+
+// ระบบนับถอยหลัง 3-2-1
+async function runCaptureSequence() {
+    const ui = document.getElementById('captureCountdownUI');
+    const num = document.getElementById('capNum');
+    ui.classList.remove('hidden');
+    
+    let c = 3;
+    num.textContent = c;
+    const t = setInterval(async () => {
+        c--;
+        if (c > 0) { num.textContent = c; }
+        else {
+            clearInterval(t);
+            num.textContent = "📸";
+            await executeCapture(); // ถ่ายรูป
+            setTimeout(closeCaptureModal, 1000);
+        }
+    }, 1000);
 }
 //---------------
 // ==========================================
@@ -4725,23 +4788,41 @@ function triggerFaceScanSuccess(cardId) {
 ///////////////
 // ฟังก์ชันสำหรับวาดรายการใบหน้าในหน้าแก้ไขบัตร
 async function renderCardFacesList(cardId) {
-    // ... โหลดข้อมูล faces ...
-    listContainer.innerHTML = myFaces.map(f => `
-        <div class="relative group bg-white border rounded-lg overflow-hidden shadow-sm">
-            <img src="${f.imageUrl}" class="w-full h-24 object-cover">
-            <div class="p-1.5 bg-gray-50 flex justify-between items-center">
-                <span class="text-[9px] font-bold ${f.faceType === 'main' ? 'text-blue-600' : 'text-gray-500'} uppercase">${f.faceType}</span>
-                
-                <!-- ถ้ารูปเป็น Main จะไม่โชว์ปุ่มลบ (ข้อ 3) -->
-                ${f.faceType !== 'main' ? `
-                    <button onclick="deleteFace(${f.id}, '${f.cardId}')" class="text-red-500 hover:text-red-700 p-0.5 rounded transition">
-                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                    </button>
-                ` : `<i data-lucide="lock" class="w-3 h-3 text-gray-300" title="รูปหลักลบไม่ได้"></i>`}
+    const listContainer = document.getElementById('cardFacesList');
+    listContainer.innerHTML = '<div class="col-span-full py-10 text-center"><div class="spinner inline-block w-6 h-6 border-2 border-indigo-500 border-t-transparent mb-2"></div><p class="text-xs text-gray-400">กำลังดึงข้อมูลใบหน้า...</p></div>';
+    
+    try {
+        // ดึงข้อมูลสดจาก Server (หรือถ้า cache ไว้แล้วให้ใช้ cache)
+        const allFaces = await apiCall('getCardFaces', {}, false);
+        const myFaces = allFaces.filter(f => String(f.cardId) === String(cardId));
+        
+        if (myFaces.length === 0) {
+            listContainer.innerHTML = '<p class="text-xs text-gray-400 col-span-full text-center py-8">ไม่มีข้อมูลรูปภาพประกอบ</p>';
+            return;
+        }
+
+        // เรียงลำดับเอา Main ขึ้นก่อน
+        myFaces.sort((a,b) => (a.faceType === 'main' ? -1 : 1));
+
+        listContainer.innerHTML = myFaces.map((f, index) => `
+            <div class="relative group bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition">
+                <img src="${f.imageUrl}" class="w-full h-24 object-cover cursor-pointer hover:scale-110 transition duration-500" onclick="openImagePreview('${f.imageUrl}')">
+                <div class="p-1.5 bg-gray-50 flex justify-between items-center border-t">
+                    <span class="text-[9px] font-black ${f.faceType === 'main' ? 'text-indigo-600' : 'text-gray-500'} uppercase">
+                        ${f.faceType === 'main' ? 'รูปหลัก' : `เสริม ${index}`}
+                    </span>
+                    ${f.faceType !== 'main' ? `
+                        <button onclick="deleteFace(${f.id}, '${f.cardId}')" class="text-red-500 hover:bg-red-50 p-1 rounded transition" title="ลบรูปเสริม">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </button>
+                    ` : `<i data-lucide="lock" class="w-3 h-3 text-gray-300" title="รูปหลักต้องลบที่เมนูด้านบน"></i>`}
+                </div>
             </div>
-        </div>
-    `).join('');
-    lucide.createIcons();
+        `).join('');
+        lucide.createIcons();
+    } catch(e) {
+        listContainer.innerHTML = '<p class="text-xs text-red-400 col-span-full">โหลดข้อมูลล้มเหลว</p>';
+    }
 }
 
 // ฟังก์ชันลบใบหน้า
