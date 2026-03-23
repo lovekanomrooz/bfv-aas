@@ -290,6 +290,21 @@ gap: 1px !important;
                                        <p class="font-bold text-indigo-900 text-base" id="resCompanionName">-</p>
                                        <p class="text-xs text-indigo-700 mt-0.5"><span id="resCompanionId"></span> | <span id="resCompanionOrg"></span></p>
                                    </div>
+<!-- >>> วางโค้ดนี้ต่อท้ายครับ <<< -->
+<div id="improveAiBox" class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-2xl hidden animate-fadeIn shadow-inner">
+    <div class="flex items-start gap-3">
+        <div class="bg-blue-600 p-2 rounded-xl text-white shadow-lg shrink-0">
+            <i data-lucide="scan-face" class="w-6 h-6"></i>
+        </div>
+        <div class="flex-1">
+            <p class="text-blue-900 text-sm font-black mb-0.5">ช่วยให้ AI จำคุณได้แม่นยำขึ้น</p>
+            <p class="text-blue-700 text-[11px] mb-3 leading-tight">ความแม่นยำปัจจุบัน <span id="lowScoreVal" class="font-bold underline">0</span>% คุณต้องการบันทึกใบหน้ามุมนี้ไว้เป็นข้อมูลเสริมหรือไม่?</p>
+            <button onclick="captureSupplementalFace()" class="bg-white border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 transition-all shadow-sm">
+                <i data-lucide="camera" class="w-4 h-4"></i> ยืนยันบันทึกใบหน้าเสริม
+            </button>
+        </div>
+    </div>
+</div>
                                </div>
                            </div>
                        </div>
@@ -1113,6 +1128,18 @@ gap: 1px !important;
             </div>
 
             <div class="col-span-2 mt-2"><label class="block text-sm font-bold mb-2 text-gray-700">สถานะบัตร</label><div class="flex gap-4 bg-white p-3 rounded-xl border border-gray-200"><label class="flex items-center gap-2 cursor-pointer font-medium text-green-700"><input type="radio" name="cardStatusInp" value="active" class="w-4 h-4 text-green-600" checked> เปิดใช้งาน (Active)</label><label class="flex items-center gap-2 cursor-pointer font-medium text-red-600"><input type="radio" name="cardStatusInp" value="inactive" class="w-4 h-4 text-red-600"> ระงับการใช้งาน (Inactive)</label></div></div>
+	<!-- >>> วางโค้ดใหม่ตรงนี้ครับ (ก่อนจะปิด </div> ของ Modal Body) <<< -->
+<div class="col-span-2 mt-4 border-t pt-4 border-dashed border-gray-300">
+    <label class="block text-sm font-bold mb-3 text-indigo-700 flex items-center gap-2">
+        <i data-lucide="scan-face" class="w-5 h-5"></i> ฐานข้อมูลใบหน้า AI (Face Database)
+    </label>
+    <div id="cardFacesList" class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white/50 p-3 rounded-xl border border-gray-100 min-h-[100px]">
+        <!-- รายการรูปใบหน้าจะถูกวาดที่นี่โดย JavaScript -->
+        <p class="text-xs text-gray-400 col-span-full text-center py-8">ไม่มีข้อมูลรูปภาพประกอบ</p>
+    </div>
+    <p class="text-[10px] text-gray-500 mt-2">* ระบบใช้รูปภาพด้านบนเป็นข้อมูลตั้งต้น และใช้รูปภาพในส่วนนี้ช่วยเพิ่มความแม่นยำในการแสกนใบหน้า</p>
+</div>
+<!-- >>> สิ้นสุดโค้ดใหม่ <<< -->	
         </div>
         <div class="p-4 border-t bg-white rounded-b-2xl flex justify-end gap-3 shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
             <button onclick="closeCardModal()" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition">ยกเลิก</button>
@@ -2885,16 +2912,24 @@ if(res.ioType === 'IN') {
         if(window.lucide) lucide.createIcons();
     }
 
-   async function saveCard() {
+   /**
+ * ฟังก์ชันบันทึกข้อมูลบัตร (Add/Update)
+ * ปรับปรุงใหม่: แยกการบันทึกใบหน้าไปที่ตาราง cardFaces
+ */
+async function saveCard() {
     const id = document.getElementById('editCardDbId').value;
     const cardId = document.getElementById('cardIdInp').value.trim().toUpperCase();
     const fName = document.getElementById('cardFirstName').value.trim();
     const typeId = document.getElementById('cardTypeInp').value;
     
+    // ตรวจสอบข้อมูลเบื้องต้น
     if(!cardId || !fName || !typeId) return showToast('กรุณากรอกข้อมูลให้ครบ', 'error');
 
+    // 1. เตรียมชุดข้อมูลสำหรับตาราง allCards (ตัด faceDescriptor ออก)
     const d = {
-        cardId: cardId, typeId: typeId, firstName: fName, 
+        cardId: cardId, 
+        typeId: typeId, 
+        firstName: fName, 
         lastName: document.getElementById('cardLastName').value.trim(),
         position: document.getElementById('cardPosition').value.trim(),
         organization: document.getElementById('cardOrg').value.trim(), 
@@ -2904,33 +2939,67 @@ if(res.ioType === 'IN') {
         issueDate: document.getElementById('cardIssueDate').value, 
         expiryDate: document.getElementById('cardExpiryDate').value,
         status: document.querySelector('input[name="cardStatusInp"]:checked').value,
-        imageBase64: tempCardImageBase64, 
-        removeImage: isRemovingCardImage,
-        faceDescriptor: tempFaceDescriptor || ''
+        imageBase64: tempCardImageBase64, // ส่งรูปไปเพื่ออัปโหลดเข้า Drive
+        removeImage: isRemovingCardImage    // กรณีผู้ใช้กดลบรูป
     };
 
     showLoader('กำลังบันทึกข้อมูล...');
+    
     try {
+        let result;
+        
         if(id) { 
+            // --- กรณีแก้ไขบัตร (UPDATE) ---
             d.id = parseInt(id); 
-            const updatedCard = await apiCall('updateCard', d); 
-            const idx = allCards.findIndex(x => Number(x.id) == Number(updatedCard.id)); 
-            
+            result = await apiCall('updateCard', d); 
+            const idx = allCards.findIndex(x => Number(x.id) == Number(result.id)); 
             if(idx !== -1) {
-                // อัปเดตข้อมูลใหม่ทับ แต่รักษาค่า currentStatus และ lastLogTime เดิมไว้
-                allCards[idx] = { ...allCards[idx], ...updatedCard }; 
+                // อัปเดตข้อมูลใน Local Array (ยกเว้นค่าสถานะการแสกน)
+                allCards[idx] = { ...allCards[idx], ...result }; 
             }
+
+            // ถ้ามีการเปลี่ยนรูปใหม่ และ AI ตรวจเจอใบหน้า ให้บันทึกลง cardFaces เป็นรูปหลัก (Main)
+            if (tempCardImageBase64 && tempFaceDescriptor) {
+                await apiCall('saveSupplementalFace', {
+                    cardId: cardId,
+                    imageBase64: tempCardImageBase64,
+                    faceDescriptor: tempFaceDescriptor,
+                    faceType: 'main',
+                    confidence: 100
+                }, false); // ใส่ false เพื่อไม่ให้หน้าจอดำซ้อนกัน
+            }
+            
             showToast('แก้ไขข้อมูลสำเร็จ', 'success'); 
         } else { 
-            const newC = await apiCall('addCard', d); 
-            allCards.unshift(newC); 
+            // --- กรณีเพิ่มบัตรใหม่ (ADD) ---
+            result = await apiCall('addCard', d); 
+            allCards.unshift(result); 
             cardStats.total++; 
+
+            // ถ้ามีรูปภาพและตรวจเจอใบหน้า ให้บันทึกลงตารางใบหน้าทันที
+            if (tempCardImageBase64 && tempFaceDescriptor) {
+                await apiCall('saveSupplementalFace', {
+                    cardId: cardId,
+                    imageBase64: tempCardImageBase64,
+                    faceDescriptor: tempFaceDescriptor,
+                    faceType: 'main',
+                    confidence: 100
+                }, false);
+            }
+            
             showToast('เพิ่มบัตรใหม่สำเร็จ', 'success'); 
         }
+
+        // ปิด Modal และรีเฟรชตาราง
         closeCardModal(); 
         filterCardsTable(); 
+        
+        // สำคัญ: รีโหลด Model AI ใหม่เพื่อให้จำใบหน้าที่เพิ่งเพิ่มหรือแก้ไขได้ทันที
+        initFaceMatcherForWebcam();
+
     } catch (err) {
-        console.error(err);
+        console.error("Save Card Error:", err);
+        showToast('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
     } finally {
         hideLoader();
     }
@@ -4148,36 +4217,58 @@ function stopWebcam() {
     console.log("Camera hardware fully released.");
 }
 
+// ตัวแปรเก็บข้อมูลใบหน้าที่โหลดมาแล้ว
+let faceGroups = {}; 
+
 async function initFaceMatcherForWebcam() {
     const statusEl = document.getElementById('faceScanStatus');
-    statusEl.innerHTML = 'กำลังโหลดฐานข้อมูลใบหน้าแบบ Multi-Angle...';
+    statusEl.innerHTML = '<i class="spinner inline-block w-3 h-3 border-2 border-orange-500 border-t-transparent mr-2"></i> กำลังโหลด Model ใบหน้าแบบพิเศษ...';
 
-    const data = await apiCall('getAllAIModels', {}, false);
-    const labeledDescriptors = [];
-
-    // จัดกลุ่ม Descriptor ตาม cardId
-    const faceGroups = {}; // { 'A001': [desc1, desc2], 'A002': [desc1] }
-
-    data.faces.forEach(f => {
-        if (!faceGroups[f.cardId]) faceGroups[f.cardId] = [];
-        try {
-            faceGroups[f.cardId].push(new Float32Array(JSON.parse(f.faceDescriptor)));
-        } catch(e) {}
-    });
-
-    // สร้าง LabeledFaceDescriptors (1 ID มีได้หลาย Descriptors)
-    for (const cardId in faceGroups) {
-        labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(cardId, faceGroups[cardId]));
-    }
-
-    if (labeledDescriptors.length === 0) {
-        statusEl.innerHTML = 'ไม่พบข้อมูลใบหน้าในระบบ';
+    if (!isFaceApiLoaded) {
+        setTimeout(initFaceMatcherForWebcam, 1000);
         return;
     }
 
-    const threshold = systemSettings.aiThreshold || 0.38;
-    faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, threshold);
-    statusEl.innerHTML = `AI พร้อมใช้งาน (ฐานข้อมูล ${labeledDescriptors.length} บุคคล)`;
+    try {
+        // 1. ดึงข้อมูลใบหน้าทั้งหมดจากตาราง cardFaces
+        const faces = await apiCall('getCardFaces', {}, false);
+        const labeledDescriptors = [];
+        faceGroups = {}; // รีเซ็ตกลุ่ม
+
+        // 2. จัดกลุ่ม Descriptor ตาม cardId
+        faces.forEach(f => {
+            if (!faceGroups[f.cardId]) faceGroups[f.cardId] = [];
+            try {
+                // แปลง String กลับเป็น Float32Array
+                const descArray = new Float32Array(JSON.parse(f.faceDescriptor));
+                faceGroups[f.cardId].push(descArray);
+            } catch (e) { console.error("Error parsing descriptor for: " + f.cardId); }
+        });
+
+        // 3. สร้าง LabeledFaceDescriptors (1 ID มีได้หลายใบหน้า)
+        for (const cardId in faceGroups) {
+            if (faceGroups[cardId].length > 0) {
+                labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(cardId, faceGroups[cardId]));
+            }
+        }
+
+        if (labeledDescriptors.length === 0) {
+            statusEl.innerHTML = '<span class="text-red-500">ไม่พบข้อมูลใบหน้าในระบบ</span>';
+            return;
+        }
+
+        // 4. สร้าง FaceMatcher (ใช้ค่า Threshold จาก Settings)
+        const currentThreshold = systemSettings.aiThreshold || 0.38;
+        faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, currentThreshold);
+        
+        statusEl.innerHTML = `<i data-lucide="shield-check" class="w-3 h-3 inline mr-1 text-green-600"></i> AI พร้อมใช้งาน (โหลดแล้ว ${labeledDescriptors.length} บุคคล)`;
+        if (window.lucide) lucide.createIcons();
+        
+        startFaceDetectionLoop();
+    } catch (err) {
+        console.error(err);
+        statusEl.innerHTML = '<span class="text-red-500">โหลดข้อมูลล้มเหลว</span>';
+    }
 }
 
 // ลูปตรวจจับใบหน้าจากวิดีโอ (ทำงานทุกๆ 400ms)
@@ -4322,22 +4413,26 @@ function initQuagga(videoElement) {
 }
 
 
-
-// ฟังก์ชันวาดกรอบใบหน้า (แยกออกมาเพื่อให้โค้ดหลักสะอาดขึ้น)
+let lastMatchData = null;
+/**
+ * ฟังก์ชันวาดกรอบใบหน้าและประมวลผลความแม่นยำ
+ */
 function drawFaceBox(ctx, detection, result) {
     const landmarks = detection.landmarks.positions;
-    const matchPercent = Math.round((1 - result.distance) * 100);
     
+    // 1. คำนวณขอบเขตใบหน้าจากจุด Landmarks (คิ้วถึงคาง)
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     landmarks.forEach(pt => {
         if (pt.x < minX) minX = pt.x; if (pt.y < minY) minY = pt.y;
         if (pt.x > maxX) maxX = pt.x; if (pt.y > maxY) maxY = pt.y;
     });
 
+    // 2. ปรับขนาดกรอบ (Padding) ตามที่ตั้งค่าไว้ในระบบ
     const exactWidth = maxX - minX;
     const exactHeight = maxY - minY;
     const padX = exactWidth * (systemSettings.aiPadX / 100 || 0.15);
     const padTop = exactHeight * (systemSettings.aiPadTop / 100 || 0.35);
+    
     const box = { 
         x: minX - padX, 
         y: minY - padTop, 
@@ -4345,41 +4440,66 @@ function drawFaceBox(ctx, detection, result) {
         height: exactHeight + padTop + (exactHeight * 0.1) 
     };
 
+    // 3. คำนวณเปอร์เซ็นต์ความแม่นยำ (Match Percentage)
+    const matchPercent = Math.round((1 - result.distance) * 100);
     let displayName = "";
     let boxColor = "";
 
+    // 4. กรณีที่ AI ตรวจพบว่าเป็นบุคคลในระบบ (Known Face)
     if (result.label !== 'unknown') {
         const matched = allCards.find(c => c.cardId === result.label);
         const fullName = matched ? `${matched.firstName} ${matched.lastName}` : result.label;
         displayName = `${fullName} (${matchPercent}%)`;
-        boxColor = '#22c55e';
-    } else {
+        
+        // กำหนดสีตามความแม่นยำ
+        boxColor = matchPercent >= 75 ? '#22c55e' : '#f59e0b'; // เขียวเข้ม หรือ ส้ม
+        
+        // --- ส่วนที่เพิ่มใหม่: จัดการข้อมูลสำหรับบันทึกใบหน้าเสริม ---
+        lastMatchData = {
+            cardId: result.label,
+            descriptor: JSON.stringify(Array.from(detection.descriptor)),
+            score: matchPercent
+        };
+
+        // แสดงปุ่ม Improve AI ถ้าความแม่นยำอยู่ในช่วง "คาบเส้น" (60% - 75%)
+        const improveBox = document.getElementById('improveAiBox');
+        if (improveBox) {
+            if (matchPercent >= 60 && matchPercent < 75) {
+                document.getElementById('lowScoreVal').textContent = matchPercent;
+                improveBox.classList.remove('hidden');
+            } else {
+                improveBox.classList.add('hidden');
+            }
+        }
+    } 
+    // 5. กรณี AI ไม่รู้จักใบหน้านี้ (Unknown Face)
+    else {
         displayName = `ไม่พบข้อมูล (${matchPercent}%)`;
-        boxColor = matchPercent > 30 ? '#f59e0b' : '#ef4444';
+        boxColor = matchPercent > 30 ? '#f59e0b' : '#ef4444'; // ส้ม หรือ แดง
+        
+        const improveBox = document.getElementById('improveAiBox');
+        if (improveBox) improveBox.classList.add('hidden');
     }
 
-const matchPercent = Math.round((1 - result.distance) * 100);
-
-if (result.label !== 'unknown' && matchPercent < 70) {
-    // ถ้าความแม่นยำต่ำกว่า 70% ให้โชว์ UI ปุ่มถ่ายรูปเสริม
-    showImproveAiButton(result.label, matchPercent, detection.descriptor);
-}
-
+    // 6. วาดกรอบสี่เหลี่ยม
     ctx.strokeStyle = boxColor;
     ctx.lineWidth = 6;
     ctx.strokeRect(box.x, box.y, box.width, box.height);
 
+    // 7. วาดป้ายชื่อด้านบนกรอบ (แบบกลับด้านกระจกเพื่อให้คนอ่านง่าย)
     ctx.save();
     ctx.translate(box.x + (box.width / 2), box.y - 15);
     ctx.scale(-1, 1);
     ctx.font = 'bold 20px Prompt';
     ctx.textAlign = 'center';
+    
     const tw = ctx.measureText(displayName).width;
     ctx.fillStyle = boxColor;
     ctx.fillRect(-(tw/2)-12, -34, tw+24, 40);
     ctx.fillStyle = 'white';
     ctx.fillText(displayName, 0, 0);
     ctx.restore();
+}
 }
 
 function showImproveAiButton(cardId, currentScore, descriptor) {
@@ -4397,9 +4517,8 @@ function showImproveAiButton(cardId, currentScore, descriptor) {
 
 // ฟังก์ชันเมื่อกดปุ่มบันทึกรูปเสริม
 async function captureSupplementalFace() {
-    const data = window.pendingSupplementalFace;
-    if(!data) return;
-
+    if (!lastMatchData) return;
+    
     const video = document.getElementById('webcamVideo');
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth;
@@ -4408,20 +4527,25 @@ async function captureSupplementalFace() {
     const base64 = canvas.toDataURL('image/jpeg', 0.8);
 
     showLoader('กำลังบันทึกข้อมูลใบหน้าเสริม...');
-    await apiCall('saveSupplementalFace', {
-        cardId: data.cardId,
-        imageBase64: base64,
-        faceDescriptor: data.descriptor,
-        faceType: 'auto_improve',
-        confidence: data.score
-    });
-    
-    document.getElementById('improveAiBox').classList.add('hidden');
-    hideLoader();
-    showToast('เพิ่มข้อมูลใบหน้าสำเร็จ! ครั้งต่อไป AI จะจำคุณได้แม่นขึ้น', 'success');
-    
-    // โหลด Matcher ใหม่เบื้องหลัง
-    initFaceMatcherForWebcam();
+    try {
+        await apiCall('saveSupplementalFace', {
+            cardId: lastMatchData.cardId,
+            imageBase64: base64,
+            faceDescriptor: lastMatchData.descriptor,
+            faceType: 'auto_improve',
+            confidence: lastMatchData.score
+        });
+        
+        document.getElementById('improveAiBox').classList.add('hidden');
+        hideLoader();
+        showToast('บันทึกใบหน้าเสริมสำเร็จ! ครั้งต่อไป AI จะจำคุณได้ไวขึ้น', 'success');
+        
+        // โหลด Model ใหม่เบื้องหลังทันที
+        initFaceMatcherForWebcam();
+    } catch (e) {
+        hideLoader();
+        showToast('บันทึกล้มเหลว', 'error');
+    }
 }
 
 // แก้ไขฟังก์ชันปิดโหมดกล้อง ให้ปิด Quagga ด้วย
@@ -4567,15 +4691,63 @@ function triggerFaceScanSuccess(cardId) {
 	updateAreaCheckboxState();
     }
     
-    /*const originalEditCard = editCard;
-    editCard = function(id) { 
-        originalEditCard(id); 
-        const c = allCards.find(x => x.id === id); 
-        document.getElementById('cardPosition').value = c.position || '';
-        document.getElementById('cardCanDrive').checked = c.canDrive === true || c.canDrive === 'TRUE';
-        renderAreaCheckboxes(c.areaAccessIds || ''); // วาด Checkbox และติ๊กอันที่เคยเลือก
-	updateAreaCheckboxState();
-    }*/
+///////////////
+// ฟังก์ชันสำหรับวาดรายการใบหน้าในหน้าแก้ไขบัตร
+async function renderCardFacesList(cardId) {
+    const listContainer = document.getElementById('cardFacesList');
+    listContainer.innerHTML = '<p class="text-xs text-gray-400 col-span-full">กำลังโหลดข้อมูลใบหน้า...</p>';
+    
+    try {
+        const allFaces = await apiCall('getCardFaces', {}, false);
+        const myFaces = allFaces.filter(f => f.cardId === cardId);
+        
+        if (myFaces.length === 0) {
+            listContainer.innerHTML = '<p class="text-xs text-gray-400 col-span-full">ยังไม่มีข้อมูลใบหน้าในฐานข้อมูล</p>';
+            return;
+        }
+
+        listContainer.innerHTML = myFaces.map(f => `
+            <div class="relative group bg-white border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition">
+                <img src="${f.imageUrl}" class="w-full h-24 object-cover cursor-pointer" onclick="openImagePreview('${f.imageUrl}')">
+                <div class="p-1.5 bg-gray-50 flex justify-between items-center">
+                    <span class="text-[9px] font-bold ${f.faceType === 'main' ? 'text-indigo-600' : 'text-gray-500'} uppercase">${f.faceType}</span>
+                    <button onclick="deleteFace(${f.id}, '${f.cardId}')" class="text-red-500 hover:text-red-700 p-0.5 rounded transition">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+                ${f.faceType === 'main' ? '<div class="absolute top-0 left-0 bg-indigo-600 text-white text-[8px] px-1.5 py-0.5 rounded-br-lg font-bold">MAIN</div>' : ''}
+            </div>
+        `).join('');
+        lucide.createIcons();
+    } catch(e) {
+        listContainer.innerHTML = '<p class="text-xs text-red-400 col-span-full">โหลดข้อมูลผิดพลาด</p>';
+    }
+}
+
+// ฟังก์ชันลบใบหน้า
+async function deleteFace(faceId, cardId) {
+    if (confirm('คุณแน่ใจว่าต้องการลบข้อมูลใบหน้านี้? (การลบรูปหลักอาจส่งผลต่อความแม่นยำ)')) {
+        showLoader('กำลังลบข้อมูลใบหน้า...');
+        await apiCall('deleteCardFace', { id: faceId });
+        hideLoader();
+        showToast('ลบข้อมูลใบหน้าสำเร็จ', 'success');
+        renderCardFacesList(cardId); // โหลดใหม่
+        initFaceMatcherForWebcam(); // รีโหลด Model AI
+    }
+}
+
+// แก้ไขฟังก์ชัน editCard ของเดิมให้เรียก renderCardFacesList
+const originalEditCard = editCard;
+editCard = function(id) {
+    originalEditCard(id);
+    const c = allCards.find(x => Number(x.id) == Number(id));
+    if (c) {
+        renderCardFacesList(c.cardId);
+    }
+}
+
+
+////////////////
 
     const originalSaveCard = saveCard;
     saveCard = async function() {
