@@ -1459,6 +1459,7 @@ let faceMatcher = null;
 let lastScannedFaceId = null;
 let faceScanCooldownTimer = null;
 let currentScanMode = 'barcode'; // ค่าเริ่มต้น
+	  let selectedFaceIds = []; // เก็บ ID รูปที่เลือก
     // Banner Timer
     let currentSlide = 0, slideInterval = null;
 
@@ -4270,36 +4271,44 @@ async function startWebcam() {
 }
 //////////////////
 // ฟังก์ชันกวาดล้างกล้องแบบถอนรากถอนโคน
+// แก้ไขฟังก์ชันหยุดกล้องให้เด็ดขาด
 function forceShutdownCamera() {
-    console.log("Hardware: Releasing Camera...");
+    console.log("System: Shutting down all camera processes...");
     
-    // 1. หยุด Quagga
-    if (typeof Quagga !== 'undefined') { try { Quagga.stop(); } catch(e) {} }
+    // 1. หยุด Quagga (Barcode)
+    if (typeof Quagga !== 'undefined') { 
+        try { Quagga.stop(); } catch(e) { console.log("Quagga already stopped"); } 
+    }
 
-    // 2. ปิด Track ทั้งหมดจากตัวแปร Global
+    // 2. หยุด Face Detection Interval
+    if (faceDetectionInterval) {
+        clearInterval(faceDetectionInterval);
+        faceDetectionInterval = null;
+    }
+
+    // 3. ปิดการเข้าถึง Hardware (Tracks)
     if (webcamStream) {
         webcamStream.getTracks().forEach(track => {
-            track.stop(); 
+            track.stop();
             track.enabled = false;
         });
         webcamStream = null;
     }
 
-    // 3. กวาดล้าง Video Element ทุกตัว (ป้องกัน Browser ถือสิทธิ์ค้าง)
+    // 4. ล้าง Video Element
     ['webcamVideo', 'captureVideo'].forEach(id => {
         const v = document.getElementById(id);
-        if (v && v.srcObject) {
-            const stream = v.srcObject;
-            stream.getTracks().forEach(t => t.stop());
-            v.srcObject = null;
+        if (v) {
             v.pause();
+            v.srcObject = null;
+            if (v.removeAttribute) v.removeAttribute('src');
             v.load();
-            v.removeAttribute('src'); 
         }
     });
 
     isCameraActive = false;
-    if(document.getElementById('faceScanStatus')) document.getElementById('faceScanStatus').innerHTML = 'ปิดกล้องแล้ว';
+    const statusEl = document.getElementById('faceScanStatus');
+    if(statusEl) statusEl.innerHTML = 'กล้องถูกปิดการใช้งาน';
 }
 
 // ตรวจสอบว่า navigateTo มีการเรียกใช้ตัวใหม่นี้
@@ -4634,25 +4643,44 @@ async function startCaptureCountdown() {
     }, 1000);
 }
 
+// แก้ไขฟังก์ชันถ่ายรูปเสริม (แก้บั๊ก Descriptor เป็น [])
 async function executeCapture() {
-    const video = document.getElementById('webcamVideo');
+    const video = document.getElementById('captureVideo') || document.getElementById('webcamVideo');
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0);
+    const ctx = canvas.getContext('2d');
+    
+    // วาดภาพจากวิดีโอลง canvas
+    ctx.drawImage(video, 0, 0);
     const base64 = canvas.toDataURL('image/jpeg', 0.8);
 
     try {
+        // *** สำคัญ: ทำการตรวจจับใบหน้าจากภาพที่ "ถ่ายได้" อีกครั้ง เพื่อให้ได้ค่าที่ถูกต้อง ***
+        const detection = await faceapi.detectSingleFace(canvas).withFaceLandmarks().withFaceDescriptor();
+        
+        if (!detection) {
+            showToast('ไม่สามารถบันทึกได้: AI ตรวจไม่พบใบหน้าในรูปที่ถ่าย', 'error');
+            return;
+        }
+
+        const descriptor = JSON.stringify(Array.from(detection.descriptor));
+        const score = Math.round((1 - faceapi.euclideanDistance(detection.descriptor, detection.descriptor)) * 100); // หรือใช้ 100 ถ้าจะระบุว่ารูปนี้คือต้นแบบ
+
         await apiCall('saveSupplementalFace', {
             cardId: lastMatchData.cardId,
             imageBase64: base64,
-            faceDescriptor: lastMatchData.descriptor,
+            faceDescriptor: descriptor,
             faceType: 'auto_improve',
-            confidence: lastMatchData.score
+            confidence: score
         }, false);
+
         showToast('บันทึกรูปเสริมสำเร็จ', 'success');
-        initFaceMatcherForWebcam(); // โหลด Model ใหม่
-    } catch(e) { showToast('บันทึกรูปเสริมล้มเหลว', 'error'); }
+        initFaceMatcherForWebcam(); // รีโหลดโมเดล AI
+    } catch(e) { 
+        console.error(e);
+        showToast('บันทึกรูปเสริมล้มเหลว', 'error'); 
+    }
 }
 // แก้ไขฟังก์ชันปิดโหมดกล้อง ให้ปิด Quagga ด้วย
 const originalStopWebcam = stopWebcam;
@@ -4712,47 +4740,50 @@ async function captureSupplementalFace() {
 	  // ฟังก์ชันสำหรับวาดรายการใบหน้าในหน้าแก้ไขบัตร
 async function renderCardFacesList(cardId) {
     const listContainer = document.getElementById('cardFacesList');
+    selectedFaceIds = []; // รีเซ็ตทุกครั้งที่เปิด
+    
     listContainer.innerHTML = '<div class="col-span-full py-5 text-center text-xs text-gray-400">กำลังโหลด...</div>';
     
     try {
         const allFaces = await apiCall('getCardFaces', {}, false);
         const myFaces = allFaces.filter(f => String(f.cardId) === String(cardId));
         
-        // ค้นหาข้อมูลบัตรหลักเพื่อเอารูปตั้งต้นมาโชว์ (ถ้าใน cardFaces ยังไม่มี)
-        const mainCard = allCards.find(c => String(c.cardId) === String(cardId));
-        
-        let html = '';
+        // เพิ่มส่วนหัวควบคุม Batch Delete
+        let headerHtml = `
+            <div class="col-span-full flex justify-between items-center mb-2 bg-indigo-50 p-2 rounded-xl">
+                <span class="text-xs font-bold text-indigo-700" id="selectedCountText">เลือกแล้ว 0 รูป</span>
+                <button id="btnBatchDelete" onclick="deleteMultipleFaces('${cardId}')" class="hidden bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition shadow-sm">
+                    ลบรูปที่เลือก
+                </button>
+            </div>
+        `;
 
-        // 1. แสดงรูปหลัก (ถ้ามี)
-        const mainFace = myFaces.find(f => f.faceType === 'main');
-        if (mainFace || (mainCard && mainCard.imageUrl)) {
-            const imgUrl = mainFace ? mainFace.imageUrl : mainCard.imageUrl;
+        let html = headerHtml;
+        myFaces.forEach((f) => {
+            const isMain = f.faceType === 'main';
             html += `
-            <div class="relative group bg-white border-2 border-indigo-200 rounded-xl overflow-hidden shadow-md">
-                <img src="${imgUrl}" class="w-full h-24 object-cover">
-                <div class="p-1.5 bg-indigo-50 flex justify-between items-center">
-                    <span class="text-[9px] font-black text-indigo-600 uppercase"><i data-lucide="star" class="w-2 h-2 inline fill-indigo-600"></i> รูปหลัก (Main)</span>
-                    <i data-lucide="lock" class="w-3 h-3 text-gray-400"></i>
+            <div id="face-card-${f.id}" onclick="toggleFaceSelection(${f.id}, ${isMain})" 
+                 class="relative group bg-white border ${isMain ? 'border-indigo-300 ring-1 ring-indigo-200' : 'border-gray-200'} rounded-xl overflow-hidden shadow-sm cursor-pointer transition-all hover:scale-[1.02]">
+                
+                <img src="${f.imageUrl}" class="w-full h-24 object-cover">
+                
+                <!-- Checkbox Overlay -->
+                <div class="selection-overlay absolute inset-0 bg-indigo-600/20 hidden items-center justify-center">
+                    <div class="bg-white rounded-full p-1 shadow-lg">
+                        <i data-lucide="check" class="w-4 h-4 text-indigo-600"></i>
+                    </div>
                 </div>
-            </div>`;
-        }
 
-        // 2. แสดงรูปเสริมอื่นๆ
-        const supplementalFaces = myFaces.filter(f => f.faceType !== 'main');
-        supplementalFaces.forEach((f, idx) => {
-            html += `
-            <div class="relative group bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                <img src="${f.imageUrl}" class="w-full h-24 object-cover cursor-pointer" onclick="openImagePreview('${f.imageUrl}')">
-                <div class="p-1.5 bg-gray-50 flex justify-between items-center">
-                    <span class="text-[9px] font-black text-gray-500 uppercase">รูปเสริม ${idx + 1}</span>
-                    <button onclick="deleteFace(${f.id}, '${f.cardId}')" class="text-red-500 hover:bg-red-50 p-1 rounded">
-                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                    </button>
+                <div class="p-1.5 ${isMain ? 'bg-indigo-50' : 'bg-gray-50'} flex justify-between items-center">
+                    <span class="text-[9px] font-black ${isMain ? 'text-indigo-600' : 'text-gray-500'} uppercase">
+                        ${isMain ? '⭐ รูปหลัก' : 'รูปเสริม'}
+                    </span>
+                    <span class="text-[8px] text-gray-400">${f.confidence}%</span>
                 </div>
             </div>`;
         });
 
-        if (html === '') html = '<p class="text-xs text-gray-400 col-span-full text-center py-8">ไม่มีข้อมูลรูปภาพ</p>';
+        if (myFaces.length === 0) html = '<p class="text-xs text-gray-400 col-span-full text-center py-8">ไม่มีข้อมูลรูปภาพประกอบ</p>';
         listContainer.innerHTML = html;
         lucide.createIcons();
 
@@ -4761,6 +4792,57 @@ async function renderCardFacesList(cardId) {
     }
 }
 
+// ฟังก์ชันเลือก/ไม่เลือกรูป
+function toggleFaceSelection(faceId, isMain) {
+    if (isMain) {
+        showToast('ไม่สามารถลบรูปหลักผ่านโหมดเลือกหลายรูปได้', 'info');
+        return;
+    }
+
+    const card = document.getElementById(`face-card-${faceId}`);
+    const overlay = card.querySelector('.selection-overlay');
+    
+    if (selectedFaceIds.includes(faceId)) {
+        selectedFaceIds = selectedFaceIds.filter(id => id !== faceId);
+        card.classList.remove('ring-4', 'ring-indigo-500');
+        overlay.classList.add('hidden');
+        overlay.classList.remove('flex');
+    } else {
+        selectedFaceIds.push(faceId);
+        card.classList.add('ring-4', 'ring-indigo-500');
+        overlay.classList.remove('hidden');
+        overlay.classList.add('flex');
+    }
+
+    // อัปเดตปุ่มลบ
+    const btn = document.getElementById('btnBatchDelete');
+    const countText = document.getElementById('selectedCountText');
+    countText.textContent = `เลือกแล้ว ${selectedFaceIds.length} รูป`;
+    
+    if (selectedFaceIds.length > 0) btn.classList.remove('hidden');
+    else btn.classList.add('hidden');
+}
+
+// ฟังก์ชันลบหลายรูปพร้อมกัน
+async function deleteMultipleFaces(cardId) {
+    if (!confirm(`ยืนยันการลบรูปภาพที่เลือกจำนวน ${selectedFaceIds.length} รูป?`)) return;
+
+    showLoader('กำลังลบข้อมูลที่เลือก...');
+    try {
+        // ส่งคำสั่งไปลบทีละ ID (หรือปรับ backend ให้รับ array ก็ได้ แต่ส่งทีละตัวปลอดภัยกว่าในโครงสร้างเดิม)
+        for (let id of selectedFaceIds) {
+            await apiCall('deleteCardFace', { id: id }, false);
+        }
+        
+        showToast('ลบรูปภาพที่เลือกเรียบร้อยแล้ว', 'success');
+        renderCardFacesList(cardId);
+        initFaceMatcherForWebcam(); // รีโหลด AI
+    } catch(e) {
+        showToast('เกิดข้อผิดพลาดในการลบ', 'error');
+    } finally {
+        hideLoader();
+    }
+}
 // ฟังก์ชันลบใบหน้า
 async function deleteFace(faceId, cardId) {
     if (confirm('คุณแน่ใจว่าต้องการลบข้อมูลใบหน้านี้? (การลบรูปหลักอาจส่งผลต่อความแม่นยำ)')) {
