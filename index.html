@@ -1922,10 +1922,8 @@ function toggleHybridCamera() {
     }
 
     function navigateTo(p){
-      // --- เพิ่มบรรทัดนี้ลงไปเพื่อปิดกล้องเสมอเวลาเปลี่ยนหน้า ---
-    if(typeof stopWebcam === 'function') stopWebcam(); 
-    // --------------------------------------------------
-        forceShutdownCamera(); // ปิดกล้องและเคลียร์ UI ทุกครั้งที่เปลี่ยนหน้า
+    forceShutdownCamera(); 
+    
     currentPage = p; 
     document.querySelectorAll('.page').forEach(x => x.classList.add('hidden')); 
     document.getElementById(p + 'Page').classList.remove('hidden');
@@ -4276,54 +4274,63 @@ async function startWebcam() {
 //////////////////
 // ฟังก์ชันกวาดล้างกล้องแบบถอนรากถอนโคน
 function forceShutdownCamera() {
-    console.log("System: Performing Hard Camera Shutdown...");
+    console.log("System: Executing Nuclear Camera Shutdown...");
 
-    // 1. หยุด Quagga (บาร์โค้ด)
-    if (typeof Quagga !== 'undefined') { 
-        try { Quagga.stop(); } catch(e) {} 
-    }
-
-    // 2. หยุดลูป AI (Interval)
+    // 1. หยุดลูปตรวจจับ AI และ Barcode ทันที
     if (faceDetectionInterval) {
         clearInterval(faceDetectionInterval);
         faceDetectionInterval = null;
     }
-
-    // 3. ปิด Hardware (Tracks)
-    if (webcamStream) {
-        const tracks = webcamStream.getTracks();
-        tracks.forEach(track => {
-            track.stop(); // สั่งปิดไฟกล้อง
-            track.enabled = false;
-        });
-        webcamStream = null;
+    if (typeof Quagga !== 'undefined') { 
+        try { Quagga.stop(); } catch(e) {} 
     }
 
-    // 4. ล้างค่า Video ทุกตัว เพื่อไม่ให้ Browser ถือสิทธิ์ค้างไว้
-    const vids = ['webcamVideo', 'captureVideo'];
-    vids.forEach(id => {
+    // 2. หยุดการทำงานของ Hardware (Tracks) ทั้งหมด
+    // เราจะดึง Tracks จากทั้งตัวแปร Global และจาก Video Elements โดยตรงเพื่อความชัวร์
+    const stopTracks = (stream) => {
+        if (stream && stream.getTracks) {
+            stream.getTracks().forEach(track => {
+                track.stop();
+                track.enabled = false;
+            });
+        }
+    };
+
+    // หยุดจากตัวแปรหลัก
+    stopTracks(webcamStream);
+    webcamStream = null;
+
+    // 3. ล้างค่า Video Elements ทุกตัว (บังคับให้เบราว์เซอร์ปล่อยคืน Hardware)
+    ['webcamVideo', 'captureVideo'].forEach(id => {
         const v = document.getElementById(id);
         if (v) {
+            // หยุดการทำงานของ Stream ที่ค้างอยู่ในวิดีโอตัวนั้นๆ
+            stopTracks(v.srcObject);
             v.pause();
-            v.srcObject = null; // สำคัญ: ล้างสิทธิ์การเข้าถึงภาพ
+            v.srcObject = null;
+            v.innerHTML = ""; // ล้างข้อมูลภายใน
             if (v.removeAttribute) v.removeAttribute('src');
-            v.load();
+            v.load(); // บังคับโหลดสถานะว่างเปล่า
         }
     });
 
-    // 5. เคลียร์ Canvas (ลบกรอบที่ค้างอยู่)
+    // 4. ล้างหน้าจอ Canvas
     const canvas = document.getElementById('webcamCanvas');
     if (canvas) {
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
-    // 6. รีเซ็ต UI
+    // 5. รีเซ็ตสถานะ UI
     isCameraActive = false;
     isSystemBusy = false;
+    isCapturingSupplemental = false;
+
+    // ซ่อนกรอบวิดีโอ
     const cameraArea = document.getElementById('cameraArea');
     if (cameraArea) cameraArea.classList.add('hidden');
 
+    // รีเซ็ตปุ่ม
     const btn = document.getElementById('btnToggleCamera');
     const btnText = document.getElementById('cameraBtnText');
     if (btn && btnText) {
@@ -4331,8 +4338,7 @@ function forceShutdownCamera() {
         btn.classList.replace('bg-gray-600', 'bg-indigo-600');
     }
 
-    const statusEl = document.getElementById('faceScanStatus');
-    if (statusEl) statusEl.innerHTML = 'ระบบพร้อมทำงาน...';
+    console.log("System: Camera hardware released successfully.");
 }
 //////////////////////////
 // ตรวจสอบว่า navigateTo มีการเรียกใช้ตัวใหม่นี้
@@ -4903,12 +4909,12 @@ editCard = function(id) {
 
 	  // แก้ไขฟังก์ชันปิด Modal ถ่ายรูปให้สั่ง Shutdown กล้อง
 function closeCaptureModal() {
-    document.getElementById('captureModal').classList.add('hidden');
+     document.getElementById('captureModal').classList.add('hidden');
     document.getElementById('captureCountdownUI').classList.add('hidden');
     
-    // เรียกปิดกล้อง Hardware ให้สนิท
+    // สำคัญ: สั่ง Shutdown กล้องทันที
     forceShutdownCamera(); 
-    
+    showToast('ปิดโหมดบันทึกภาพเสริมแล้ว', 'info');
     // แสดงสถานะนับถอยหลังก่อนเปิดแสกนใหม่
     const delayStatus = document.getElementById('systemDelayStatus');
     if (delayStatus) {
@@ -5014,34 +5020,27 @@ async function runCaptureSequence() {
     }, 1000);
 }
 	  // ฟังก์ชันนับถอยหลังกลับหน้าแสกนหลัก (3-2-1 กลางจอ)
+// ฟังก์ชันนับถอยหลังกลับ (กรณีถ่ายเสร็จ)
 function startReturnCooldown() {
     const modal = document.getElementById('cooldownModal');
     const numText = document.getElementById('cooldownNum');
-    const bar = document.getElementById('cooldownBar');
-    
     modal.classList.remove('hidden');
-    isSystemBusy = true; // บล็อกการแสกนไว้
     
+    // ระหว่างที่โชว์เลขนับถอยหลัง (3-2-1) ให้ Shutdown กล้องไปเลย
+    forceShutdownCamera(); 
+
     let count = 5;
     numText.textContent = count;
-    bar.style.width = '100%';
 
     const timer = setInterval(() => {
         count--;
-        bar.style.width = (count / 3 * 100) + '%';
-        
         if (count > 0) {
             numText.textContent = count;
         } else {
             clearInterval(timer);
             modal.classList.add('hidden');
-            
-            // ปลดบล็อกระบบ ให้เริ่มแสกนใหม่ได้
             isSystemBusy = false;
-            isCapturingSupplemental = false;
-            lastScannedFaceId = null; // ล้าง Cooldown คนเดิมให้แสกนต่อได้ทันที
-            
-            showToast('ระบบพร้อมแสกนบันทึกเข้า-ออกแล้ว', 'success');
+            showToast('ระบบพร้อมทำงานต่อแล้ว', 'success');
         }
     }, 1000);
 }
