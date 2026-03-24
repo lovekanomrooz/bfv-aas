@@ -960,18 +960,41 @@ gap: 1px !important;
                 </button>
             </div>
             <div class="grid grid-cols-2 gap-3">
-                <div class="col-span-2">
-                    <label class="block text-[11px] font-bold text-gray-400 mb-1">คำขึ้นต้น</label>
-                    <input type="text" id="ttsPrefix" class="w-full border p-2 rounded-lg text-sm" placeholder="เช่น คุณ">
-                </div>
-                <div>
-                    <label class="block text-[11px] font-bold text-gray-400 mb-1">คำลงท้าย (เข้า)</label>
-                    <input type="text" id="ttsInSuffix" class="w-full border p-2 rounded-lg text-sm" placeholder="เช่น เชิญค่ะ">
-                </div>
-                <div>
-                    <label class="block text-[11px] font-bold text-gray-400 mb-1">คำลงท้าย (ออก)</label>
-                    <input type="text" id="ttsOutSuffix" class="w-full border p-2 rounded-lg text-sm" placeholder="เช่น ออกสำเร็จค่ะ">
-                </div>
+				 <div class="space-y-4">
+    <!-- เลือกจังหวะการพูด -->
+    <div>
+        <label class="block text-xs font-bold text-gray-500 mb-1">จังหวะการพูดของ AI</label>
+        <select id="ttsTimingMode" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 bg-white font-medium" onchange="toggleTtsFields()">
+            <option value="immediate">แบบที่ 1: พูดทันทีที่ตรวจพบ (รวดเร็ว)</option>
+            <option value="after_server">แบบที่ 2: พูดเมื่อเซิร์ฟเวอร์ตอบกลับ (แม่นยำสถานะ)</option>
+        </select>
+    </div>
+
+    <!-- ฟิลด์สำหรับ แบบที่ 1 (พูดทันที) -->
+    <div id="fieldTtsImmediate" class="bg-blue-50 p-3 rounded-lg border border-blue-100 hidden">
+        <label class="block text-[11px] font-bold text-blue-500 mb-1">คำทักทายทันที (ไม่ต้องรอสถานะ)</label>
+        <input type="text" id="ttsGreeting" class="w-full border p-2 rounded-lg text-sm" placeholder="เช่น สวัสดีครับคุณ">
+        <p class="text-[9px] text-blue-400 mt-1">* ระบบจะพูด: [คำทักทาย] + [ชื่อพนักงาน]</p>
+    </div>
+
+    <!-- ฟิลด์สำหรับ แบบที่ 2 (รอสถานะ) -->
+    <div id="fieldTtsAfterServer" class="grid grid-cols-1 gap-3 bg-gray-100 p-3 rounded-lg border border-gray-200 hidden">
+        <div>
+            <label class="block text-[11px] font-bold text-gray-400 mb-1">คำขึ้นต้น</label>
+            <input type="text" id="ttsPrefix" class="w-full border p-2 rounded-lg text-sm" placeholder="เช่น คุณ">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+            <div>
+                <label class="block text-[11px] font-bold text-gray-400 mb-1">คำลงท้าย (เข้า)</label>
+                <input type="text" id="ttsInSuffix" class="w-full border p-2 rounded-lg text-sm" placeholder="เช่น เชิญค่ะ">
+            </div>
+            <div>
+                <label class="block text-[11px] font-bold text-gray-400 mb-1">คำลงท้าย (ออก)</label>
+                <input type="text" id="ttsOutSuffix" class="w-full border p-2 rounded-lg text-sm" placeholder="เช่น ออกสำเร็จค่ะ">
+            </div>
+        </div>
+    </div>
+</div>
             </div>
             <p class="text-[9px] text-gray-400 mt-2">* ระบบจะเล่นเสียงติ๊ดก่อน และตามด้วยเสียงพูดหลังจากเว้นวรรคตามที่ตั้งค่า delay</p>
         </div>
@@ -2278,52 +2301,50 @@ function clearAllFailedScans() {
  * ปรับปรุง: ดึงค่า % ความแม่นยำจริงมาแสดง และป้องกันค่าดีดกลับเป็น 100
  */
 function confirmStatusUI(finalStatus, logTime, fullRes = null) {
-    // 1. ตรวจสอบว่าคนที่เพิ่งบันทึกสำเร็จ คือคนที่กำลังโชว์ข้อมูลบนหน้าจอหลักหรือไม่
+    // 1. ตรวจสอบว่าพนักงานที่ตอบกลับมา คือคนเดียวกับที่แสดงบนจอปัจจุบันหรือไม่
     if (fullRes && String(fullRes.cardInfo.cardId).toUpperCase() === currentDisplayCardId) {
         
-        // --- อัปเดต Badge สถานะ (IN/OUT) ---
+        // --- อัปเดตป้ายสถานะ (Badge IN/OUT) ขนาดใหญ่ ---
         const badge = document.getElementById('resIoBadge');
-        badge.innerHTML = finalStatus; 
-        badge.className = `absolute top-0 right-0 px-20 py-6 rounded-bl-[40px] font-black text-5xl text-white shadow-2xl z-10 tracking-widest transition-all duration-500 ${finalStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
+        if (badge) {
+            badge.innerHTML = finalStatus; 
+            badge.className = `absolute top-0 right-0 px-20 py-6 rounded-bl-[40px] font-black text-5xl text-white shadow-2xl z-10 tracking-widest transition-all duration-500 ${finalStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
+        }
         
-        // --- อัปเดตเวลาที่บันทึก (จัดรูปแบบขึ้นบรรทัดใหม่) ---
-        document.getElementById('resTime').innerHTML = formatDateTime(logTime).replace(' | ', '<br>');
+        // --- อัปเดตวันเวลาที่บันทึกสำเร็จ ---
+        const resTimeEl = document.getElementById('resTime');
+        if (resTimeEl) {
+            resTimeEl.innerHTML = formatDateTime(logTime).replace(' | ', '<br>');
+        }
         
-        // --- จัดการข้อมูลผู้ติดตาม (ถ้ามี) ---
-        if (fullRes.companionName && fullRes.companionName.trim() !== "") {
-            document.getElementById('resCompanionName').textContent = fullRes.companionName;
-            document.getElementById('resCompanionId').textContent = fullRes.companionCardId;
-            document.getElementById('resCompanionOrg').textContent = fullRes.companionOrg || '-';
-            document.getElementById('resCompanionBox').classList.remove('hidden');
-        } else {
-            document.getElementById('resCompanionBox').classList.add('hidden');
+        // --- อัปเดตข้อมูลผู้ติดตาม (ถ้ามี) ---
+        const compBox = document.getElementById('resCompanionBox');
+        if (compBox) {
+            if (fullRes.companionName && fullRes.companionName.trim() !== "") {
+                document.getElementById('resCompanionName').textContent = fullRes.companionName;
+                document.getElementById('resCompanionId').textContent = fullRes.companionCardId;
+                document.getElementById('resCompanionOrg').textContent = fullRes.companionOrg || '-';
+                compBox.classList.remove('hidden');
+            } else {
+                compBox.classList.add('hidden');
+            }
         }
 
-        // --- ส่วนที่แก้ไข: แสดงปุ่ม Improve AI และดึงค่า % ความแม่นยำจริงมาโชว์ ---
+        // --- จัดการส่วน "ช่วยจำใบหน้า" (Improve AI) ---
         if (isCameraActive) { 
             const improveBox = document.getElementById('improveAiBox');
-            const scoreValEl = document.getElementById('lowScoreVal');
-            if (improveBox && scoreValEl) {
-                
-                // ตรวจสอบว่า lastMatchData มีข้อมูลตรงกับบัตรที่เพิ่งบันทึกหรือไม่
-                // ถ้าตรงกัน (แสกนด้วยหน้า) ให้ใช้ค่า score จากตัวแปรนั้น
-                // ถ้าไม่ตรง (เช่น แสกนด้วยบาร์โค้ด) ให้แสดง 100
-                let actualScore = 100;
-                if (lastMatchData && String(lastMatchData.cardId).toUpperCase() === String(fullRes.cardInfo.cardId).toUpperCase()) {
-                    actualScore = lastMatchData.score;
-                }
-                
-                scoreValEl.textContent = actualScore; 
+            if (improveBox) {
+                // *** จุดสำคัญ: เราจะไม่ไปอัปเดตค่า lowScoreVal อีกแล้ว เพื่อให้มันนิ่งตามที่แสกนได้ในตอนแรก ***
                 improveBox.classList.remove('hidden');
             }
         }
     } 
-    // 2. ถ้าเป็นคนที่แสกนผ่านไปแล้ว (กรณีแสกนรัวๆ แล้วข้อมูลเพิ่งตอบกลับจาก Server) ให้โชว์ Toast แจ้งเตือนมุมขวา
+    // 2. ถ้าเป็นพนักงานคนก่อนหน้า (กรณีแสกนรัวๆ) ให้แสดงเป็น Toast แจ้งเตือนเล็กๆ แทน
     else if (fullRes) {
         showSuccessToast(fullRes.cardInfo.cardId, fullRes.cardInfo.firstName, finalStatus);
     }
 
-    // 3. อัปเดตรายการประวัติการแสกนล่าสุด (Recent Logs) ในตารางหน้าหลัก และ Dashboard
+    // 3. สั่ง Refresh ตารางประวัติล่าสุด และ Dashboard
     if (fullRes) {
         updateRecentLogsList(fullRes, logTime, finalStatus);
     }
@@ -2391,14 +2412,26 @@ function updateRecentLogsList(fullRes, logTime, finalStatus) {
 // 7. ฟังก์ชันจัดการเสียง
 function handleScanSounds(status, fName, lName) {
     const mode = systemSettings.announcementMode;
+    if (mode === 'none') return;
+
+    // 1. เล่นเสียงติ๊ด (Beep) เสมอเพื่อยืนยันว่าบันทึกลง Server สำเร็จ
     if (mode === 'both' || mode === 'beep') {
-        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/961/961-preview.mp3');
-        audio.volume = parseFloat(systemSettings.beepVolume || 0.5);
-        audio.play();
+        try {
+            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/961/961-preview.mp3');
+            audio.volume = parseFloat(systemSettings.beepVolume || 0.5);
+            audio.play();
+        } catch(e) { console.error("Beep error:", e); }
     }
-    if (mode === 'both' || mode === 'voice') {
-        const delay = (mode === 'both') ? parseInt(systemSettings.announcementDelay || 600) : 0;
-        setTimeout(() => speakStatus(fName, lName, status), delay);
+
+    // 2. --- ตรวจสอบจังหวะการพูด: ถ้าตั้งเป็น "พูดเมื่อบันทึกสำเร็จ" ให้ทำงานที่นี่ ---
+    if (systemSettings.ttsTimingMode === 'after_server' || !systemSettings.ttsTimingMode) {
+        if (mode === 'both' || mode === 'voice') {
+            // ดึงค่า Delay ระหว่างเสียงติ๊ดกับเสียงพูด
+            const delay = (mode === 'both') ? parseInt(systemSettings.announcementDelay || 600) : 0;
+            setTimeout(() => {
+                speakStatus(fName, lName, status);
+            }, delay);
+        }
     }
 }
 
@@ -3603,6 +3636,7 @@ async function confirmDeleteUser(id, username) {
     document.getElementById('aiInterval').value = systemSettings.aiInterval || 1000;
     document.getElementById('aiPadX').value = systemSettings.aiPadX !== undefined ? systemSettings.aiPadX : 15;
     document.getElementById('aiPadTop').value = systemSettings.aiPadTop !== undefined ? systemSettings.aiPadTop : 35;
+		
 
     // 2. รูปแบบบัตร (Card Template) - **ส่วนที่หายไปของคุณ**
     document.getElementById('cardTplFront').value = systemSettings.cardTplFront || '';
@@ -3637,7 +3671,9 @@ document.getElementById('ttsVolVal').textContent = ttsVol;
         document.getElementById('ttsRate').value = systemSettings.ttsRate || 1.0;
         document.getElementById('ttsRateVal').textContent = systemSettings.ttsRate || 1.0;
     }
-
+document.getElementById('ttsTimingMode').value = systemSettings.ttsTimingMode || "after_server";
+document.getElementById('ttsGreeting').value = systemSettings.ttsGreeting || "";
+toggleTtsFields(); // เรียกเพื่อเปิดฟิลด์ที่ถูกต้อง
     initVoices(); // โหลดรายการเสียงไทย
     renderBannerList();
 }
@@ -3700,7 +3736,8 @@ document.getElementById('ttsVolVal').textContent = ttsVol;
     systemSettings.ttsRate = document.getElementById('ttsRate').value;
 	   systemSettings.announcementDelay = document.getElementById('announcementDelay').value;
 	   systemSettings.ttsVolume = document.getElementById('ttsVolume').value;
-
+systemSettings.ttsTimingMode = document.getElementById('ttsTimingMode').value;
+systemSettings.ttsGreeting = document.getElementById('ttsGreeting').value;
     showLoader('กำลังบันทึกการตั้งค่า...');
     await apiCall('saveSettings', systemSettings);
     applySettingsToUI(); 
@@ -4915,38 +4952,74 @@ function closeCaptureModal() {
 }
 	  ////////////////////////////
 // ฟังก์ชันเมื่อจับคู่หน้าผ่านแล้ว ส่งเข้ากระบวนการแสกน
+function toggleTtsFields() {
+    const mode = document.getElementById('ttsTimingMode').value;
+    document.getElementById('fieldTtsImmediate').classList.toggle('hidden', mode !== 'immediate');
+    document.getElementById('fieldTtsAfterServer').classList.toggle('hidden', mode !== 'after_server');
+}
 
+	function speakImmediateGreeting(firstName, lastName) {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel(); // หยุดเสียงเก่าก่อนเริ่มใหม่
+    
+    const msg = new SpeechSynthesisUtterance();
+    const prefix = systemSettings.ttsGreeting || "สวัสดีครับคุณ";
+    
+    msg.text = `${prefix} ${firstName}`;
+    msg.lang = 'th-TH';
+    msg.volume = parseFloat(systemSettings.ttsVolume || 1.0);
+    msg.rate = parseFloat(systemSettings.ttsRate || 1.0);
+
+    if (systemSettings.ttsVoiceName) {
+        const voice = voices.find(v => v.name === systemSettings.ttsVoiceName);
+        if (voice) msg.voice = voice;
+    }
+    window.speechSynthesis.speak(msg);
+}
 function triggerFaceScanSuccess(cardId, matchPercent, descriptor) {
+    // 1. ตรวจสอบสถานะการทำงานของระบบและ Modal ต่างๆ
     const isAlertOpen = !document.getElementById('customAlertModal').classList.contains('hidden');
     const isCompModalOpen = !document.getElementById('companionModal').classList.contains('hidden');
     const isCaptureModalOpen = !document.getElementById('captureModal').classList.contains('hidden');
     
     if (isAlertOpen || isCompModalOpen || isCaptureModalOpen || isSystemBusy) return;
 
-    // Cooldown ป้องกันแสกนซ้ำซ้อน
+    // 2. ระบบป้องกันการแสกนซ้ำ (Cooldown)
     if (lastScannedFaceId === cardId) return;
     lastScannedFaceId = cardId;
     setTimeout(() => { lastScannedFaceId = null; }, (systemSettings.aiCooldown || 10) * 1000);
 
-    // --- จุดที่แก้ไข: ล็อคค่า % ณ วินาทีที่แสกนผ่านลงใน UI ---
+    // 3. --- ล็อกค่า % ความแม่นยำลงใน UI ทันที (ค่านี้จะไม่เปลี่ยนจนกว่าจะแสกนคนใหม่) ---
     const scoreValEl = document.getElementById('lowScoreVal');
     if (scoreValEl) {
-        scoreValEl.textContent = matchPercent; // ตัวเลขจะนิ่งอยู่ที่ค่านี้จนกว่าจะมีคนต่อไปแสกน
+        scoreValEl.textContent = matchPercent; 
     }
     const improveBox = document.getElementById('improveAiBox');
-    if (improveBox) improveBox.classList.remove('hidden');
+    if (improveBox) {
+        improveBox.classList.remove('hidden');
+    }
 
-    // เก็บข้อมูลไว้สำหรับการกด "ถ่ายรูปเพิ่ม"
+    // 4. --- ตรวจสอบจังหวะการพูด: ถ้าตั้งเป็น "พูดทันที" ให้ทำงานที่นี่ ---
+    if (systemSettings.ttsTimingMode === 'immediate') {
+        const matched = allCards.find(c => String(c.cardId) === String(cardId));
+        if (matched) {
+            speakImmediateGreeting(matched.firstName, matched.lastName);
+        }
+    }
+
+    // 5. เก็บข้อมูลล่าสุดไว้สำหรับการกด "ถ่ายรูปเพิ่มความแม่นยำ"
     lastMatchData = {
         cardId: cardId,
         descriptor: JSON.stringify(Array.from(descriptor)),
         score: matchPercent
     };
 
-    // ส่งรหัสไปประมวลผลบันทึกเข้า-ออก
+    // 6. ส่งรหัสเข้าช่อง Input และเรียกประมวลผลบันทึก เข้า-ออก
     const mainInput = document.getElementById('scanInput');
-    mainInput.value = cardId;
-    processMainScan();
+    if (mainInput) {
+        mainInput.value = cardId;
+        processMainScan();
+    }
 }
 
 // ฟังก์ชันเปิด Modal ถ่ายรูปเสริม
