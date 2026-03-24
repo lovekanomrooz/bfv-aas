@@ -930,7 +930,9 @@ gap: 1px !important;
                 <label class="block text-xs font-bold text-gray-500 mb-1">เลือกชุดเสียง AI (ภาษาไทย)</label>
                 <div class="flex gap-2">
                     <select id="ttsVoiceSelect" class="flex-1 border p-2.5 rounded-xl outline-none focus:ring-2 bg-white text-sm font-medium"></select>
-                    <button onclick="initVoices()" class="px-3 py-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
+                    <button type="button" onclick="initVoices()" class="px-3 py-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition">
+    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+</button>
                 </div>
             </div>
 
@@ -1499,37 +1501,70 @@ systemSettings.beepVolume = systemSettings.beepVolume !== undefined ? systemSett
 // ลบชุดเก่าออกแล้วใช้ชุดนี้แทนครับ
 let voices = [];
 function initVoices() {
-    if (!('speechSynthesis' in window)) return;
+    if (!('speechSynthesis' in window)) {
+        showToast('เบราว์เซอร์นี้ไม่รองรับระบบเสียง AI', 'error');
+        return;
+    }
+
+    // 1. ดึงรายการเสียงจากระบบ
     voices = window.speechSynthesis.getVoices();
     const select = document.getElementById('ttsVoiceSelect');
-    if(!select) return;
-    
+    if (!select) return;
+
+    // 2. กรองเฉพาะเสียงภาษาไทย (th-TH หรือ th)
     const thaiVoices = voices.filter(v => v.lang.includes('th') || v.lang === 'th-TH');
+
+    // 3. ล้างรายการเดิมใน select
+    select.innerHTML = '';
+
     if (thaiVoices.length > 0) {
-        select.innerHTML = thaiVoices.map(v => `<option value="${v.name}">${v.name}</option>`).join('');
-        if (systemSettings.ttsVoiceName) select.value = systemSettings.ttsVoiceName;
+        // 4. วาดรายการเสียงใหม่ลงไป
+        thaiVoices.forEach(v => {
+            const option = document.createElement('option');
+            option.value = v.name;
+            option.textContent = v.name + (v.default ? ' (ค่าเริ่มต้น)' : '');
+            
+            // ถ้าเป็นเสียงที่เคยเลือกไว้ ให้ Mark ว่า selected
+            if (v.name === systemSettings.ttsVoiceName) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        });
+        
+        // แจ้งเตือนผู้ใช้เฉพาะตอนกดรีเฟรช (Manual Refresh)
+        if (event && event.type === 'click') {
+            showToast(`พบชุดเสียงภาษาไทย ${thaiVoices.length} ชุด`, 'success');
+        }
     } else {
-        select.innerHTML = '<option value="">ไม่มีเสียงไทยในเครื่อง</option>';
+        // กรณีไม่พบเสียงภาษาไทย
+        const option = document.createElement('option');
+        option.textContent = 'ไม่พบเสียงภาษาไทยในเครื่องนี้';
+        select.appendChild(option);
+        
+        if (event && event.type === 'click') {
+            showToast('ไม่พบเสียงภาษาไทย กรุณาติดตั้งชุดเสียงใน OS', 'warning');
+        }
     }
 }
 
-// ผูกเหตุการณ์โหลดเสียง
-if ('speechSynthesis' in window) {
-    window.speechSynthesis.onvoiceschanged = initVoices;
-    setTimeout(initVoices, 1000);
-}
+// --- ส่วนที่ 2: ปรับปรุงการโหลดเสียง AI ให้เสถียร (ลบของเดิมแล้ววางชุดนี้แทน) ---
 
-// ป้องกันเครื่องค้าง: โหลดเสียงเพียงครั้งเดียวเมื่อพร้อม
 if ('speechSynthesis' in window) {
-    if (window.speechSynthesis.onvoiceschanged !== undefined) {
-        window.speechSynthesis.onvoiceschanged = initVoices;
-    }
-    setTimeout(initVoices, 1500); // หน่วงเวลาให้ระบบพร้อม
-}
+    // 1. ผูกเหตุการณ์เมื่อรายการเสียงเปลี่ยนแปลง (สำคัญมากสำหรับ Chrome/Edge)
+    window.speechSynthesis.onvoiceschanged = function() {
+        initVoices();
+    };
 
-// เรียกโหลดเสียงแบบหน่วงเวลานิดนึงเพื่อให้ระบบพร้อม
-window.speechSynthesis.onvoiceschanged = initVoices;
-setTimeout(initVoices, 1000);
+    // 2. เรียกใช้งานครั้งแรกทันที (สำหรับ Safari/Firefox ที่โหลดเสียงเสร็จเร็ว)
+    initVoices();
+
+    // 3. สำรองเผื่อกรณีเบราว์เซอร์โหลดช้า ให้ลองเรียกซ้ำอีกครั้งที่ 1 วินาที
+    setTimeout(() => {
+        if (!voices || voices.length === 0) {
+            initVoices();
+        }
+    }, 1000);
+}
 	  
 // ==========================================
     // ฟังก์ชันช่วยเรียงลำดับรหัสบัตร (รูปแบบ Prefix+Num/Year)
