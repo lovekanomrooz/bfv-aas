@@ -4271,45 +4271,35 @@ async function startWebcam() {
 //////////////////
 // ฟังก์ชันกวาดล้างกล้องแบบถอนรากถอนโคน
 function forceShutdownCamera() {
-    console.log("CRITICAL: Full Hardware Camera Shutdown...");
-
-    // 1. หยุด Quagga (บาร์โค้ด)
-    if (typeof Quagga !== 'undefined') {
-        try { Quagga.stop(); } catch(e) {}
-    }
-
-    // 2. หยุดสัญญาณ Hardware (หยุดเลนส์กล้อง)
-    // เราจะดึง Stream จากทั้งตัวแปร Global และจาก Video Element โดยตรง
-    const videoElements = ['webcamVideo', 'captureVideo'];
+    console.log("Hardware: Releasing Camera...");
     
-    videoElements.forEach(id => {
-        const v = document.getElementById(id);
-        if (v && v.srcObject) {
-            const stream = v.srcObject;
-            const tracks = stream.getTracks();
-            tracks.forEach(track => {
-                track.stop();         // ปิดไฟเซนเซอร์
-                track.enabled = false; // ตัดการส่งข้อมูล
-            });
-            v.srcObject = null;
-            v.pause();
-            v.load();
-        }
-    });
+    // 1. หยุด Quagga
+    if (typeof Quagga !== 'undefined') { try { Quagga.stop(); } catch(e) {} }
 
+    // 2. ปิด Track ทั้งหมดจากตัวแปร Global
     if (webcamStream) {
-        webcamStream.getTracks().forEach(t => t.stop());
+        webcamStream.getTracks().forEach(track => {
+            track.stop(); 
+            track.enabled = false;
+        });
         webcamStream = null;
     }
 
-    // 3. หยุดลูป AI
-    if (faceDetectionInterval) {
-        clearInterval(faceDetectionInterval);
-        faceDetectionInterval = null;
-    }
+    // 3. กวาดล้าง Video Element ทุกตัว (ป้องกัน Browser ถือสิทธิ์ค้าง)
+    ['webcamVideo', 'captureVideo'].forEach(id => {
+        const v = document.getElementById(id);
+        if (v && v.srcObject) {
+            const stream = v.srcObject;
+            stream.getTracks().forEach(t => t.stop());
+            v.srcObject = null;
+            v.pause();
+            v.load();
+            v.removeAttribute('src'); 
+        }
+    });
 
     isCameraActive = false;
-    if(document.getElementById('faceScanStatus')) document.getElementById('faceScanStatus').innerHTML = 'สถานะ: ปิดระบบกล้อง';
+    if(document.getElementById('faceScanStatus')) document.getElementById('faceScanStatus').innerHTML = 'ปิดกล้องแล้ว';
 }
 
 // ตรวจสอบว่า navigateTo มีการเรียกใช้ตัวใหม่นี้
