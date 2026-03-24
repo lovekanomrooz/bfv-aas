@@ -4276,59 +4276,65 @@ async function startWebcam() {
 //////////////////
 // ฟังก์ชันกวาดล้างกล้องแบบถอนรากถอนโคน
 function forceShutdownCamera() {
-    console.log("System: Forced Full Shutdown initiated...");
+    console.log("System: Performing Hard Camera Shutdown...");
 
     // 1. หยุด Quagga (บาร์โค้ด)
     if (typeof Quagga !== 'undefined') { 
         try { Quagga.stop(); } catch(e) {} 
     }
 
-    // 2. หยุดลูปตรวจจับใบหน้า
+    // 2. หยุดลูป AI (Interval)
     if (faceDetectionInterval) {
         clearInterval(faceDetectionInterval);
         faceDetectionInterval = null;
     }
 
-    // 3. ปิดกล้อง Hardware
+    // 3. ปิด Hardware (Tracks)
     if (webcamStream) {
-        webcamStream.getTracks().forEach(track => {
-            track.stop();
+        const tracks = webcamStream.getTracks();
+        tracks.forEach(track => {
+            track.stop(); // สั่งปิดไฟกล้อง
             track.enabled = false;
         });
         webcamStream = null;
     }
 
-    // 4. ล้างค่า Video Element
-    ['webcamVideo', 'captureVideo'].forEach(id => {
+    // 4. ล้างค่า Video ทุกตัว เพื่อไม่ให้ Browser ถือสิทธิ์ค้างไว้
+    const vids = ['webcamVideo', 'captureVideo'];
+    vids.forEach(id => {
         const v = document.getElementById(id);
         if (v) {
             v.pause();
-            v.srcObject = null;
+            v.srcObject = null; // สำคัญ: ล้างสิทธิ์การเข้าถึงภาพ
             if (v.removeAttribute) v.removeAttribute('src');
             v.load();
         }
     });
 
-    // --- ส่วนที่เพิ่มใหม่: รีเซ็ต UI ทั้งหมด ---
+    // 5. เคลียร์ Canvas (ลบกรอบที่ค้างอยู่)
+    const canvas = document.getElementById('webcamCanvas');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // 6. รีเซ็ต UI
+    isCameraActive = false;
+    isSystemBusy = false;
     const cameraArea = document.getElementById('cameraArea');
-    if (cameraArea) cameraArea.classList.add('hidden'); // ซ่อนจอดำ
+    if (cameraArea) cameraArea.classList.add('hidden');
 
     const btn = document.getElementById('btnToggleCamera');
     const btnText = document.getElementById('cameraBtnText');
     if (btn && btnText) {
         btnText.textContent = "เปิดแสกน (กล้อง AI)";
-        btn.classList.remove('bg-gray-600', 'hover:bg-gray-700');
-        btn.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+        btn.classList.replace('bg-gray-600', 'bg-indigo-600');
     }
-
-    isCameraActive = false;
-    isSystemBusy = false; // ปลดล็อคระบบ
-    isCapturingSupplemental = false; 
 
     const statusEl = document.getElementById('faceScanStatus');
     if (statusEl) statusEl.innerHTML = 'ระบบพร้อมทำงาน...';
 }
-
+//////////////////////////
 // ตรวจสอบว่า navigateTo มีการเรียกใช้ตัวใหม่นี้
 const originalNavigateTo = navigateTo;
 navigateTo = function(p) {
@@ -4582,7 +4588,7 @@ function drawFaceBox(ctx, detection, result) {
 
         // --- จุดที่แก้ไข: แสดงปุ่ม Improve AI ตลอดถ้าเจอตัวตน (Known Face) ---
         if (!isSystemBusy) {
-            document.getElementById('lowScoreVal').textContent = matchPercent;
+            //document.getElementById('lowScoreVal').textContent = matchPercent;
             document.getElementById('improveAiBox').classList.remove('hidden');
             
             lastMatchData = {
@@ -4894,30 +4900,59 @@ editCard = function(id) {
         renderCardFacesList(c.cardId);
     }
 }
+
+	  // แก้ไขฟังก์ชันปิด Modal ถ่ายรูปให้สั่ง Shutdown กล้อง
+function closeCaptureModal() {
+    document.getElementById('captureModal').classList.add('hidden');
+    document.getElementById('captureCountdownUI').classList.add('hidden');
+    
+    // เรียกปิดกล้อง Hardware ให้สนิท
+    forceShutdownCamera(); 
+    
+    // แสดงสถานะนับถอยหลังก่อนเปิดแสกนใหม่
+    const delayStatus = document.getElementById('systemDelayStatus');
+    if (delayStatus) {
+        delayStatus.classList.remove('hidden');
+        delayStatus.textContent = "กำลังรีเซ็ตระบบกล้องใน 3 วินาที...";
+    }
+
+    setTimeout(() => {
+        if (delayStatus) delayStatus.classList.add('hidden');
+        isSystemBusy = false;
+        showToast('ระบบพร้อมทำงานต่อแล้ว', 'info');
+    }, 3000);
+}
 	  ////////////////////////////
 // ฟังก์ชันเมื่อจับคู่หน้าผ่านแล้ว ส่งเข้ากระบวนการแสกน
 
 function triggerFaceScanSuccess(cardId, matchPercent, descriptor) {
-    // 1. ตรวจสอบว่าระบบถูกล็อคอยู่หรือไม่
     const isAlertOpen = !document.getElementById('customAlertModal').classList.contains('hidden');
     const isCompModalOpen = !document.getElementById('companionModal').classList.contains('hidden');
     const isCaptureModalOpen = !document.getElementById('captureModal').classList.contains('hidden');
     
     if (isAlertOpen || isCompModalOpen || isCaptureModalOpen || isSystemBusy) return;
 
-    // 2. Cooldown
+    // Cooldown ป้องกันแสกนซ้ำซ้อน
     if (lastScannedFaceId === cardId) return;
     lastScannedFaceId = cardId;
     setTimeout(() => { lastScannedFaceId = null; }, (systemSettings.aiCooldown || 10) * 1000);
 
-    // 3. เก็บข้อมูลไว้เผื่อเลือก Improve AI
+    // --- จุดที่แก้ไข: ล็อคค่า % ณ วินาทีที่แสกนผ่านลงใน UI ---
+    const scoreValEl = document.getElementById('lowScoreVal');
+    if (scoreValEl) {
+        scoreValEl.textContent = matchPercent; // ตัวเลขจะนิ่งอยู่ที่ค่านี้จนกว่าจะมีคนต่อไปแสกน
+    }
+    const improveBox = document.getElementById('improveAiBox');
+    if (improveBox) improveBox.classList.remove('hidden');
+
+    // เก็บข้อมูลไว้สำหรับการกด "ถ่ายรูปเพิ่ม"
     lastMatchData = {
         cardId: cardId,
         descriptor: JSON.stringify(Array.from(descriptor)),
         score: matchPercent
     };
 
-    // 4. สั่งแสกนเข้า-ออก
+    // ส่งรหัสไปประมวลผลบันทึกเข้า-ออก
     const mainInput = document.getElementById('scanInput');
     mainInput.value = cardId;
     processMainScan();
@@ -4948,35 +4983,8 @@ function openCaptureModal() {
     if (window.lucide) lucide.createIcons();
 }
 
-/**
- * ฟังก์ชันปิดหน้าต่างถ่ายรูปเสริม
- */
-// แก้ไขฟังก์ชันปิด Modal ให้นิ่งขึ้น
-function closeCaptureModal() {
-    document.getElementById('captureModal').classList.add('hidden');
-    document.getElementById('captureCountdownUI').classList.add('hidden');
-    
-    // สำคัญ: เมื่อถ่ายเสร็จหรือยกเลิก ต้องสั่งปิดกล้องให้สนิทเพื่อ Reset สถานะ
-    forceShutdownCamera(); 
-    
-    // แสดงข้อความดีเลย์ก่อนกลับมาแสกนปกติ
-    const delayStatus = document.getElementById('systemDelayStatus');
-    if (delayStatus) {
-        delayStatus.classList.remove('hidden');
-        delayStatus.textContent = "กำลังเริ่มระบบแสกนใหม่ใน 3 วินาที...";
-    }
 
-    setTimeout(() => {
-        isSystemBusy = false;
-        isCapturingSupplemental = false;
-        if (delayStatus) delayStatus.classList.add('hidden');
-        // ถ้าอยู่หน้า Home ให้เปิดกล้องกลับมาใหม่เพื่อพร้อมใช้งาน
-        if (currentPage === 'home' && isCameraActive === false) {
-             // คุณสามารถเลือกได้ว่าจะให้เปิดกล้องอัตโนมัติไหม 
-             // หรือรอให้ผู้ใช้กดปุ่มเปิดเองอีกครั้งเพื่อความปลอดภัย
-        }
-    }, 3000);
-}
+
 
 // ระบบนับถอยหลัง 3-2-1
 // ฟังก์ชันเมื่อถ่ายรูปเสร็จแล้วสั่งนับถอยหลังกลับ
