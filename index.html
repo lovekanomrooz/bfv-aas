@@ -2273,6 +2273,10 @@ function clearAllFailedScans() {
  * ฟังก์ชันยืนยันและแสดงผลสถานะการบันทึกสำเร็จบนหน้าจอ
  * ปรับปรุง: ให้ปุ่มเพิ่มรูปเสริมแสดงเสมอหากเปิดโหมดกล้องอยู่
  */
+/**
+ * ฟังก์ชันยืนยันและแสดงผลสถานะการบันทึกสำเร็จบนหน้าจอ
+ * ปรับปรุง: ดึงค่า % ความแม่นยำจริงมาแสดง และป้องกันค่าดีดกลับเป็น 100
+ */
 function confirmStatusUI(finalStatus, logTime, fullRes = null) {
     // 1. ตรวจสอบว่าคนที่เพิ่งบันทึกสำเร็จ คือคนที่กำลังโชว์ข้อมูลบนหน้าจอหลักหรือไม่
     if (fullRes && String(fullRes.cardInfo.cardId).toUpperCase() === currentDisplayCardId) {
@@ -2282,7 +2286,7 @@ function confirmStatusUI(finalStatus, logTime, fullRes = null) {
         badge.innerHTML = finalStatus; 
         badge.className = `absolute top-0 right-0 px-20 py-6 rounded-bl-[40px] font-black text-5xl text-white shadow-2xl z-10 tracking-widest transition-all duration-500 ${finalStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
         
-        // --- อัปเดตเวลาที่บันทึก ---
+        // --- อัปเดตเวลาที่บันทึก (จัดรูปแบบขึ้นบรรทัดใหม่) ---
         document.getElementById('resTime').innerHTML = formatDateTime(logTime).replace(' | ', '<br>');
         
         // --- จัดการข้อมูลผู้ติดตาม (ถ้ามี) ---
@@ -2295,29 +2299,31 @@ function confirmStatusUI(finalStatus, logTime, fullRes = null) {
             document.getElementById('resCompanionBox').classList.add('hidden');
         }
 
-        // --- ส่วนที่เพิ่มใหม่: แสดงปุ่ม Improve AI (ปุ่มรูปเสริม) เสมอถ้าเปิดกล้องอยู่ ---
+        // --- ส่วนที่แก้ไข: แสดงปุ่ม Improve AI และดึงค่า % ความแม่นยำจริงมาโชว์ ---
         if (isCameraActive) { 
             const improveBox = document.getElementById('improveAiBox');
-            if (improveBox) {
-                // ถ้าแสกนบาร์โค้ดมา เราจะแสดงเป็น 100% หรือไม่ระบุ
-                document.getElementById('lowScoreVal').textContent = "100"; 
+            const scoreValEl = document.getElementById('lowScoreVal');
+            if (improveBox && scoreValEl) {
+                
+                // ตรวจสอบว่า lastMatchData มีข้อมูลตรงกับบัตรที่เพิ่งบันทึกหรือไม่
+                // ถ้าตรงกัน (แสกนด้วยหน้า) ให้ใช้ค่า score จากตัวแปรนั้น
+                // ถ้าไม่ตรง (เช่น แสกนด้วยบาร์โค้ด) ให้แสดง 100
+                let actualScore = 100;
+                if (lastMatchData && String(lastMatchData.cardId).toUpperCase() === String(fullRes.cardInfo.cardId).toUpperCase()) {
+                    actualScore = lastMatchData.score;
+                }
+                
+                scoreValEl.textContent = actualScore; 
                 improveBox.classList.remove('hidden');
-
-                // สำคัญ: เก็บข้อมูลรหัสบัตรไว้ใน lastMatchData เพื่อให้ Modal ถ่ายรูปรู้ว่าต้องเซฟลง ID ไหน
-                lastMatchData = {
-                    cardId: fullRes.cardInfo.cardId,
-                    descriptor: "[]", // จะถูกสร้างใหม่ตอนกดถ่ายรูป
-                    score: 100
-                };
             }
         }
     } 
-    // 2. ถ้าเป็นคนที่แสกนผ่านไปแล้ว (แต่ข้อมูลเพิ่งตอบกลับจาก Server) ให้โชว์ Toast แจ้งเตือนมุมขวา
+    // 2. ถ้าเป็นคนที่แสกนผ่านไปแล้ว (กรณีแสกนรัวๆ แล้วข้อมูลเพิ่งตอบกลับจาก Server) ให้โชว์ Toast แจ้งเตือนมุมขวา
     else if (fullRes) {
         showSuccessToast(fullRes.cardInfo.cardId, fullRes.cardInfo.firstName, finalStatus);
     }
 
-    // 3. อัปเดตรายการประวัติการแสกนล่าสุด (Recent Logs) ในตารางหน้าหลัก
+    // 3. อัปเดตรายการประวัติการแสกนล่าสุด (Recent Logs) ในตารางหน้าหลัก และ Dashboard
     if (fullRes) {
         updateRecentLogsList(fullRes, logTime, finalStatus);
     }
@@ -4274,9 +4280,8 @@ async function startWebcam() {
 //////////////////
 // ฟังก์ชันกวาดล้างกล้องแบบถอนรากถอนโคน
 function forceShutdownCamera() {
-    console.log("System: Executing Nuclear Camera Shutdown...");
+    console.log("System: Performing Clean Shutdown...");
 
-    // 1. หยุดลูปตรวจจับ AI และ Barcode ทันที
     if (faceDetectionInterval) {
         clearInterval(faceDetectionInterval);
         faceDetectionInterval = null;
@@ -4285,60 +4290,40 @@ function forceShutdownCamera() {
         try { Quagga.stop(); } catch(e) {} 
     }
 
-    // 2. หยุดการทำงานของ Hardware (Tracks) ทั้งหมด
-    // เราจะดึง Tracks จากทั้งตัวแปร Global และจาก Video Elements โดยตรงเพื่อความชัวร์
-    const stopTracks = (stream) => {
-        if (stream && stream.getTracks) {
-            stream.getTracks().forEach(track => {
-                track.stop();
-                track.enabled = false;
-            });
-        }
-    };
+    if (webcamStream) {
+        webcamStream.getTracks().forEach(track => {
+            track.stop();
+            track.enabled = false;
+        });
+        webcamStream = null;
+    }
 
-    // หยุดจากตัวแปรหลัก
-    stopTracks(webcamStream);
-    webcamStream = null;
-
-    // 3. ล้างค่า Video Elements ทุกตัว (บังคับให้เบราว์เซอร์ปล่อยคืน Hardware)
     ['webcamVideo', 'captureVideo'].forEach(id => {
         const v = document.getElementById(id);
         if (v) {
-            // หยุดการทำงานของ Stream ที่ค้างอยู่ในวิดีโอตัวนั้นๆ
-            stopTracks(v.srcObject);
             v.pause();
             v.srcObject = null;
-            v.innerHTML = ""; // ล้างข้อมูลภายใน
-            if (v.removeAttribute) v.removeAttribute('src');
-            v.load(); // บังคับโหลดสถานะว่างเปล่า
+            v.load();
         }
     });
 
-    // 4. ล้างหน้าจอ Canvas
     const canvas = document.getElementById('webcamCanvas');
     if (canvas) {
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
-    // 5. รีเซ็ตสถานะ UI
     isCameraActive = false;
     isSystemBusy = false;
-    isCapturingSupplemental = false;
-
-    // ซ่อนกรอบวิดีโอ
+    
     const cameraArea = document.getElementById('cameraArea');
     if (cameraArea) cameraArea.classList.add('hidden');
 
-    // รีเซ็ตปุ่ม
     const btn = document.getElementById('btnToggleCamera');
-    const btnText = document.getElementById('cameraBtnText');
-    if (btn && btnText) {
-        btnText.textContent = "เปิดแสกน (กล้อง AI)";
+    if (btn) {
         btn.classList.replace('bg-gray-600', 'bg-indigo-600');
+        document.getElementById('cameraBtnText').textContent = "เปิดแสกน (กล้อง AI)";
     }
-
-    console.log("System: Camera hardware released successfully.");
 }
 //////////////////////////
 // ตรวจสอบว่า navigateTo มีการเรียกใช้ตัวใหม่นี้
@@ -4629,7 +4614,7 @@ function drawFaceBox(ctx, detection, result) {
     ctx.save();
     ctx.translate(box.x + (box.width / 2), box.y - 15);
     ctx.scale(-1, 1);
-    ctx.font = 'bold 18px Prompt';
+    ctx.font = 'bold 10px Prompt';
     ctx.textAlign = 'center';
     const tw = ctx.measureText(displayMsg).width;
     ctx.fillStyle = boxColor;
@@ -4674,6 +4659,7 @@ async function startCaptureCountdown() {
 }
 
 // แก้ไขฟังก์ชันถ่ายรูปเสริม (แก้บั๊ก Descriptor เป็น [])
+// 2.1 ปรับปรุง executeCapture (ลบการ restart กล้องออกไปก่อน)
 async function executeCapture() {
     const video = document.getElementById('captureVideo');
     const canvas = document.createElement('canvas');
@@ -4684,41 +4670,27 @@ async function executeCapture() {
     const base64 = canvas.toDataURL('image/jpeg', 0.8);
 
     try {
-        // 1. ตรวจจับใบหน้าจากภาพที่เพิ่งกดชัตเตอร์
         const detection = await faceapi.detectSingleFace(canvas).withFaceLandmarks().withFaceDescriptor();
-        
         if (!detection) {
             showToast('AI ตรวจไม่พบใบหน้าในรูปนี้ กรุณาลองใหม่', 'error');
             return;
         }
 
-        // 2. คำนวณความแม่นยำเทียบกับรูปหลักใน DB (ถ้ามี)
-        let realScore = 100;
-        const currentCardId = lastMatchData.cardId;
-        
-        // ดึง Descriptor ของรูปหลักจาก faceGroups (ที่เราโหลดไว้ตอน init)
-        if (faceGroups[currentCardId] && faceGroups[currentCardId].length > 0) {
-            const mainDescriptor = faceGroups[currentCardId][0]; // ตัวแรกมักจะเป็นรูปหลัก
-            const distance = faceapi.euclideanDistance(detection.descriptor, mainDescriptor);
-            realScore = Math.round((1 - distance) * 100);
-        }
-
+        let realScore = (lastMatchData) ? lastMatchData.score : 100;
         const descriptorJson = JSON.stringify(Array.from(detection.descriptor));
 
-        // 3. ส่งบันทึกไปที่ Server
         await apiCall('saveSupplementalFace', {
-            cardId: currentCardId,
+            cardId: lastMatchData.cardId,
             imageBase64: base64,
             faceDescriptor: descriptorJson,
             faceType: 'auto_improve',
             confidence: realScore
         }, false);
 
-        showToast('บันทึกรูปเสริมสำเร็จ (' + realScore + '%)', 'success');
+        showToast('บันทึกรูปเสริมสำเร็จ', 'success');
         
-        // 4. สั่งรีโหลดโมเดล AI ใหม่เพื่อให้จำภาพใหม่ได้ทันที
-        initFaceMatcherForWebcam(); 
-
+        // ไม่ต้องสั่ง initFaceMatcher ตรงนี้ เพราะกล้องหลักยังเปิดอยู่ 
+        // เราจะไปปลดล็อคให้ทำงานต่อใน cooldown แทน
     } catch(e) { 
         console.error(e);
         showToast('บันทึกรูปล้มเหลว', 'error'); 
@@ -4907,26 +4879,21 @@ editCard = function(id) {
     }
 }
 
-	  // แก้ไขฟังก์ชันปิด Modal ถ่ายรูปให้สั่ง Shutdown กล้อง
+	  // 2.2 ปรับปรุง closeCaptureModal (กรณีกดยกเลิก - ไม่ต้องปิดกล้องหลัก)
 function closeCaptureModal() {
-     document.getElementById('captureModal').classList.add('hidden');
+    document.getElementById('captureModal').classList.add('hidden');
     document.getElementById('captureCountdownUI').classList.add('hidden');
     
-    // สำคัญ: สั่ง Shutdown กล้องทันที
-    forceShutdownCamera(); 
-    showToast('ปิดโหมดบันทึกภาพเสริมแล้ว', 'info');
-    // แสดงสถานะนับถอยหลังก่อนเปิดแสกนใหม่
-    const delayStatus = document.getElementById('systemDelayStatus');
-    if (delayStatus) {
-        delayStatus.classList.remove('hidden');
-        delayStatus.textContent = "กำลังรีเซ็ตระบบกล้องใน 3 วินาที...";
-    }
+    // ล้างเฉพาะวิดีโอใน Modal
+    const capVid = document.getElementById('captureVideo');
+    if (capVid) capVid.srcObject = null;
 
+    // หน่วงเวลาเล็กน้อยเพื่อให้ระบบหลักกลับมาทำงาน
     setTimeout(() => {
-        if (delayStatus) delayStatus.classList.add('hidden');
         isSystemBusy = false;
-        showToast('ระบบพร้อมทำงานต่อแล้ว', 'info');
-    }, 3000);
+        isCapturingSupplemental = false;
+        showToast('กลับสู่โหมดแสกนปกติ', 'info');
+    }, 1000);
 }
 	  ////////////////////////////
 // ฟังก์ชันเมื่อจับคู่หน้าผ่านแล้ว ส่งเข้ากระบวนการแสกน
@@ -5020,14 +4987,15 @@ async function runCaptureSequence() {
     }, 1000);
 }
 	  // ฟังก์ชันนับถอยหลังกลับหน้าแสกนหลัก (3-2-1 กลางจอ)
-// ฟังก์ชันนับถอยหลังกลับ (กรณีถ่ายเสร็จ)
+// 2.3 ปรับปรุง startReturnCooldown (หัวใจหลัก: ไม่สั่ง forceShutdownCamera)
 function startReturnCooldown() {
     const modal = document.getElementById('cooldownModal');
     const numText = document.getElementById('cooldownNum');
     modal.classList.remove('hidden');
     
-    // ระหว่างที่โชว์เลขนับถอยหลัง (3-2-1) ให้ Shutdown กล้องไปเลย
-    forceShutdownCamera(); 
+    // ล้างวิดีโอใน Modal เท่านั้น แต่ "ไม่" สั่ง forceShutdownCamera ของระบบหลัก
+    const capVid = document.getElementById('captureVideo');
+    if (capVid) capVid.srcObject = null;
 
     let count = 5;
     numText.textContent = count;
@@ -5039,8 +5007,16 @@ function startReturnCooldown() {
         } else {
             clearInterval(timer);
             modal.classList.add('hidden');
+            
+            // ปลดล็อคสถานะ เพื่อให้ลูปแสกนใบหน้าที่เปิดค้างอยู่ทำงานต่อได้ทันที
             isSystemBusy = false;
-            showToast('ระบบพร้อมทำงานต่อแล้ว', 'success');
+            isCapturingSupplemental = false;
+            lastScannedFaceId = null; 
+            
+            // สั่งอัปเดตข้อมูล Model ใหม่แบบเบื้องหลัง (ไม่เปิดกล้องซ้ำ)
+            initFaceMatcherForWebcam(); 
+            
+            showToast('ระบบพร้อมแสกนต่อแล้ว', 'success');
         }
     }, 1000);
 }
