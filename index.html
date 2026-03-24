@@ -4278,18 +4278,29 @@ async function startWebcam() {
     }
 }
 //////////////////
-// ฟังก์ชันกวาดล้างกล้องแบบถอนรากถอนโคน
-function forceShutdownCamera() {
-    console.log("System: Performing Clean Shutdown...");
+async function forceShutdownCamera() {
+    console.log("CRITICAL: Camera Hardware Hard-Reset...");
 
+    // 1. หยุดลูปการทำงานของ AI
     if (faceDetectionInterval) {
         clearInterval(faceDetectionInterval);
         faceDetectionInterval = null;
     }
-    if (typeof Quagga !== 'undefined') { 
-        try { Quagga.stop(); } catch(e) {} 
+
+    // 2. หยุด Quagga (บาร์โค้ด) และล้าง Video ภายในที่ Quagga สร้างขึ้น
+    if (typeof Quagga !== 'undefined') {
+        try {
+            Quagga.stop();
+            // ค้นหาวิดีโอที่ Quagga อาจสร้างทิ้งไว้ในระบบ
+            const quaggaVideo = document.querySelector('#cameraArea video');
+            if (quaggaVideo && quaggaVideo.srcObject) {
+                quaggaVideo.srcObject.getTracks().forEach(t => t.stop());
+                quaggaVideo.srcObject = null;
+            }
+        } catch (e) { console.warn("Quagga Stop Error:", e); }
     }
 
+    // 3. ปิดสตรีมหลัก (webcamStream)
     if (webcamStream) {
         webcamStream.getTracks().forEach(track => {
             track.stop();
@@ -4298,32 +4309,39 @@ function forceShutdownCamera() {
         webcamStream = null;
     }
 
+    // 4. ล้างค่าใน Video Elements ทุกตัว (webcamVideo, captureVideo)
     ['webcamVideo', 'captureVideo'].forEach(id => {
         const v = document.getElementById(id);
         if (v) {
             v.pause();
-            v.srcObject = null;
-            v.load();
+            if (v.srcObject) {
+                v.srcObject.getTracks().forEach(t => t.stop());
+                v.srcObject = null;
+            }
+            v.removeAttribute('src'); 
+            v.load(); 
         }
     });
 
-    const canvas = document.getElementById('webcamCanvas');
-    if (canvas) {
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
+    // 5. วิธีสุดท้าย (Fail-safe): ปิดทุก Track ที่เบราว์เซอร์เปิดค้างไว้ในหน้านี้
+    try {
+        const activeStreams = await navigator.mediaDevices.enumerateDevices();
+        // หมายเหตุ: เบราว์เซอร์ส่วนใหญ่จะไม่อนุญาตให้เข้าถึงสตรีมคนอื่นโดยตรง 
+        // แต่การสั่งล้าง srcObject ในข้อ 4 มักจะเพียงพอแล้ว
+    } catch(e) {}
 
+    // 6. อัปเดต UI
     isCameraActive = false;
     isSystemBusy = false;
-    
-    const cameraArea = document.getElementById('cameraArea');
-    if (cameraArea) cameraArea.classList.add('hidden');
+    isCapturingSupplemental = false;
 
+    document.getElementById('cameraArea').classList.add('hidden');
     const btn = document.getElementById('btnToggleCamera');
     if (btn) {
         btn.classList.replace('bg-gray-600', 'bg-indigo-600');
         document.getElementById('cameraBtnText').textContent = "เปิดแสกน (กล้อง AI)";
     }
+    document.getElementById('faceScanStatus').innerHTML = 'ปิดการทำงานกล้องและฮาร์ดแวร์แล้ว';
 }
 //////////////////////////
 // ตรวจสอบว่า navigateTo มีการเรียกใช้ตัวใหม่นี้
@@ -4993,7 +5011,7 @@ function startReturnCooldown() {
     const numText = document.getElementById('cooldownNum');
     modal.classList.remove('hidden');
     
-    // ล้างวิดีโอใน Modal เท่านั้น แต่ "ไม่" สั่ง forceShutdownCamera ของระบบหลัก
+    // ล้างภาพในตัว Preview ของ Modal ทิ้ง
     const capVid = document.getElementById('captureVideo');
     if (capVid) capVid.srcObject = null;
 
@@ -5008,17 +5026,49 @@ function startReturnCooldown() {
             clearInterval(timer);
             modal.classList.add('hidden');
             
-            // ปลดล็อคสถานะ เพื่อให้ลูปแสกนใบหน้าที่เปิดค้างอยู่ทำงานต่อได้ทันที
             isSystemBusy = false;
             isCapturingSupplemental = false;
             lastScannedFaceId = null; 
+
+            // *** สำคัญ: แทนที่จะ Restart กล้องใหม่ทั้งหมด (ซึ่งทำให้ไฟกะพริบหรือค้าง)
+            // เราแค่สั่ง Refresh ข้อมูล Database ของหน้าคนเท่านั้น
+            refreshFaceDataOnly();
             
-            // สั่งอัปเดตข้อมูล Model ใหม่แบบเบื้องหลัง (ไม่เปิดกล้องซ้ำ)
-            initFaceMatcherForWebcam(); 
-            
-            showToast('ระบบพร้อมแสกนต่อแล้ว', 'success');
+            showToast('ระบบพร้อมทำงานต่อแล้ว', 'success');
         }
     }, 1000);
+}
+
+	  async function refreshFaceDataOnly() {
+    if (!isFaceApiLoaded) return;
+    try {
+        const faces = await apiCall('getCardFaces', {}, false);
+        const labeledDescriptors = [];
+        faceGroups = {}; 
+
+        faces.forEach(f => {
+            if (!faceGroups[f.cardId]) faceGroups[f.cardId] = [];
+            try {
+                if (f.faceDescriptor && f.faceDescriptor.trim() !== "" && f.faceDescriptor !== "[]") {
+                    faceGroups[f.cardId].push(new Float32Array(JSON.parse(f.faceDescriptor)));
+                }
+            } catch (e) {}
+        });
+
+        for (const cardId in faceGroups) {
+            if (faceGroups[cardId].length > 0) {
+                labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(cardId, faceGroups[cardId]));
+            }
+        }
+
+        if (labeledDescriptors.length > 0) {
+            const currentThreshold = systemSettings.aiThreshold || 0.38;
+            faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, currentThreshold);
+            console.log("AI Database Synced (New data loaded)");
+        }
+    } catch (err) {
+        console.error("Sync Error:", err);
+    }
 }
 //---------------
 // ==========================================
