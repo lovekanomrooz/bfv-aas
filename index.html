@@ -1925,8 +1925,12 @@ function toggleHybridCamera() {
       // --- เพิ่มบรรทัดนี้ลงไปเพื่อปิดกล้องเสมอเวลาเปลี่ยนหน้า ---
     if(typeof stopWebcam === 'function') stopWebcam(); 
     // --------------------------------------------------
-        currentPage=p; document.querySelectorAll('.page').forEach(x=>x.classList.add('hidden')); document.getElementById(p+'Page').classList.remove('hidden');
-        document.querySelectorAll('.sidebar-item').forEach(i => { i.classList.remove('active'); if(i.dataset.page===p) i.classList.add('active'); });
+        forceShutdownCamera(); // ปิดกล้องและเคลียร์ UI ทุกครั้งที่เปลี่ยนหน้า
+    currentPage = p; 
+    document.querySelectorAll('.page').forEach(x => x.classList.add('hidden')); 
+    document.getElementById(p + 'Page').classList.remove('hidden');
+        document.querySelectorAll('.sidebar-item').forEach(i => { i.classList.remove('active'); 
+		if(i.dataset.page===p) i.classList.add('active'); });
         toggleSidebar(false);
         
         if(p==='home') { initBanner(); renderHomeDashboard(); renderRecentLogsTable(); setTimeout(()=>document.getElementById('scanInput').focus(), 300); }
@@ -4271,22 +4275,21 @@ async function startWebcam() {
 }
 //////////////////
 // ฟังก์ชันกวาดล้างกล้องแบบถอนรากถอนโคน
-// แก้ไขฟังก์ชันหยุดกล้องให้เด็ดขาด
 function forceShutdownCamera() {
-    console.log("System: Shutting down all camera processes...");
-    
-    // 1. หยุด Quagga (Barcode)
+    console.log("System: Forced Full Shutdown initiated...");
+
+    // 1. หยุด Quagga (บาร์โค้ด)
     if (typeof Quagga !== 'undefined') { 
-        try { Quagga.stop(); } catch(e) { console.log("Quagga already stopped"); } 
+        try { Quagga.stop(); } catch(e) {} 
     }
 
-    // 2. หยุด Face Detection Interval
+    // 2. หยุดลูปตรวจจับใบหน้า
     if (faceDetectionInterval) {
         clearInterval(faceDetectionInterval);
         faceDetectionInterval = null;
     }
 
-    // 3. ปิดการเข้าถึง Hardware (Tracks)
+    // 3. ปิดกล้อง Hardware
     if (webcamStream) {
         webcamStream.getTracks().forEach(track => {
             track.stop();
@@ -4295,7 +4298,7 @@ function forceShutdownCamera() {
         webcamStream = null;
     }
 
-    // 4. ล้าง Video Element
+    // 4. ล้างค่า Video Element
     ['webcamVideo', 'captureVideo'].forEach(id => {
         const v = document.getElementById(id);
         if (v) {
@@ -4306,9 +4309,24 @@ function forceShutdownCamera() {
         }
     });
 
+    // --- ส่วนที่เพิ่มใหม่: รีเซ็ต UI ทั้งหมด ---
+    const cameraArea = document.getElementById('cameraArea');
+    if (cameraArea) cameraArea.classList.add('hidden'); // ซ่อนจอดำ
+
+    const btn = document.getElementById('btnToggleCamera');
+    const btnText = document.getElementById('cameraBtnText');
+    if (btn && btnText) {
+        btnText.textContent = "เปิดแสกน (กล้อง AI)";
+        btn.classList.remove('bg-gray-600', 'hover:bg-gray-700');
+        btn.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+    }
+
     isCameraActive = false;
+    isSystemBusy = false; // ปลดล็อคระบบ
+    isCapturingSupplemental = false; 
+
     const statusEl = document.getElementById('faceScanStatus');
-    if(statusEl) statusEl.innerHTML = 'กล้องถูกปิดการใช้งาน';
+    if (statusEl) statusEl.innerHTML = 'ระบบพร้อมทำงาน...';
 }
 
 // ตรวจสอบว่า navigateTo มีการเรียกใช้ตัวใหม่นี้
@@ -4645,41 +4663,53 @@ async function startCaptureCountdown() {
 
 // แก้ไขฟังก์ชันถ่ายรูปเสริม (แก้บั๊ก Descriptor เป็น [])
 async function executeCapture() {
-    const video = document.getElementById('captureVideo') || document.getElementById('webcamVideo');
+    const video = document.getElementById('captureVideo');
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d');
-    
-    // วาดภาพจากวิดีโอลง canvas
     ctx.drawImage(video, 0, 0);
     const base64 = canvas.toDataURL('image/jpeg', 0.8);
 
     try {
-        // *** สำคัญ: ทำการตรวจจับใบหน้าจากภาพที่ "ถ่ายได้" อีกครั้ง เพื่อให้ได้ค่าที่ถูกต้อง ***
+        // 1. ตรวจจับใบหน้าจากภาพที่เพิ่งกดชัตเตอร์
         const detection = await faceapi.detectSingleFace(canvas).withFaceLandmarks().withFaceDescriptor();
         
         if (!detection) {
-            showToast('ไม่สามารถบันทึกได้: AI ตรวจไม่พบใบหน้าในรูปที่ถ่าย', 'error');
+            showToast('AI ตรวจไม่พบใบหน้าในรูปนี้ กรุณาลองใหม่', 'error');
             return;
         }
 
-        const descriptor = JSON.stringify(Array.from(detection.descriptor));
-        const score = Math.round((1 - faceapi.euclideanDistance(detection.descriptor, detection.descriptor)) * 100); // หรือใช้ 100 ถ้าจะระบุว่ารูปนี้คือต้นแบบ
+        // 2. คำนวณความแม่นยำเทียบกับรูปหลักใน DB (ถ้ามี)
+        let realScore = 100;
+        const currentCardId = lastMatchData.cardId;
+        
+        // ดึง Descriptor ของรูปหลักจาก faceGroups (ที่เราโหลดไว้ตอน init)
+        if (faceGroups[currentCardId] && faceGroups[currentCardId].length > 0) {
+            const mainDescriptor = faceGroups[currentCardId][0]; // ตัวแรกมักจะเป็นรูปหลัก
+            const distance = faceapi.euclideanDistance(detection.descriptor, mainDescriptor);
+            realScore = Math.round((1 - distance) * 100);
+        }
 
+        const descriptorJson = JSON.stringify(Array.from(detection.descriptor));
+
+        // 3. ส่งบันทึกไปที่ Server
         await apiCall('saveSupplementalFace', {
-            cardId: lastMatchData.cardId,
+            cardId: currentCardId,
             imageBase64: base64,
-            faceDescriptor: descriptor,
+            faceDescriptor: descriptorJson,
             faceType: 'auto_improve',
-            confidence: score
+            confidence: realScore
         }, false);
 
-        showToast('บันทึกรูปเสริมสำเร็จ', 'success');
-        initFaceMatcherForWebcam(); // รีโหลดโมเดล AI
+        showToast('บันทึกรูปเสริมสำเร็จ (' + realScore + '%)', 'success');
+        
+        // 4. สั่งรีโหลดโมเดล AI ใหม่เพื่อให้จำภาพใหม่ได้ทันที
+        initFaceMatcherForWebcam(); 
+
     } catch(e) { 
         console.error(e);
-        showToast('บันทึกรูปเสริมล้มเหลว', 'error'); 
+        showToast('บันทึกรูปล้มเหลว', 'error'); 
     }
 }
 // แก้ไขฟังก์ชันปิดโหมดกล้อง ให้ปิด Quagga ด้วย
@@ -4921,24 +4951,31 @@ function openCaptureModal() {
 /**
  * ฟังก์ชันปิดหน้าต่างถ่ายรูปเสริม
  */
+// แก้ไขฟังก์ชันปิด Modal ให้นิ่งขึ้น
 function closeCaptureModal() {
-    // 1. ปิดหน้าต่าง Modal
     document.getElementById('captureModal').classList.add('hidden');
     document.getElementById('captureCountdownUI').classList.add('hidden');
     
-    // 2. แสดงสถานะดีเลย์ที่หน้าจอหลัก
+    // สำคัญ: เมื่อถ่ายเสร็จหรือยกเลิก ต้องสั่งปิดกล้องให้สนิทเพื่อ Reset สถานะ
+    forceShutdownCamera(); 
+    
+    // แสดงข้อความดีเลย์ก่อนกลับมาแสกนปกติ
     const delayStatus = document.getElementById('systemDelayStatus');
-    if (delayStatus) delayStatus.classList.remove('hidden');
+    if (delayStatus) {
+        delayStatus.classList.remove('hidden');
+        delayStatus.textContent = "กำลังเริ่มระบบแสกนใหม่ใน 3 วินาที...";
+    }
 
-    // 3. หน่วงเวลา 3 วินาทีก่อนเริ่มแสกนใหม่
-    console.log("System Cooldown started...");
     setTimeout(() => {
-        isSystemBusy = false; 
+        isSystemBusy = false;
         isCapturingSupplemental = false;
         if (delayStatus) delayStatus.classList.add('hidden');
-        console.log("System Ready for next scan.");
-        showToast('ระบบพร้อมทำงานต่อแล้ว', 'info');
-    }, 3000); 
+        // ถ้าอยู่หน้า Home ให้เปิดกล้องกลับมาใหม่เพื่อพร้อมใช้งาน
+        if (currentPage === 'home' && isCameraActive === false) {
+             // คุณสามารถเลือกได้ว่าจะให้เปิดกล้องอัตโนมัติไหม 
+             // หรือรอให้ผู้ใช้กดปุ่มเปิดเองอีกครั้งเพื่อความปลอดภัย
+        }
+    }, 3000);
 }
 
 // ระบบนับถอยหลัง 3-2-1
