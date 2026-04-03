@@ -1470,6 +1470,167 @@ let vehicleFlowData = {
 	  //////////////
 let allVehicles = [];
 let typeVehicles = [];
+
+/**
+ * 1. ฟังก์ชันรีเฟรชข้อมูล (แก้ให้ชื่อตรงกับปุ่มใน HTML)
+ */
+async function refreshVehiclesData() {
+    showLoader('กำลังอัปเดตข้อมูลรถ...');
+    try {
+        await fetchVehiclesData();
+        showToast('อัปเดตข้อมูลรถสำเร็จ', 'success');
+    } catch (e) {
+        showToast('โหลดข้อมูลล้มเหลว', 'error');
+    } finally {
+        hideLoader();
+    }
+}
+
+/**
+ * 2. ฟังก์ชันวาด Checkbox พื้นที่ใน Modal รถ (สูงสุด 4 ตามกฎเดิม)
+ */
+function renderVehAreaCheckboxes(selectedStr) {
+    const container = document.getElementById('vehAreaCheckboxes');
+    if (!allAreas || allAreas.length === 0) {
+        container.innerHTML = '<span class="text-xs text-gray-400">ยังไม่ตั้งค่าพื้นที่</span>';
+        return;
+    }
+    const selectedArr = selectedStr ? selectedStr.toString().split(',') : [];
+    
+    container.innerHTML = allAreas.filter(a => a.status === 'active').map(a => `
+        <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-orange-50 border border-transparent transition">
+            <input type="checkbox" class="w-4 h-4 text-orange-600 rounded veh-area-cb" value="${a.areaNumber}" 
+                ${selectedArr.includes(String(a.areaNumber)) ? 'checked' : ''} onchange="limitVehAreaCheckboxes(this)">
+            <div class="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold text-gray-900 shadow-sm border" style="background-color: ${a.colorCode};">${a.areaNumber}</div>
+            <span class="text-xs font-bold text-gray-700 truncate">${a.areaName}</span>
+        </label>
+    `).join('');
+}	  
+
+// จำกัดการเลือกพื้นที่บัตรรถไม่เกิน 4
+function limitVehAreaCheckboxes(el) {
+    const checkedCount = document.querySelectorAll('.veh-area-cb:checked').length;
+    if (checkedCount > 4) {
+        el.checked = false;
+        showToast('เลือกพื้นที่ได้สูงสุด 4 หมายเลข', 'warning');
+    }
+}
+
+	  /**
+ * 3. ฟังก์ชันวาด Checkbox ประตูที่อนุญาตให้รถผ่าน
+ */
+function renderVehGateCheckboxes(selectedStr) {
+    const container = document.getElementById('vehGateCheckboxes');
+    const selectedArr = selectedStr ? selectedStr.toString().split(',') : [];
+
+    // กรองเฉพาะประตูที่ติ๊กว่า "isVehicleGate" (ซึ่งเราจะทำในเฟสถัดไป แต่ตอนนี้ให้โชว์ทั้งหมดก่อน)
+    container.innerHTML = allGates.filter(g => g.status === 'active').map(g => `
+        <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-orange-50 border border-transparent transition">
+            <input type="checkbox" class="w-4 h-4 text-orange-600 rounded veh-gate-cb" value="${g.id}" 
+                ${selectedArr.includes(String(g.id)) ? 'checked' : ''}>
+            <span class="text-xs font-bold text-gray-700 truncate">${g.name}</span>
+        </label>
+    `).join('');
+}
+
+	  /**
+ * 4. ฟังก์ชันคำนวณวันหมดอายุรถ (อิงตามประเภทรถ)
+ */
+function calcVehExpiryDate() {
+    const typeId = document.getElementById('vehTypeInp').value;
+    const issueStr = document.getElementById('vehIssueDate').value;
+    const expInput = document.getElementById('vehExpiryDate');
+
+    if (!typeId || !issueStr) return;
+    const typeInfo = typeVehicles.find(t => Number(t.id) === Number(typeId));
+    if (!typeInfo) return;
+
+    let date = new Date(issueStr);
+    const val = parseInt(typeInfo.durationValue);
+    
+    if (typeInfo.durationType === 'year') date.setFullYear(date.getFullYear() + val);
+    else if (typeInfo.durationType === 'month') date.setMonth(date.getMonth() + val);
+    else if (typeInfo.durationType === 'day') date.setDate(date.getDate() + val);
+
+    expInput.value = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+}
+	  /**
+ * 5. ฟังก์ชันบันทึกข้อมูลรถ (saveVehicle)
+ */
+async function saveVehicle() {
+    const id = document.getElementById('editVehDbId').value;
+    const carId = document.getElementById('vehIdInp').value.trim();
+    const reg = document.getElementById('vehRegInp').value.trim();
+    
+    if (!carId || !reg) return showToast('กรุณากรอกรหัสควบคุมและทะเบียนรถ', 'error');
+
+    const data = {
+        carId: carId,
+        vehicleReg: reg.toUpperCase(),
+        typeVehicleId: document.getElementById('vehTypeInp').value,
+        vehicleDesc: document.getElementById('vehDescInp').value,
+        requesterName: document.getElementById('vehReqName').value,
+        requesterLastName: document.getElementById('vehReqLastName').value,
+        position: document.getElementById('vehReqPos').value,
+        organization: document.getElementById('vehReqOrg').value,
+        issueDate: document.getElementById('vehIssueDate').value,
+        expiryDate: document.getElementById('vehExpiryDate').value,
+        status: document.querySelector('input[name="vehStatusInp"]:checked').value,
+        // เก็บ ID ของพื้นที่และประตูเป็น String คั่นด้วยคอมม่า
+        areaAccessIds: Array.from(document.querySelectorAll('.veh-area-cb:checked')).map(cb => cb.value).join(','),
+        allowedGateIds: Array.from(document.querySelectorAll('.veh-gate-cb:checked')).map(cb => cb.value).join(',')
+    };
+
+    showLoader('กำลังบันทึกข้อมูลรถ...');
+    try {
+        if (id) {
+            data.id = id;
+            await apiCall('updateVehicle', data);
+            showToast('แก้ไขข้อมูลรถสำเร็จ', 'success');
+        } else {
+            await apiCall('addVehicle', data);
+            showToast('เพิ่มรถใหม่สำเร็จ', 'success');
+        }
+        closeVehicleModal();
+        fetchVehiclesData(); // โหลดตารางใหม่
+    } catch (e) {
+        showToast('เกิดข้อผิดพลาดในการบันทึก', 'error');
+    } finally {
+        hideLoader();
+    }
+}
+
+/**
+ * 6. ฟังก์ชันแก้ไขรถ (โชว์ข้อมูลเดิมขึ้น Modal)
+ */
+function editVehicle(id) {
+    const v = allVehicles.find(x => Number(x.id) === Number(id));
+    if (!v) return;
+
+    document.getElementById('vehModalTitle').innerHTML = '<i data-lucide="edit"></i> แก้ไขข้อมูลรถ';
+    document.getElementById('editVehDbId').value = v.id;
+    document.getElementById('vehIdInp').value = v.carId;
+    document.getElementById('vehRegInp').value = v.vehicleReg;
+    document.getElementById('vehDescInp').value = v.vehicleDesc || '';
+    document.getElementById('vehReqName').value = v.requesterName || '';
+    document.getElementById('vehReqLastName').value = v.requesterLastName || '';
+    document.getElementById('vehReqPos').value = v.position || '';
+    document.getElementById('vehReqOrg').value = v.organization || '';
+    document.getElementById('vehIssueDate').value = v.issueDate;
+    document.getElementById('vehExpiryDate').value = v.expiryDate;
+    
+    document.querySelector(`input[name="vehStatusInp"][value="${v.status}"]`).checked = true;
+
+    // เลือกประเภทรถ
+    document.getElementById('vehTypeInp').value = v.typeVehicleId;
+
+    // วาด Checkboxes พร้อมเลือกค่าเดิม
+    renderVehAreaCheckboxes(v.areaAccessIds || '');
+    renderVehGateCheckboxes(v.allowedGateIds || '');
+
+    document.getElementById('vehicleModal').classList.remove('hidden');
+    lucide.createIcons();
+}
 	  /**
  * โหลดข้อมูลรถและประเภทรถจาก Server
  */
@@ -2121,6 +2282,7 @@ function toggleHybridCamera() {
         else if(p==='reports') { setupReportFilters(); }
         else if(p==='settings') loadSettings();
         else if(p==='profile') loadProfile();
+		else if(p === 'manageVehicles') fetchVehiclesData();
     }
     function toggleSidebar(show=true){ document.getElementById('sidebar').classList.toggle('-translate-x-full',!show); document.getElementById('sidebarOverlay').classList.toggle('hidden',!show); }
 
