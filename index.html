@@ -5633,21 +5633,39 @@ function startReturnCooldown() {
     }
 
     // (ส่วน Checkbox Area ปล่อยไว้เหมือนเดิม)
-    function renderAreaCheckboxesGen(selectedAreaStr, containerId, inputClass) {
-        const container = document.getElementById(containerId);
-        if(!container) return;
-        if(allAreas.length === 0) { container.innerHTML = '<span class="text-xs text-gray-400 col-span-full">ยังไม่ได้ตั้งค่าพื้นที่</span>'; return; }
-        
-        let selectedArr = [];
-        if(selectedAreaStr) selectedArr = selectedAreaStr.toString().split(',');
-
-        let html = '';
-        allAreas.filter(a => a.status === 'active').forEach(a => {
-            const isChecked = selectedArr.includes(String(a.areaNumber)) ? 'checked' : '';
-            html += `<label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-white border border-transparent hover:border-gray-200 transition bg-white/50"><input type="checkbox" class="w-4 h-4 text-blue-600 rounded ${inputClass}" value="${a.areaNumber}" ${isChecked}><div class="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold text-gray-900 shadow-sm border border-gray-300" style="background-color: ${a.colorCode};">${a.areaNumber}</div><span class="text-xs font-bold text-gray-700 truncate">${a.areaName}</span></label>`;
-        });
-        container.innerHTML = html;
+   function renderAreaCheckboxesGen(selectedAreaStr, containerId, inputClass) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    // ตรวจสอบว่า allAreas (หรือข้อมูลพื้นที่) มีข้อมูลหรือไม่
+    if (!allAreas || allAreas.length === 0) {
+        container.innerHTML = '<span class="text-xs text-gray-400 col-span-full">ยังไม่ได้ตั้งค่าพื้นที่</span>';
+        return;
     }
+    
+    let selectedArr = [];
+    if (selectedAreaStr) {
+        // บังคับให้เป็น String ก่อนเสมอเพื่อป้องกัน Error จากข้อมูลที่เป็นตัวเลข
+        selectedArr = String(selectedAreaStr).split(',').map(x => x.trim());
+    }
+
+    let html = '';
+    // กรองเฉพาะพื้นที่ที่สถานะเปิดใช้งาน (active)
+    allAreas.filter(a => a.status === 'active').forEach(a => {
+        // ตรวจสอบค่า ID หรือ AreaNumber ว่ามีอยู่ในอาเรย์ที่เลือกไว้หรือไม่
+        const isChecked = selectedArr.includes(String(a.areaNumber)) ? 'checked' : '';
+        
+        html += `
+        <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-white border border-transparent hover:border-gray-200 transition bg-white/50">
+            <input type="checkbox" class="w-4 h-4 text-blue-600 rounded ${inputClass}" value="${a.areaNumber}" ${isChecked}>
+            <div class="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold text-gray-900 shadow-sm border border-gray-300" style="background-color: ${a.colorCode};">
+                ${a.areaNumber}
+            </div>
+            <span class="text-xs font-bold text-gray-700 truncate">${a.areaName}</span>
+        </label>`;
+    });
+    container.innerHTML = html;
+}
 	
 	function updateAreaCheckboxState() {
     const checkboxes = document.querySelectorAll('.input-area-cb');
@@ -5817,7 +5835,8 @@ async function previewIdCard(id) {
         const areaContainer = document.getElementById('renderAreaBoxes');
         if (areaContainer) {
             areaContainer.innerHTML = ''; // ล้างค่าเก่า
-            
+
+			 
             // รีเซ็ตสไตล์กลับเป็นค่าเริ่มต้น (แนวตั้ง) ก่อนเผื่อกรณีพรีวิวใบก่อนหน้าเป็นแบบ Grid
             areaContainer.style.display = 'flex';
             areaContainer.style.flexDirection = 'column';
