@@ -1745,9 +1745,35 @@ function openTypeVehicleModal() {
     document.getElementById('typeVehicleModal').classList.remove('hidden');
 }
 
+/**
+ * 2. เพิ่มฟังก์ชันลบประเภทบัตรรถ (ที่ทำหายไป)
+ */
+async function deleteTypeVehicle(id) {
+    if(confirm('ยืนยันลบประเภทบัตรรถนี้? \n(หมายเหตุ: รถที่ใช้ประเภทนี้อยู่ข้อมูลอาจแสดงผลผิดพลาด)')) {
+        showLoader('กำลังลบข้อมูล...');
+        try {
+            await apiCall('deleteTypeVehicle', { id: id });
+            
+            // อัปเดตข้อมูลใน Local และวาดตารางใหม่
+            await fetchVehiclesData();
+            renderTypeVehiclesTable();
+            
+            showToast('ลบประเภทบัตรรถสำเร็จ', 'success');
+        } catch (e) {
+            showToast('ไม่สามารถลบข้อมูลได้', 'error');
+        } finally {
+            hideLoader();
+        }
+    }
+}
+
+/**
+ * 3. ปรับปรุงฟังก์ชันแก้ไข (ใช้ Number เพื่อความแม่นยำ)
+ */
 function editTypeVehicle(id) {
     const t = typeVehicles.find(x => Number(x.id) === Number(id));
-    if (!t) return;
+    if (!t) return showToast('ไม่พบข้อมูล', 'error');
+    
     document.getElementById('typeVehModalTitle').innerHTML = '<i data-lucide="edit"></i> แก้ไขประเภทบัตรรถ';
     document.getElementById('editTypeVehId').value = t.id;
     document.getElementById('tvName').value = t.typeName;
@@ -1756,10 +1782,14 @@ function editTypeVehicle(id) {
     document.getElementById('tvIsTemp').checked = (t.isTemporary == true || t.isTemporary == 'TRUE');
     document.getElementById('tvStatus').value = t.status;
     document.getElementById('typeVehicleModal').classList.remove('hidden');
+    lucide.createIcons();
 }
 
 function closeTypeVehicleModal() { document.getElementById('typeVehicleModal').classList.add('hidden'); }
 
+/**
+ * 1. ปรับปรุงฟังก์ชันบันทึกให้วาดตารางทันที (แก้ไขปัญหาหน้าเว็บไม่เปลี่ยน)
+ */
 async function saveTypeVehicle() {
     const id = document.getElementById('editTypeVehId').value;
     const data = {
@@ -1781,14 +1811,19 @@ async function saveTypeVehicle() {
             await apiCall('addTypeVehicle', data);
         }
         closeTypeVehicleModal();
-        fetchVehiclesData(); // โหลดข้อมูลรถและประเภทใหม่ทั้งหมด
+        
+        // โหลดข้อมูลใหม่จาก Server และวาดตารางทันที
+        await fetchVehiclesData(); 
+        renderTypeVehiclesTable(); 
+        
         showToast('บันทึกสำเร็จ', 'success');
     } catch (e) {
-        showToast('เกิดข้อผิดพลาด', 'error');
+        showToast('เกิดข้อผิดพลาดในการบันทึก', 'error');
     } finally {
         hideLoader();
     }
 }
+
 
 	  ///////////////////////////////////////
 	  /**
