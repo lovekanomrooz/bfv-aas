@@ -1982,7 +1982,7 @@ function toggleHybridCamera() {
                     allCards = data.allCards || [];
                     cardStats = data.cardStats || { total:0, active:0, inactive:0, byType:{} };
                     monthlyStats = data.monthlyStats || { total: 0, in: 0, out: 0, gates: {} };
-                    allAreas = data.areas || [];
+                    allAreas = data.areaAccess || [];
 
                     updateGateSelects(); 
                     if(currentPage === 'home') {
@@ -2018,7 +2018,7 @@ function toggleHybridCamera() {
                         allCards = data.allCards || [];
                         cardStats = data.cardStats || { total:0, active:0, inactive:0, byType:{} };
                         monthlyStats = data.monthlyStats || { total: 0, in: 0, out: 0, gates: {} };
-						allAreas = data.areas || [];
+						allAreas = data.areaAccess || [];
                         
                         updateGateSelects(); 
                         if(currentPage === 'home') {
