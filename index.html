@@ -1629,7 +1629,7 @@ if ('speechSynthesis' in window) {
     // ==========================================
     
     // 🔥 นำ URL ที่คัดลอกมาจาก Step 1 มาวางในเครื่องหมายคำพูดด้านล่างนี้เลยครับ
-    const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxZVCvZlNokZrqywdeL-F2SkAlcKauPpShP39c1nZkali3BgBlgF7ttJzlujx2gIVHa7w/exec'; 
+    const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz1zVuzDj27QcZ6oTzZNQ-4A4Ek0frfgeEH9GPeNdKgSgh8LSzU_wzumGQBm2K76-an/exec'; 
 
     function apiCall(action, data={}, showLoadingUI = true) {
     if(showLoadingUI) showLoader();
@@ -2147,7 +2147,11 @@ function processMainScan() {
         mainInput.value = ''; mainInput.focus();
         return showAlert('ถูกระงับ', `บัตรหมายเลข ${cardId} ถูกระงับการใช้งาน`, 'error');
     }
-
+  // --- ส่วนที่เพิ่มใหม่: จังหวะการพูดแบบที่ 1 (พูดทันที) สำหรับทุกช่องทาง ---
+    if (systemSettings.ttsTimingMode === 'immediate') {
+        speakImmediateGreeting(card.firstName, card.lastName);
+    }
+    // -----------------------------------------------------------
     const now = new Date();
     const expiryDate = new Date(card.expiryDate);
     expiryDate.setHours(23, 59, 59, 999);
@@ -3225,18 +3229,23 @@ async function saveCard() {
     }
 
     function editTypeCard(id) {
-        const t = typeCards.find(x => x.id === id);
-        document.getElementById('typeCardModalTitle').innerHTML = '<i data-lucide="edit"></i> แก้ไขประเภทบัตร';
-        document.getElementById('editTypeId').value = t.id;
-        document.getElementById('tcName').value = t.typeName; 
-        document.getElementById('tcValue').value = t.durationValue; 
-        document.getElementById('tcType').value = t.durationType;
-        document.getElementById('tcRequireComp').checked = t.requireCompanion; 
-        document.getElementById('tcStatus').value = t.status;
-        
-        toggleCustomDuration(); // เช็คเปิด/ปิดช่องตัวเลข
-        document.getElementById('typeCardModal').classList.remove('hidden');
-    }
+    // แก้ไข: ใช้ Number() เพื่อให้เปรียบเทียบค่าได้ถูกต้องไม่ว่าจะเป็น String หรือ Number
+    const t = typeCards.find(x => Number(x.id) === Number(id));
+    if (!t) return showToast('ไม่พบข้อมูลประเภทบัตร', 'error');
+
+    document.getElementById('typeCardModalTitle').innerHTML = '<i data-lucide="edit"></i> แก้ไขประเภทบัตร';
+    document.getElementById('editTypeId').value = t.id;
+    document.getElementById('tcName').value = t.typeName; 
+    document.getElementById('tcValue').value = t.durationValue; 
+    document.getElementById('tcType').value = t.durationType;
+    document.getElementById('tcRequireComp').checked = (t.requireCompanion == true || t.requireCompanion == 'TRUE'); 
+    document.getElementById('tcIsTemp').checked = (t.isTemporary == true || t.isTemporary == 'TRUE');
+    document.getElementById('tcStatus').value = t.status;
+    
+    toggleCustomDuration(); 
+    document.getElementById('typeCardModal').classList.remove('hidden');
+    if (window.lucide) lucide.createIcons(); // วาดไอคอนใหม่
+}
     function closeTypeCardModal() { document.getElementById('typeCardModal').classList.add('hidden'); }
 
     // --- เพิ่มใหม่: ฟังก์ชันปิดช่องตัวเลขถ้าเลือกแบบกำหนดเอง ---
@@ -3314,7 +3323,23 @@ async function saveCard() {
         lucide.createIcons();
     }
     function openGateModal() { document.getElementById('gateModalTitle').innerHTML='<i data-lucide="boom-box"></i> เพิ่มจุดเข้าออก'; document.getElementById('editGateId').value=''; ['gateName','gateLocation'].forEach(id=>document.getElementById(id).value=''); document.getElementById('gateStatus').value='active'; document.getElementById('gateModal').classList.remove('hidden'); }
-    function editGate(id) { const g=allGates.find(x=>x.id===id); document.getElementById('gateModalTitle').innerHTML='<i data-lucide="edit"></i> แก้ไขจุดเข้าออก'; document.getElementById('editGateId').value=g.id; document.getElementById('gateName').value=g.name; document.getElementById('gateLocation').value=g.location||''; document.getElementById('gateStatus').value=g.status; document.getElementById('gateModal').classList.remove('hidden'); }
+    function editGate(id) {
+    // แก้ไข: ใช้ Number() ในการเปรียบเทียบ ID
+    const g = allGates.find(x => Number(x.id) === Number(id));
+    if (!g) return showToast('ไม่พบข้อมูลจุดเข้าออก', 'error');
+
+    document.getElementById('gateModalTitle').innerHTML = '<i data-lucide="edit"></i> แก้ไขจุดเข้าออก';
+    document.getElementById('editGateId').value = g.id;
+    document.getElementById('gateName').value = g.name;
+    document.getElementById('gateLocation').value = g.location || '';
+    document.getElementById('gateStatus').value = g.status;
+
+    // โหลด Checkbox พื้นที่ที่อนุญาต
+    renderAreaCheckboxesGen(g.allowedAreas || '', 'gateAreaCheckboxes', 'input-gate-area-cb');
+
+    document.getElementById('gateModal').classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+}
     function closeGateModal() { document.getElementById('gateModal').classList.add('hidden'); }
     async function saveGate() {
         const id = document.getElementById('editGateId').value, name = document.getElementById('gateName').value.trim();
@@ -4519,7 +4544,7 @@ async function startFaceDetectionLoop() {
                 resizedDetections.forEach((detection) => {
                     const result = faceMatcher.findBestMatch(detection.descriptor);
                     drawFaceBox(ctx, detection, result);
-                    if (result.label !== 'unknown') triggerFaceScanSuccess(result.label);
+                    //if (result.label !== 'unknown') triggerFaceScanSuccess(result.label);
                 });
             } catch (err) {}
         }
@@ -4995,65 +5020,68 @@ function toggleTtsFields() {
 
 	function speakImmediateGreeting(firstName, lastName) {
     if (!('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel(); // หยุดเสียงเก่าก่อนเริ่มใหม่
     
-    const msg = new SpeechSynthesisUtterance();
-    const prefix = systemSettings.ttsGreeting || "สวัสดีครับคุณ";
+    // หยุดเสียงเก่าก่อน
+    window.speechSynthesis.cancel(); 
     
-    msg.text = `${prefix} ${firstName}`;
-    msg.lang = 'th-TH';
-    msg.volume = parseFloat(systemSettings.ttsVolume || 1.0);
-    msg.rate = parseFloat(systemSettings.ttsRate || 1.0);
+    // หน่วงเวลาเล็กน้อย (50ms) เพื่อให้บราวเซอร์เคลียร์คิวเสียงเก่าเสร็จก่อนพูดใหม่
+    setTimeout(() => {
+        const msg = new SpeechSynthesisUtterance();
+        const prefix = systemSettings.ttsGreeting || "สวัสดีครับคุณ";
+        
+        msg.text = `${prefix} ${firstName}`;
+        msg.lang = 'th-TH';
+        msg.volume = parseFloat(systemSettings.ttsVolume || 1.0);
+        msg.rate = parseFloat(systemSettings.ttsRate || 1.0);
 
-    if (systemSettings.ttsVoiceName) {
-        const voice = voices.find(v => v.name === systemSettings.ttsVoiceName);
-        if (voice) msg.voice = voice;
-    }
-    window.speechSynthesis.speak(msg);
+        if (systemSettings.ttsVoiceName) {
+            const voice = voices.find(v => v.name === systemSettings.ttsVoiceName);
+            if (voice) msg.voice = voice;
+        }
+        window.speechSynthesis.speak(msg);
+    }, 50);
 }
 function triggerFaceScanSuccess(cardId, matchPercent, descriptor) {
-    // 1. ตรวจสอบสถานะการทำงานของระบบและ Modal ต่างๆ
     const isAlertOpen = !document.getElementById('customAlertModal').classList.contains('hidden');
     const isCompModalOpen = !document.getElementById('companionModal').classList.contains('hidden');
     const isCaptureModalOpen = !document.getElementById('captureModal').classList.contains('hidden');
     
     if (isAlertOpen || isCompModalOpen || isCaptureModalOpen || isSystemBusy) return;
 
-    // 2. ระบบป้องกันการแสกนซ้ำ (Cooldown)
+    // ระบบป้องกันการแสกนซ้ำ
     if (lastScannedFaceId === cardId) return;
     lastScannedFaceId = cardId;
     setTimeout(() => { lastScannedFaceId = null; }, (systemSettings.aiCooldown || 10) * 1000);
 
-    // 3. --- ล็อกค่า % ความแม่นยำลงใน UI ทันที (ค่านี้จะไม่เปลี่ยนจนกว่าจะแสกนคนใหม่) ---
+    // แสดง % ความแม่นยำ
     const scoreValEl = document.getElementById('lowScoreVal');
-    if (scoreValEl) {
+    if (scoreValEl && matchPercent) {
         scoreValEl.textContent = matchPercent; 
     }
-    const improveBox = document.getElementById('improveAiBox');
-    if (improveBox) {
-        improveBox.classList.remove('hidden');
-    }
 
-    // 4. --- ตรวจสอบจังหวะการพูด: ถ้าตั้งเป็น "พูดทันที" ให้ทำงานที่นี่ ---
-    if (systemSettings.ttsTimingMode === 'immediate') {
-        const matched = allCards.find(c => String(c.cardId) === String(cardId));
+    // --- แก้ไขจุดนี้: จังหวะการพูดแบบที่ 1 (พูดทันที) ---
+    /*if (systemSettings.ttsTimingMode === 'immediate') {
+        // ใช้การ Find แบบไม่สนตัวพิมพ์เล็กใหญ่และช่องว่าง
+        const matched = allCards.find(c => 
+            String(c.cardId).trim().toUpperCase() === String(cardId).trim().toUpperCase()
+        );
+        
         if (matched) {
             speakImmediateGreeting(matched.firstName, matched.lastName);
         }
-    }
+    }*/
 
-    // 5. เก็บข้อมูลล่าสุดไว้สำหรับการกด "ถ่ายรูปเพิ่มความแม่นยำ"
+    // เก็บข้อมูลสำหรับการกด Improve AI
     lastMatchData = {
         cardId: cardId,
-        descriptor: JSON.stringify(Array.from(descriptor)),
-        score: matchPercent
+        descriptor: descriptor ? JSON.stringify(Array.from(descriptor)) : null,
+        score: matchPercent || 0
     };
 
-    // 6. ส่งรหัสเข้าช่อง Input และเรียกประมวลผลบันทึก เข้า-ออก
     const mainInput = document.getElementById('scanInput');
     if (mainInput) {
         mainInput.value = cardId;
-        processMainScan();
+        processMainScan(); // ส่งเข้ากระบวนการบันทึก IN/OUT
     }
 }
 
@@ -5206,7 +5234,21 @@ function startReturnCooldown() {
     }
     
     function openAreaModal() { document.getElementById('areaModalTitle').innerHTML='<i data-lucide="map"></i> เพิ่มพื้นที่ใหม่'; document.getElementById('editAreaId').value=''; ['areaNum','areaName'].forEach(id=>document.getElementById(id).value=''); document.getElementById('areaColor').value='#ffeb3b'; document.getElementById('areaStatus').value='active'; document.getElementById('areaModal').classList.remove('hidden'); }
-    function editArea(id) { const a = allAreas.find(x=>x.id===id); document.getElementById('areaModalTitle').innerHTML='<i data-lucide="edit"></i> แก้ไขพื้นที่'; document.getElementById('editAreaId').value=a.id; document.getElementById('areaNum').value=a.areaNumber; document.getElementById('areaName').value=a.areaName; document.getElementById('areaColor').value=a.colorCode; document.getElementById('areaStatus').value=a.status; document.getElementById('areaModal').classList.remove('hidden'); }
+    function editArea(id) {
+    // แก้ไข: ใช้ Number() ในการเปรียบเทียบ ID
+    const a = allAreas.find(x => Number(x.id) === Number(id));
+    if (!a) return showToast('ไม่พบข้อมูลพื้นที่', 'error');
+
+    document.getElementById('areaModalTitle').innerHTML = '<i data-lucide="edit"></i> แก้ไขพื้นที่';
+    document.getElementById('editAreaId').value = a.id;
+    document.getElementById('areaNum').value = a.areaNumber;
+    document.getElementById('areaName').value = a.areaName;
+    document.getElementById('areaColor').value = a.colorCode;
+    document.getElementById('areaStatus').value = a.status;
+    
+    document.getElementById('areaModal').classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+}
     function closeAreaModal() { document.getElementById('areaModal').classList.add('hidden'); }
     
     async function saveArea() {
