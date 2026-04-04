@@ -273,116 +273,107 @@ gap: 1px !important;
 
                    <!-- ปรับเป็น min-h-full เพื่อให้ยืดได้ตามเนื้อหา และเพิ่ม pb-10 (padding-bottom) เพื่อไม่ให้เนื้อหาชิดขอบล่างเกินไป -->
 						<!-- ส่วนแสดงผลข้อมูลบัตรที่แสกนสำเร็จ (ปรับปรุงใหม่: ชัดเจน สวยงาม เน้นจุดสำคัญ) -->
+<!-- ส่วนแสดงผลข้อมูลบัตร (เวอร์ชัน Compact: กะทัดรัด ไม่รกจอ) -->
 <div id="scanResultData" class="hidden min-h-full">
-    <div class="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-2xl relative overflow-hidden min-h-full">
+    <div class="bg-white rounded-[2rem] p-5 sm:p-6 border border-gray-100 shadow-xl relative overflow-hidden">
         
-        <!-- 1. Badge IN/OUT (ขยายใหญ่ โค้งมน ทันสมัย) -->
-        <div id="resIoBadge" class="absolute top-0 right-0 px-16 py-8 rounded-bl-[3.5rem] font-black text-6xl text-white shadow-lg z-10 transition-all duration-500 tracking-tighter">
+        <!-- 1. Badge IN/OUT (ปรับขนาดเล็กลง) -->
+        <div id="resIoBadge" class="absolute top-0 right-0 px-10 py-4 rounded-bl-[2.5rem] font-black text-4xl text-white shadow-md z-10 transition-all duration-500">
             IN
         </div>
         
-        <div class="flex flex-col lg:flex-row gap-10">
+        <div class="flex flex-col lg:flex-row gap-6">
             
-            <!-- 2. ฝั่งซ้าย: รูปถ่ายและข้อมูลระบุตัวตน (รหัสพนักงาน + สิทธิพื้นที่) -->
-            <div class="flex flex-col items-center justify-start shrink-0 px-2 border-r-0 lg:border-r border-gray-100 lg:pr-10">
-                <!-- รูปถ่ายพนักงาน -->
-                <div class="w-40 h-52 sm:w-48 sm:h-64 bg-gray-50 rounded-[2rem] border-[6px] border-white shadow-xl flex items-center justify-center text-gray-300 mb-6 overflow-hidden relative group">
-                    <img id="resCardImage" src="" class="w-full h-full object-cover hidden absolute inset-0 z-10 transition-transform duration-500 group-hover:scale-110">
-                    <i id="resCardIcon" data-lucide="user" class="w-20 h-20 relative z-0 opacity-20"></i>
+            <!-- 2. ฝั่งซ้าย: รูปถ่ายและรหัส (ปรับให้แคบลง) -->
+            <div class="flex flex-col items-center justify-start shrink-0 px-1 border-r-0 lg:border-r border-gray-100 lg:pr-6">
+                <!-- รูปถ่ายพนักงาน (ย่อขนาด) -->
+                <div class="w-32 h-44 sm:w-36 sm:h-48 bg-gray-50 rounded-[1.5rem] border-[4px] border-white shadow-lg flex items-center justify-center text-gray-300 mb-4 overflow-hidden relative">
+                    <img id="resCardImage" src="" class="w-full h-full object-cover hidden absolute inset-0 z-10">
+                    <i id="resCardIcon" data-lucide="user" class="w-12 h-12 relative z-0 opacity-20"></i>
                 </div>
 
-                <!-- หัวข้อและ Badge รหัสพนักงาน (ขนาดกะทัดรัด) -->
-                <div class="w-full text-center mb-6">
-                    <span class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] block mb-1">รหัสพนักงาน</span>
-                    <div id="resCardId" class="bg-gray-800 text-white px-5 py-2 rounded-xl shadow-md font-black text-xl tracking-widest inline-block min-w-[150px] border-b-2 border-gray-600 animate-fadeIn">-</div>
+                <!-- หัวข้อและ Badge รหัสพนักงาน -->
+                <div class="w-full text-center mb-4">
+                    <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">รหัสพนักงาน</span>
+                    <div id="resCardId" class="bg-gray-800 text-white px-4 py-1.5 rounded-lg shadow-md font-black text-base tracking-widest inline-block min-w-[120px] border-b-2 border-gray-600 animate-fadeIn">-</div>
                 </div>
 
-                <!-- หัวข้อและ Badge สิทธิการเข้าพื้นที่ (สี่เหลี่ยมจัตุรัส 2x2) -->
+                <!-- หัวข้อและ Badge สิทธิพื้นที่ -->
                 <div class="w-full text-center">
-                    <span class="text-[10px] font-black text-sky-600 uppercase tracking-[0.2em] block mb-3">สิทธิพื้นที่ (AREA ACCESS)</span>
+                    <span class="text-[9px] font-black text-sky-600 uppercase tracking-widest block mb-2">สิทธิพื้นที่</span>
                     <div id="resAreaBadges" class="transition-all duration-500">
-                        <!-- ตัวเลขสิทธิแบบสี่เหลี่ยมจัตุรัสจะถูกวาดที่นี่โดย JS -->
-                        <span class="text-xs text-gray-300 italic">รอการแสกน...</span>
+                        <span class="text-[10px] text-gray-300 italic">รอการแสกน...</span>
                     </div>
                 </div>
             </div>
             
-            <!-- 3. ฝั่งขวา: ข้อมูลรายละเอียดพนักงาน (จัดลำดับความสำคัญใหม่) -->
-            <div class="flex-1 flex flex-col space-y-6 pt-4">
+            <!-- 3. ฝั่งขวา: รายละเอียด (ปรับขนาด Font) -->
+            <div class="flex-1 flex flex-col space-y-4 pt-2">
                 
                 <!-- ชื่อ-นามสกุล และ สังกัด -->
-                <div class="space-y-2">
-                    <h4 id="resFullName" class="text-5xl font-black text-gray-800 leading-tight tracking-tight">-</h4>
-                    <div class="flex items-center gap-2 text-sky-600 bg-sky-50 px-4 py-2 rounded-2xl w-fit border border-sky-100">
-                        <i data-lucide="briefcase" class="w-5 h-5"></i>
-                        <span id="resOrg" class="font-bold text-xl">-</span>
+                <div class="space-y-1">
+                    <h4 id="resFullName" class="text-3xl font-black text-gray-800 leading-tight tracking-tight">-</h4>
+                    <div class="flex items-center gap-1.5 text-sky-600 bg-sky-50 px-3 py-1 rounded-xl w-fit border border-sky-100">
+                        <i data-lucide="briefcase" class="w-4 h-4"></i>
+                        <span id="resOrg" class="font-bold text-sm">-</span>
                     </div>
                 </div>
 
-                <!-- ข้อมูลเสริม: ประเภทบัตร และ เวลาบันทึก -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div class="bg-gray-50/80 p-4 rounded-2xl border border-gray-100">
-                        <span class="text-gray-400 text-[10px] font-black uppercase tracking-wider block mb-1">ประเภทบัตร</span>
-                        <span id="resCardType" class="text-xl font-black text-indigo-700">-</span>
+                <!-- ข้อมูลเสริม: ประเภทบัตร และ เวลาบันทึก (ย่อลง) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="bg-gray-50/80 p-3 rounded-xl border border-gray-100">
+                        <span class="text-gray-400 text-[9px] font-black uppercase tracking-wider block mb-0.5">ประเภทบัตร</span>
+                        <span id="resCardType" class="text-base font-black text-indigo-700">-</span>
                     </div>
-                    <div class="bg-green-50/80 p-4 rounded-2xl border border-green-100">
-                        <span class="text-green-600/60 text-[10px] font-black uppercase tracking-wider block mb-1">เวลาบันทึกปัจจุบัน</span>
-                        <div id="resTime" class="text-xl font-black text-green-700 leading-none mt-1">-</div>
-                    </div>
-                    <!-- ส่วนทะเบียนรถ (ซ่อนไว้ตามคำขอ) -->
-                    <div class="hidden">
-                        <span id="resVehicle">-</span>
+                    <div class="bg-green-50/80 p-3 rounded-xl border border-green-100">
+                        <span class="text-green-600/60 text-[9px] font-black uppercase tracking-wider block mb-0.5">เวลาบันทึก</span>
+                        <div id="resTime" class="text-base font-black text-green-700 leading-none">-</div>
                     </div>
                 </div>
 
-                <!-- 4. ส่วนวันหมดอายุ (เน้นยักษ์พิเศษ - High Visibility) -->
-                <div class="bg-gradient-to-br from-red-50 to-orange-50 p-6 rounded-[2.5rem] border-2 border-red-100 shadow-inner relative overflow-hidden mt-2">
-                    <div class="absolute -right-6 -bottom-6 opacity-[0.07] rotate-12">
-                        <i data-lucide="calendar-off" class="w-40 h-40 text-red-600"></i>
+                <!-- 4. ส่วนวันหมดอายุ (ปรับให้เล็กลงแต่ยังเด่น) -->
+                <div class="bg-gradient-to-br from-red-50 to-orange-50 p-4 rounded-[1.5rem] border-2 border-red-100 shadow-inner relative overflow-hidden">
+                    <div class="absolute -right-4 -bottom-4 opacity-[0.05] rotate-12">
+                        <i data-lucide="calendar-off" class="w-24 h-24 text-red-600"></i>
                     </div>
-                    <span class="text-red-500 text-xs font-black uppercase tracking-[0.3em] block mb-2">วันหมดอายุการเข้าพื้นที่</span>
-                    <div class="flex items-baseline gap-3 relative z-10">
-                        <span id="resExpiry" class="text-6xl font-black text-red-600 tracking-tighter drop-shadow-sm">-</span>
-                        <span class="text-red-400 font-bold text-lg">(23:59:59 น.)</span>
+                    <span class="text-red-500 text-[10px] font-black uppercase tracking-[0.2em] block mb-1">วันหมดอายุ</span>
+                    <div class="flex items-baseline gap-2 relative z-10">
+                        <span id="resExpiry" class="text-4xl font-black text-red-600 tracking-tighter">-</span>
+                        <span class="text-red-400 font-bold text-xs">(23:59:59 น.)</span>
                     </div>
                 </div>
 
-                <!-- 5. ข้อมูลผู้ติดตาม (แสดงเฉพาะเมื่อมี) -->
-                <div id="resCompanionBox" class="p-6 bg-indigo-950 rounded-[2rem] text-white hidden animate-fadeIn shadow-2xl border-l-8 border-indigo-500">
-                    <div class="flex items-center gap-3 mb-3 opacity-60">
-                        <div class="bg-indigo-500 p-1.5 rounded-lg"><i data-lucide="users" class="w-4 h-4 text-white"></i></div>
-                        <span class="text-xs font-black uppercase tracking-[0.2em]">ข้อมูลผู้ติดตาม (Companion)</span>
+                <!-- 5. ข้อมูลผู้ติดตาม (ย่อขนาด) -->
+                <div id="resCompanionBox" class="p-4 bg-indigo-950 rounded-2xl text-white hidden animate-fadeIn shadow-lg border-l-4 border-indigo-500">
+                    <div class="flex items-center gap-2 mb-1.5 opacity-60">
+                        <i data-lucide="users" class="w-3.5 h-3.5 text-white"></i>
+                        <span class="text-[9px] font-black uppercase tracking-widest">ข้อมูลผู้ติดตาม</span>
                     </div>
-                    <p class="font-black text-2xl mb-1" id="resCompanionName">-</p>
-                    <div class="flex gap-3 text-sm font-medium text-indigo-300">
+                    <p class="font-black text-lg" id="resCompanionName">-</p>
+                    <div class="flex gap-2 text-[11px] font-medium text-indigo-300">
                         <span id="resCompanionId"></span>
                         <span class="opacity-30">|</span>
                         <span id="resCompanionOrg"></span>
                     </div>
                 </div>
 
-                <!-- 6. ส่วนช่วยจำใบหน้า AI -->
-                <div id="improveAiBox" class="mt-auto p-5 bg-blue-600 rounded-[2rem] hidden animate-fadeIn shadow-xl relative overflow-hidden">
-                    <!-- เอฟเฟกต์แสงในกล่อง -->
-                    <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-                    
-                    <div class="flex items-center gap-4 relative z-10">
-                        <div class="bg-white/20 p-3 rounded-2xl text-white shadow-inner">
-                            <i data-lucide="scan-face" class="w-8 h-8"></i>
+                <!-- 6. ส่วนช่วยจำใบหน้า AI (Compact) -->
+                <div id="improveAiBox" class="p-3 bg-blue-600 rounded-2xl hidden animate-fadeIn shadow-md relative overflow-hidden">
+                    <div class="flex items-center gap-3 relative z-10">
+                        <div class="bg-white/20 p-2 rounded-lg text-white">
+                            <i data-lucide="scan-face" class="w-5 h-5"></i>
                         </div>
                         <div class="flex-1">
-                            <p class="text-white text-base font-black mb-0.5">ช่วยให้ AI จำคุณได้แม่นยำขึ้น</p>
-                            <p class="text-blue-100 text-[11px] font-medium opacity-80 mb-3">ความแม่นยำปัจจุบัน: <span id="lowScoreVal" class="font-black underline text-sm">0</span>%</p>
-                            <div class="flex gap-2">
-                                <button onclick="openCaptureModal()" class="bg-white text-blue-600 hover:bg-blue-50 px-5 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 transition-all shadow-lg active:scale-95">
-                                    <i data-lucide="camera" class="w-4 h-4"></i> ถ่ายรูปเพิ่มความแม่นยำ
+                            <p class="text-white text-xs font-black">ต้องการเพิ่มรูปเสริมเพื่อความแม่นยำ?</p>
+                            <div class="flex gap-2 mt-1.5">
+                                <button onclick="openCaptureModal()" class="bg-white text-blue-600 px-3 py-1.5 rounded-lg font-black text-[10px] flex items-center gap-1.5 shadow-md active:scale-95 transition-transform">
+                                    <i data-lucide="camera" class="w-3 h-3"></i> ถ่ายรูปเสริม
                                 </button>
-                                <button onclick="document.getElementById('improveAiBox').classList.add('hidden')" class="text-white/70 hover:text-white text-xs font-bold px-3">ไว้ภายหลัง</button>
+                                <button onclick="document.getElementById('improveAiBox').classList.add('hidden')" class="text-white/70 hover:text-white text-[10px] font-bold px-2">ข้าม</button>
                             </div>
                         </div>
                     </div>
                 </div>
-                <!-- จบส่วนรายละเอียด -->
 
             </div>
         </div>
