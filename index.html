@@ -1877,7 +1877,7 @@ gap: 1px !important;
     let offlineQueue = JSON.parse(localStorage.getItem('aac_offlineQueue') || '[]');
     let currentUser = null, currentPage = 'home';
     let systemSettings = { systemName: 'ระบบบันทึกการเข้าออกพื้นที่', systemSubName: 'AREA ACCESS CONTROL', footerText: 'Copyright', logoUrl: '', loginBgUrl: '', faviconUrl: '', bannerEnabled: true, bannerSpeed: 4, banners: [], autoCheckoutEnabled: true , aiThreshold: 0.38, aiCooldown: 10, aiInterval: 1000, aiPadX: 15, aiPadTop: 35 };
-    
+    let allVehicles = [], typeVehicles = [], currentFilteredVehicles = [];
     // Data Caches
     let allGates = [], typeCards = [], allCards = [], allSystemUsers = [], allAreas = [];
     let recentLogs = []; // เก็บแค่ Array ของหน้าแรกเพื่อความเร็ว
@@ -1913,14 +1913,28 @@ async function fetchVehiclesData() {
  * 1. ฟังก์ชันรีเฟรชข้อมูลรถทั้งหมด
  */
 async function refreshVehiclesData() {
+    // ถ้าหน้าปัจจุบันไม่ใช่หน้าจัดการรถ และไม่ใช่การเรียกจากปุ่ม Refresh ไม่ต้องโชว์ Loader ใหญ่
     showLoader('กำลังอัพเดตข้อมูลยานพาหนะ...');
-    const data = await apiCall('getInitialData', {}, false);
-    allVehicles = data.allVehicles || [];
-    typeVehicles = data.typeVehicles || [];
-    renderVehicleDashboard(data.vehicleStats);
-    filterVehiclesTable();
-    hideLoader();
-    showToast('อัพเดตข้อมูลเรียบร้อย', 'success');
+    
+    try {
+        const data = await apiCall('getInitialData', {}, false);
+        if (data) {
+            allVehicles = data.allVehicles || [];
+            typeVehicles = data.typeVehicles || [];
+            currentFilteredVehicles = [...allVehicles]; // สำคัญ: ต้องก๊อปปี้ข้อมูลลงตัวแปร Filter
+            
+            // วาด Dashboard
+            renderVehicleDashboard(data.vehicleStats);
+            // วาดตาราง
+            filterVehiclesTable();
+        }
+    } catch (err) {
+        console.error("Refresh Vehicles Error:", err);
+        showToast('ไม่สามารถดึงข้อมูลได้', 'error');
+    } finally {
+        // ไม่ว่าจะสำเร็จหรือพัง ต้องปิดหน้าจอโหลดเสมอ
+        hideLoader(); 
+    }
 }
 
 /**
@@ -2949,14 +2963,15 @@ function toggleHybridCamera() {
         else if(p==='reports') { setupReportFilters(); }
         else if(p==='settings') loadSettings();
         else if(p==='profile') loadProfile();
-		else if(p === 'manageVehicles') {
-    // วาด Filter ประเภทรถก่อน
-    document.getElementById('vehicleTypeFilter').innerHTML = '<option value="">ทุกประเภท</option>' + typeVehicles.map(t => `<option value="${t.id}">${t.typeName}</option>`).join('');
-    renderVehiclesTable();
-}
-else if(p === 'manageTypeVehicles') {
-    renderTypeVehiclesTable();
-}
+		 else if(p === 'manageVehicles') {
+        // วาด Filter ประเภทรถก่อน
+        document.getElementById('vehicleTypeFilter').innerHTML = '<option value="">ทุกประเภทบัตรรถ</option>' + typeVehicles.map(t => `<option value="${t.id}">${t.typeName}</option>`).join('');
+        // สั่งโหลดข้อมูลและวาดตาราง
+        refreshVehiclesData(); 
+    }
+    else if(p === 'manageTypeVehicles') {
+        renderTypeVehiclesTable();
+    }
     }
     function toggleSidebar(show=true){ document.getElementById('sidebar').classList.toggle('-translate-x-full',!show); document.getElementById('sidebarOverlay').classList.toggle('hidden',!show); }
 
@@ -6970,6 +6985,37 @@ async function downloadVehiclePdfCard() {
         jsPDF: { unit: 'px', format: [360, 435], orientation: 'portrait' } // 95x115mm ratio
     };
     html2pdf().set(opt).from(element).save();
+}
+
+	  function filterVehiclesTable() {
+    const txt = document.getElementById('vehicleSearchInput').value.trim().toLowerCase();
+    const tId = document.getElementById('vehicleTypeFilter').value;
+    const st = document.getElementById('vehicleStatusFilter').value;
+
+    currentFilteredVehicles = allVehicles.filter(v => {
+        const cardId = String(v.cardId || "").toLowerCase();
+        const reg = String(v.vehicleReg || "").toLowerCase();
+        const fName = String(v.applicantFirstName || "").toLowerCase();
+        const lName = String(v.applicantLastName || "").toLowerCase();
+        const org = String(v.organization || "").toLowerCase();
+
+        // ค้นหาครอบคลุมทุกฟิลด์
+        const matchTxt = !txt || (cardId.includes(txt) || reg.includes(txt) || fName.includes(txt) || lName.includes(txt) || org.includes(txt));
+        const matchType = !tId || String(v.typeId) === String(tId);
+        const matchStatus = !st || v.status === st;
+
+        return matchTxt && matchType && matchStatus;
+    });
+
+    // อัปเดตข้อความผลลัพธ์
+    const resText = document.getElementById('vehicleSearchResultText');
+    if (resText) {
+        resText.innerHTML = `<i data-lucide="filter" class="w-4 h-4 inline mr-1"></i> พบ <span class="text-lg font-black text-blue-600 mx-1">${currentFilteredVehicles.length}</span> รายการ`;
+    }
+
+    cardsPagination.page = 1; // รีเซ็ตหน้าเป็นหน้า 1
+    renderVehiclesTable();
+    if (window.lucide) lucide.createIcons();
 }
 	  //-----------------
   </script>
