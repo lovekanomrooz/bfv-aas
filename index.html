@@ -562,38 +562,52 @@ gap: 1px !important;
        </div>
       </div>
 		<!-- หน้าจัดการฐานข้อมูลยานพาหนะ -->
+<!-- Rebuild หน้าจัดการฐานข้อมูลรถ -->
 <div id="manageVehiclesPage" class="page hidden p-4 lg:p-6">
-    <div class="flex flex-col sm:justify-between sm:items-center gap-4 mb-6">
-        <h2 class="text-xl font-bold flex items-center gap-2 text-gray-800"><i data-lucide="truck" class="text-blue-600"></i> จัดการฐานข้อมูลยานพาหนะ</h2>
-        <button onclick="openVehicleModal()" class="btn-primary text-white px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg text-sm font-bold w-fit">
-            <i data-lucide="plus"></i> เพิ่มรถใหม่
-        </button>
-    </div>
-    
-    <!-- ส่วน Filter -->
-    <div class="bg-white rounded-2xl card-shadow p-4 mb-4 flex flex-wrap gap-3 items-center border-t-4 border-blue-500">
-        <div class="relative flex-1 min-w-[200px]">
-            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
-            <input type="text" id="vehicleSearchInput" onkeyup="renderVehiclesTable()" placeholder="ค้นหา ทะเบียน, รหัสบัตร, ผู้ยื่นคำขอ..." class="w-full pl-10 pr-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-sm">
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+        <h2 class="text-xl font-bold flex items-center gap-2 text-gray-800"><i data-lucide="truck" class="w-6 h-6 text-blue-600"></i> จัดการฐานข้อมูลยานพาหนะ</h2>
+        <div class="flex items-center gap-2 flex-wrap justify-end">
+            <button onclick="refreshVehiclesData()" class="px-4 py-2.5 bg-sky-50 text-sky-600 border border-sky-200 rounded-xl flex items-center gap-2 text-sm font-bold shadow-sm"><i data-lucide="refresh-cw" class="w-4 h-4"></i> อัพเดตข้อมูล</button>
+            <button onclick="openVehicleModal()" class="btn-primary text-white px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg text-sm font-bold"><i data-lucide="plus" class="w-4 h-4"></i> เพิ่มรถใหม่</button>
         </div>
-        <select id="vehicleTypeFilter" onchange="renderVehiclesTable()" class="border p-2 rounded-xl text-sm outline-none bg-white"></select>
     </div>
 
-    <div class="bg-white rounded-2xl card-shadow overflow-hidden">
+    <!-- Dashboard สรุปรถรายประเภท -->
+    <div id="vehiclesTypeStats" class="flex gap-3 overflow-x-auto pb-2 mb-4 hide-scrollbar"></div>
+
+    <!-- ส่วนค้นหาและกรอง -->
+    <div class="bg-white rounded-2xl card-shadow p-4 mb-2 flex flex-wrap gap-4 items-center border-t-4 border-blue-500">
+        <div class="relative flex-1 min-w-[200px] max-w-md">
+            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+            <input type="text" id="vehicleSearchInput" onkeyup="filterVehiclesTable()" placeholder="ค้นหา รหัสบัตร, ทะเบียน, ชื่อ..." class="w-full pl-10 pr-4 py-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50">
+        </div>
+        <select id="vehicleTypeFilter" onchange="filterVehiclesTable()" class="px-4 py-2.5 border rounded-xl outline-none bg-white"></select>
+        <select id="vehicleStatusFilter" onchange="filterVehiclesTable()" class="px-4 py-2.5 border rounded-xl outline-none bg-white">
+            <option value="">ทุกสถานะ</option><option value="active">เปิดใช้งาน</option><option value="inactive">ระงับใช้งาน</option>
+        </select>
+    </div>
+
+    <!-- ตารางข้อมูล -->
+    <div class="bg-white rounded-2xl card-shadow overflow-hidden mt-2">
+        <div class="p-3 bg-blue-50 border-b flex flex-col lg:flex-row justify-between items-center gap-3">
+            <div id="vehicleSearchResultText" class="font-bold text-blue-900 shrink-0 text-sm">กำลังโหลด...</div>
+            <div id="vehiclesPagination" class="flex gap-1 overflow-x-auto hide-scrollbar"></div>
+        </div>
         <div class="overflow-x-auto">
             <table class="w-full text-left text-sm">
-                <thead class="bg-gray-50 border-b">
+                <thead class="bg-white border-b">
                     <tr>
                         <th class="px-4 py-3 font-bold text-gray-500">รหัสบัตร</th>
                         <th class="px-4 py-3 font-bold text-gray-500">ทะเบียนรถ</th>
                         <th class="px-4 py-3 font-bold text-gray-500">ผู้ยื่นคำขอ / หน่วยงาน</th>
                         <th class="px-4 py-3 font-bold text-gray-500">ประเภท</th>
-                        <th class="px-4 py-3 font-bold text-gray-500">วันหมดอายุ</th>
+                        <th class="px-4 py-3 text-center font-bold text-gray-500">วันหมดอายุ</th>
                         <th class="px-4 py-3 text-center font-bold text-gray-500">สถานะ</th>
+                        <th class="px-4 py-3 text-center font-bold text-gray-500">ปัจจุบัน</th>
                         <th class="px-4 py-3 text-center font-bold text-gray-500">จัดการ</th>
                     </tr>
                 </thead>
-                <tbody id="vehiclesTableBody" class="divide-y divide-gray-100"></tbody>
+                <tbody id="vehiclesTableBody"></tbody>
             </table>
         </div>
     </div>
@@ -997,6 +1011,21 @@ gap: 1px !important;
             <label class="block text-sm font-bold mb-1 text-blue-700">ลิงก์รูปพื้นหลังบัตรรถด้านหลัง</label>
             <input type="url" id="cardTplBackV" class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-white">
         </div>
+		<!-- ในหน้า Settings เพิ่มส่วน Labels ของรถ -->
+<div class="bg-blue-50 p-4 rounded-xl border border-blue-200 md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+    <div class="md:col-span-3"><p class="font-bold text-blue-800 text-sm mb-2">ปรับเปลี่ยนคำศัพท์บนบัตรรถ (Vehicle Labels)</p></div>
+    <div><label class="block text-xs font-bold mb-1">คำนำหน้าสังกัด</label><input type="text" id="lblOrgV" class="w-full border p-2 rounded-lg" placeholder="สังกัดบริษัท"></div>
+    <div><label class="block text-xs font-bold mb-1">คำนำหน้าทะเบียนรถ</label><input type="text" id="lblRegV" class="w-full border p-2 rounded-lg" placeholder="เลขทะเบียนยานพาหนะ"></div>
+    <div><label class="block text-xs font-bold mb-1">คำนำหน้าเลขควบคุม</label><input type="text" id="lblIdV" class="w-full border p-2 rounded-lg" placeholder="ทะเบียนควบคุมเลขที่"></div>
+</div>
+
+<!-- เพิ่มหัวข้อปฏิบัติหลังบัตรรถ 3 บรรทัด -->
+<div class="bg-red-50 p-4 rounded-xl border border-red-100 md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+    <div class="md:col-span-3"><p class="font-bold text-red-800 text-sm mb-1">หัวข้อข้อควรปฏิบัติหลังบัตรรถ</p></div>
+    <div><label class="block text-xs font-bold">บรรทัดที่ 1</label><input type="text" id="rulesTitleV1" class="w-full border p-2 rounded-lg"></div>
+    <div><label class="block text-xs font-bold">บรรทัดที่ 2</label><input type="text" id="rulesTitleV2" class="w-full border p-2 rounded-lg"></div>
+    <div><label class="block text-xs font-bold">บรรทัดที่ 3</label><input type="text" id="rulesTitleV3" class="w-full border p-2 rounded-lg"></div>
+</div>
         <div class="md:col-span-2">
             <label class="block text-sm font-bold mb-1 text-blue-700">รายละเอียดกฎระเบียบหลังบัตรรถ</label>
             <textarea id="cardTplRulesV" rows="4" class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-white"></textarea>
@@ -1500,6 +1529,56 @@ gap: 1px !important;
             <button onclick="saveTypeVehicle()" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition">บันทึก</button>
         </div>
     </div>
+</div>
+	<!-- Modal: พรีวิวและปริ้นบัตรรถ -->
+<div id="idVehicleCardModal" class="fixed inset-0 z-[200] hidden flex flex-col items-center justify-center p-2">
+    <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeIdVehicleCardModal()"></div>
+    <div class="relative bg-white rounded-2xl w-full max-w-[850px] flex flex-col shadow-2xl animate-fadeIn overflow-hidden max-h-[98vh]">
+        <div class="bg-blue-600 text-white p-4 flex justify-between items-center">
+            <h3 class="font-bold flex items-center gap-2"><i data-lucide="printer"></i> พิมพ์บัตรรถ</h3>
+            <button onclick="closeIdVehicleCardModal()" class="hover:bg-white/20 p-1.5 rounded-lg"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        
+        <div class="p-8 overflow-y-auto bg-gray-200 flex-1 flex justify-center">
+            <div id="printVehicleCardContainer" class="flex flex-col md:flex-row gap-8">
+                
+                <!-- หน้าบัตรรถ (Front) -->
+                <div id="printCardFrontV" class="relative w-[340px] h-[540px] bg-white rounded-xl overflow-hidden shadow-xl shrink-0 select-none box-border border-8 border-orange-500">
+                    <img id="tplFrontImgV" src="" class="absolute inset-0 w-full h-full object-fill z-0" crossorigin="anonymous">
+                    
+                    <div class="absolute inset-0 z-10 flex flex-col items-center px-4 py-4">
+                         <!-- ส่วนตัวเลขพื้นที่ (Large Squares) -->
+                         <div id="renderAreaBoxesV" class="mt-[135px] flex justify-center gap-1 w-full h-[100px]"></div>
+
+                         <!-- ประเภทบัตร (ถ้าชั่วคราว) -->
+                         <div id="renderTempV" class="text-red-600 font-black text-[18px] opacity-0">บัตรชั่วคราว</div>
+
+                         <!-- รายละเอียดข้อมูล -->
+                         <div class="w-full mt-4 text-left space-y-3 text-black font-bold text-[14px]">
+                             <div class="leading-tight"><span id="lblOrgV_Disp">สังกัด</span>: <span id="renderOrgV" class="font-black text-[16px]">-</span></div>
+                             <div class="leading-tight"><span id="lblRegV_Disp">ทะเบียนรถ</span>: <span id="renderRegV" class="font-black text-[16px] text-red-600">-</span></div>
+                             <div class="leading-tight"><span id="lblIdV_Disp">เลขควบคุม</span>: <span id="renderCardIdV" class="font-black text-[16px]">-</span></div>
+                             <div class="leading-tight">หมดอายุ: <span id="renderExpV" class="font-black text-[18px] text-red-600">-</span></div>
+                         </div>
+
+                         <!-- ช่องทางเข้าออก (Bottom Left) -->
+                         <div class="absolute bottom-6 left-6 text-left">
+                             <div class="text-[11px] font-bold text-orange-600">ช่องทางเข้า - ออก</div>
+                             <div id="renderGatesV" class="text-[14px] font-black leading-tight">-</div>
+                         </div>
+
+                         <!-- บาร์โค้ด (Bottom Right/Center) -->
+                         <div class="absolute bottom-6 right-6 flex flex-col items-center">
+                             <div class="font-barcode text-4xl text-black leading-none transform scale-x-[0.8]" id="renderBarcodeV">*V001*</div>
+                         </div>
+                    </div>
+                </div>
+
+                <!-- หน้าบัตรรถ (Back) ชุดปฏิบัติ (คงเดิมเหมือนคน) -->
+            </div>
+        </div>
+        <!-- ปุ่มดาวน์โหลด PDF ... -->
+    </div>
 </div>	 
    <!-- Modal: จัดการจุดเข้าออก (Gates) -->
    <div id="gateModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
@@ -1804,12 +1883,13 @@ function renderVehiclesTable() {
         <tr class="hover:bg-gray-50 border-b">
             <td class="px-4 py-3 font-black text-blue-700">${v.cardId}</td>
             <td class="px-4 py-3 font-bold">${v.vehicleReg}</td>
-            <td class="px-4 py-3"><div class="font-bold text-gray-800">${v.applicantName}</div><div class="text-[10px] text-gray-400">${v.organization}</div></td>
+            <td class="px-4 py-3"><div class="font-bold text-gray-800">${v.applicantFirstName || ''} ${v.applicantLastName || ''}</div><div class="text-[10px] text-gray-400">${v.organization}</div></td>
             <td class="px-4 py-3 text-xs font-bold"><span class="bg-gray-100 px-2 py-1 rounded">${t.typeName}</span></td>
             <td class="px-4 py-3">${formatDateOnly(v.expiryDate)}</td>
             <td class="px-4 py-3 text-center"><span class="text-[10px] font-black px-2 py-1 rounded ${v.status==='active'?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}">${v.status.toUpperCase()}</span></td>
             <td class="px-4 py-3 text-center">
-                <button onclick="editVehicle(${v.id})" class="text-blue-600 mr-2 font-bold">แก้ไข</button>
+                <button onclick="previewVehicleCard(${v.id})" class="text-pink-600 mr-2"><i data-lucide="printer" class="w-4 h-4"></i></button>
+				<button onclick="editVehicle(${v.id})" class="text-blue-600 mr-2 font-bold">แก้ไข</button>
                 <button onclick="deleteVehicle(${v.id})" class="text-red-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
             </td>
         </tr>`;
@@ -6706,6 +6786,55 @@ function testFullNotification() {
         hideInitialSplash();
     }
 }, 5000);*/
+	  //------------------
+async function previewVehicleCard(id) {
+    showLoader('กำลังเตรียมข้อมูลบัตรรถ...');
+    try {
+        const v = allVehicles.find(x => Number(x.id) === Number(id));
+        const t = typeVehicles.find(x => parseInt(x.id) === parseInt(v.typeId)) || {};
+
+        document.getElementById('tplFrontImgV').src = systemSettings.cardTplFrontV || '';
+        
+        // วาดกล่องพื้นที่สีแดง 2x1 หรือตามจำนวน
+        const areaContainer = document.getElementById('renderAreaBoxesV');
+        const areaIds = String(v.areaAccessIds || '').split(',').filter(x => x);
+        areaContainer.innerHTML = areaIds.map(num => `
+            <div class="w-[90px] h-[90px] bg-red-600 border-2 border-black flex items-center justify-center text-white text-6xl font-black">
+                ${num}
+            </div>
+        `).join('');
+
+        // บัตรชั่วคราว
+        const tempEl = document.getElementById('renderTempV');
+        tempEl.style.opacity = (t.isTemporary === true || t.isTemporary === 'TRUE') ? '1' : '0';
+
+        // คำศัพท์และข้อมูล
+        document.getElementById('lblOrgV_Disp').textContent = systemSettings.lblOrgV || 'สังกัดบริษัท';
+        document.getElementById('lblRegV_Disp').textContent = systemSettings.lblRegV || 'เลขทะเบียนยานพาหนะ';
+        document.getElementById('lblIdV_Disp').textContent = systemSettings.lblIdV || 'ทะเบียนควบคุมเลขที่';
+        
+        document.getElementById('renderOrgV').textContent = v.organization || '-';
+        document.getElementById('renderRegV').textContent = v.vehicleReg || '-';
+        document.getElementById('renderCardIdV').textContent = v.cardId || '-';
+        document.getElementById('renderExpV').textContent = formatDateOnly(v.expiryDate);
+
+        // ดึงชื่อประตูจาก ID
+        const gateIds = String(v.allowedGateIds || '').split(',');
+        const gateNames = allGates.filter(g => gateIds.includes(String(g.id))).map(g => g.name).join(', ');
+        document.getElementById('renderGatesV').textContent = gateNames || 'ทุกจุดเข้า-ออก';
+
+        // บาร์โค้ด
+        document.getElementById('renderBarcodeV').textContent = `*${v.cardId}*`;
+
+        hideLoader();
+        document.getElementById('idVehicleCardModal').classList.remove('hidden');
+        lucide.createIcons();
+    } catch(e) {
+        hideLoader();
+        showToast('เกิดข้อผิดพลาดในการโหลดพรีวิว', 'error');
+    }
+}
+	  //-----------------
   </script>
 </body>
 </html>
