@@ -2315,21 +2315,19 @@ function processMainScan() {
 /**
  * 4. ปรับปรุงการแสดงผล: สีเข้มชัดเจน + ไอคอนกำลังประมวลผล
  */
-function showInstantUI(card, typeInfo, predictedStatus) {
+// เพิ่มพารามิเตอร์ compCard เข้ามาในฟังก์ชัน
+function showInstantUI(card, typeInfo, predictedStatus, compCard = null) {
     const imgEl = document.getElementById('resCardImage');
     const iconEl = document.getElementById('resCardIcon');
     const compBox = document.getElementById('resCompanionBox');
 
-    // --- แก้บั๊กที่ 2: ล้างรูปภาพเดิมทิ้งทันที ---
     imgEl.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
     imgEl.classList.add('hidden');
     iconEl.classList.remove('hidden');
-    compBox.classList.add('hidden');
     
     document.getElementById('scanResultEmpty').classList.add('hidden');
     document.getElementById('scanResultData').classList.remove('hidden');
     
-    // --- แก้บั๊กที่ 4: ปรับขนาด Badge ให้ใหญ่เท่ากันเสมอ (ใช้ px-16 py-6) ---
     const badge = document.getElementById('resIoBadge');
     badge.textContent = predictedStatus;
     badge.className = `absolute top-0 right-0 px-16 py-6 rounded-bl-[2.5rem] font-black text-5xl text-white shadow-lg z-10 transition-all duration-500 ${predictedStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
@@ -2338,10 +2336,18 @@ function showInstantUI(card, typeInfo, predictedStatus) {
     document.getElementById('resFullName').textContent = `${card.firstName} ${card.lastName}`;
     document.getElementById('resOrg').textContent = card.organization || 'ไม่ระบุหน่วยงาน';
     document.getElementById('resCardType').textContent = typeInfo.typeName;
-    
-    // แก้บั๊ก ขีด (-)
     document.getElementById('resExpiry').textContent = formatDateOnly(card.expiryDate);
     document.getElementById('resTime').innerHTML = `<span class="text-orange-500 animate-pulse text-sm">กำลังบันทึกข้อมูล...</span>`;
+
+    // --- ส่วนที่แก้ไข: แสดงข้อมูลผู้ติดตามทันทีถ้ามีการส่งค่ามา ---
+    if (compCard) {
+        document.getElementById('resCompanionName').textContent = `${compCard.firstName} ${compCard.lastName}`;
+        document.getElementById('resCompanionId').textContent = compCard.cardId;
+        document.getElementById('resCompanionOrg').textContent = compCard.organization || '-';
+        compBox.classList.remove('hidden');
+    } else {
+        compBox.classList.add('hidden');
+    }
 
     renderResultAreaBadges(card.areaAccessIds);
 
@@ -2610,11 +2616,21 @@ function showSuccessToast(cardId, name, status) {
  */
 function updateRecentLogsList(fullRes, logTime, finalStatus) {
     const newLog = {
-        timestamp: logTime, ioType: finalStatus, cardId: fullRes.cardInfo.cardId, 
-        cardTypeName: fullRes.typeInfo.typeName, firstName: fullRes.cardInfo.firstName, 
-        lastName: fullRes.cardInfo.lastName, organization: fullRes.cardInfo.organization,
-        gateName: fullRes.gateName, companionName: fullRes.companionName, recordedBy: fullRes.recordedBy
+        timestamp: logTime, 
+        ioType: finalStatus, 
+        cardId: fullRes.cardInfo.cardId, 
+        cardTypeName: fullRes.typeInfo.typeName, 
+        firstName: fullRes.cardInfo.firstName, 
+        lastName: fullRes.cardInfo.lastName, 
+        organization: fullRes.cardInfo.organization,
+        gateName: fullRes.gateName, 
+        recordedBy: fullRes.recordedBy,
+        // --- ส่วนที่แก้ไข: ตั้งชื่อตัวแปรให้ตรงกับที่ renderRecentLogsTable เรียกใช้ ---
+        companionName: fullRes.companionName,
+        companionCardId: fullRes.companionCardId, // ต้องมีคำว่า CardId
+        companionOrg: fullRes.companionOrg       // ต้องมีคำว่า Org
     };
+    
     recentLogs.unshift(newLog);
     if (recentLogs.length > 200) recentLogs.pop();
     renderRecentLogsTable();
@@ -2753,11 +2769,11 @@ function startBackgroundSync() {
 
     closeCompanionModal();
 
-    // --- จุดตาย: ต้องเปลี่ยนมาใช้ executeScanFinal เพื่อส่งข้อมูลไป Server ---
-    currentDisplayCardId = mainCard.cardId; // จดจำ ID ที่กำลังโชว์
-    showInstantUI(mainCard, typeInfo, 'IN'); // โชว์ UI ทันที
+    currentDisplayCardId = mainCard.cardId;
     
-    // ส่งข้อมูลไปบันทึกลง Google Sheets
+    // --- ส่วนที่แก้ไข: ส่ง compCard เข้าไปใน showInstantUI เพื่อให้แสดงผลทันที ---
+    showInstantUI(mainCard, typeInfo, 'IN', compCard); 
+    
     executeScanFinal(gateId, mainCard.cardId, compCard.cardId, 'IN', `${mainCard.firstName} ${mainCard.lastName}`);
 }
 
