@@ -274,43 +274,39 @@ gap: 1px !important;
                    <!-- ปรับเป็น min-h-full เพื่อให้ยืดได้ตามเนื้อหา และเพิ่ม pb-10 (padding-bottom) เพื่อไม่ให้เนื้อหาชิดขอบล่างเกินไป -->
 						<!-- ส่วนแสดงผลข้อมูลบัตรที่แสกนสำเร็จ (ปรับปรุงใหม่: ชัดเจน สวยงาม เน้นจุดสำคัญ) -->
 <!-- ส่วนแสดงผลข้อมูลบัตร (เวอร์ชัน Compact: กะทัดรัด ไม่รกจอ) -->
+<!-- ส่วนแสดงผลข้อมูล (Compact & Fixed IDs) -->
 <div id="scanResultData" class="hidden min-h-full">
-    <div class="bg-white rounded-[2rem] p-5 sm:p-6 border border-gray-100 shadow-xl relative overflow-hidden">
+    <div class="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-xl relative overflow-hidden">
         
-        <!-- 1. Badge IN/OUT (ปรับขนาดเล็กลง) -->
+        <!-- Badge IN/OUT -->
         <div id="resIoBadge" class="absolute top-0 right-0 px-10 py-4 rounded-bl-[2.5rem] font-black text-4xl text-white shadow-md z-10 transition-all duration-500">
-            IN
+            -
         </div>
         
         <div class="flex flex-col lg:flex-row gap-6">
             
-            <!-- 2. ฝั่งซ้าย: รูปถ่ายและรหัส (ปรับให้แคบลง) -->
+            <!-- ฝั่งซ้าย: รูปถ่ายและระบุตัวตน -->
             <div class="flex flex-col items-center justify-start shrink-0 px-1 border-r-0 lg:border-r border-gray-100 lg:pr-6">
-                <!-- รูปถ่ายพนักงาน (ย่อขนาด) -->
                 <div class="w-32 h-44 sm:w-36 sm:h-48 bg-gray-50 rounded-[1.5rem] border-[4px] border-white shadow-lg flex items-center justify-center text-gray-300 mb-4 overflow-hidden relative">
                     <img id="resCardImage" src="" class="w-full h-full object-cover hidden absolute inset-0 z-10">
                     <i id="resCardIcon" data-lucide="user" class="w-12 h-12 relative z-0 opacity-20"></i>
                 </div>
 
-                <!-- หัวข้อและ Badge รหัสพนักงาน -->
                 <div class="w-full text-center mb-4">
                     <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">รหัสพนักงาน</span>
-                    <div id="resCardId" class="bg-gray-800 text-white px-4 py-1.5 rounded-lg shadow-md font-black text-base tracking-widest inline-block min-w-[120px] border-b-2 border-gray-600 animate-fadeIn">-</div>
+                    <div id="resCardId" class="bg-gray-800 text-white px-4 py-1.5 rounded-lg shadow-md font-black text-base tracking-widest inline-block min-w-[120px] border-b-2 border-gray-600">-</div>
                 </div>
 
-                <!-- หัวข้อและ Badge สิทธิพื้นที่ -->
                 <div class="w-full text-center">
                     <span class="text-[9px] font-black text-sky-600 uppercase tracking-widest block mb-2">สิทธิพื้นที่</span>
-                    <div id="resAreaBadges" class="transition-all duration-500">
-                        <span class="text-[10px] text-gray-300 italic">รอการแสกน...</span>
+                    <div id="resAreaBadges" class="flex items-center justify-center">
+                        <!-- JS จะวาด Badge ตรงนี้ -->
                     </div>
                 </div>
             </div>
             
-            <!-- 3. ฝั่งขวา: รายละเอียด (ปรับขนาด Font) -->
+            <!-- ฝั่งขวา: รายละเอียดรายละเอียด -->
             <div class="flex-1 flex flex-col space-y-4 pt-2">
-                
-                <!-- ชื่อ-นามสกุล และ สังกัด -->
                 <div class="space-y-1">
                     <h4 id="resFullName" class="text-3xl font-black text-gray-800 leading-tight tracking-tight">-</h4>
                     <div class="flex items-center gap-1.5 text-sky-600 bg-sky-50 px-3 py-1 rounded-xl w-fit border border-sky-100">
@@ -319,7 +315,6 @@ gap: 1px !important;
                     </div>
                 </div>
 
-                <!-- ข้อมูลเสริม: ประเภทบัตร และ เวลาบันทึก (ย่อลง) -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div class="bg-gray-50/80 p-3 rounded-xl border border-gray-100">
                         <span class="text-gray-400 text-[9px] font-black uppercase tracking-wider block mb-0.5">ประเภทบัตร</span>
@@ -331,50 +326,41 @@ gap: 1px !important;
                     </div>
                 </div>
 
-                <!-- 4. ส่วนวันหมดอายุ (ปรับให้เล็กลงแต่ยังเด่น) -->
+                <!-- ส่วนวันหมดอายุ -->
                 <div class="bg-gradient-to-br from-red-50 to-orange-50 p-4 rounded-[1.5rem] border-2 border-red-100 shadow-inner relative overflow-hidden">
-                    <div class="absolute -right-4 -bottom-4 opacity-[0.05] rotate-12">
-                        <i data-lucide="calendar-off" class="w-24 h-24 text-red-600"></i>
-                    </div>
-                    <span class="text-red-500 text-[10px] font-black uppercase tracking-[0.2em] block mb-1">วันหมดอายุ</span>
+                    <div class="absolute -right-4 -bottom-4 opacity-[0.05] rotate-12"><i data-lucide="calendar-off" class="w-24 h-24 text-red-600"></i></div>
+                    <span class="text-red-500 text-[10px] font-black uppercase tracking-[0.2em] block mb-1">วันหมดอายุการเข้าพื้นที่</span>
                     <div class="flex items-baseline gap-2 relative z-10">
                         <span id="resExpiry" class="text-4xl font-black text-red-600 tracking-tighter">-</span>
                         <span class="text-red-400 font-bold text-xs">(23:59:59 น.)</span>
                     </div>
                 </div>
 
-                <!-- 5. ข้อมูลผู้ติดตาม (ย่อขนาด) -->
+                <!-- ข้อมูลผู้ติดตาม -->
                 <div id="resCompanionBox" class="p-4 bg-indigo-950 rounded-2xl text-white hidden animate-fadeIn shadow-lg border-l-4 border-indigo-500">
                     <div class="flex items-center gap-2 mb-1.5 opacity-60">
                         <i data-lucide="users" class="w-3.5 h-3.5 text-white"></i>
-                        <span class="text-[9px] font-black uppercase tracking-widest">ข้อมูลผู้ติดตาม</span>
+                        <span class="text-[9px] font-black uppercase tracking-widest text-white">ข้อมูลผู้ติดตาม</span>
                     </div>
                     <p class="font-black text-lg" id="resCompanionName">-</p>
                     <div class="flex gap-2 text-[11px] font-medium text-indigo-300">
-                        <span id="resCompanionId"></span>
-                        <span class="opacity-30">|</span>
-                        <span id="resCompanionOrg"></span>
+                        <span id="resCompanionId"></span> <span class="opacity-30">|</span> <span id="resCompanionOrg"></span>
                     </div>
                 </div>
 
-                <!-- 6. ส่วนช่วยจำใบหน้า AI (Compact) -->
+                <!-- ส่วน AI Improvement -->
                 <div id="improveAiBox" class="p-3 bg-blue-600 rounded-2xl hidden animate-fadeIn shadow-md relative overflow-hidden">
                     <div class="flex items-center gap-3 relative z-10">
-                        <div class="bg-white/20 p-2 rounded-lg text-white">
-                            <i data-lucide="scan-face" class="w-5 h-5"></i>
-                        </div>
-                        <div class="flex-1">
-                            <p class="text-white text-xs font-black">ต้องการเพิ่มรูปเสริมเพื่อความแม่นยำ?</p>
+                        <div class="bg-white/20 p-2 rounded-lg text-white"><i data-lucide="scan-face" class="w-5 h-5"></i></div>
+                        <div class="flex-1 text-white">
+                            <p class="text-xs font-black">ต้องการเพิ่มรูปเสริมเพื่อความแม่นยำ?</p>
                             <div class="flex gap-2 mt-1.5">
-                                <button onclick="openCaptureModal()" class="bg-white text-blue-600 px-3 py-1.5 rounded-lg font-black text-[10px] flex items-center gap-1.5 shadow-md active:scale-95 transition-transform">
-                                    <i data-lucide="camera" class="w-3 h-3"></i> ถ่ายรูปเสริม
-                                </button>
+                                <button onclick="openCaptureModal()" class="bg-white text-blue-600 px-3 py-1.5 rounded-lg font-black text-[10px] flex items-center gap-1.5 shadow-md active:scale-95 transition-transform"><i data-lucide="camera" class="w-3 h-3"></i> ถ่ายรูปเสริม</button>
                                 <button onclick="document.getElementById('improveAiBox').classList.add('hidden')" class="text-white/70 hover:text-white text-[10px] font-bold px-2">ข้าม</button>
                             </div>
                         </div>
                     </div>
                 </div>
-
             </div>
         </div>
     </div>
@@ -2334,37 +2320,32 @@ function showInstantUI(card, typeInfo, predictedStatus) {
     const iconEl = document.getElementById('resCardIcon');
     const compBox = document.getElementById('resCompanionBox');
 
-    // ล้างรูปและผู้ติดตามเดิม
-    imgEl.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+    // รีเซ็ตหน้าจอ
     imgEl.classList.add('hidden');
     iconEl.classList.remove('hidden');
     compBox.classList.add('hidden');
-
     document.getElementById('scanResultEmpty').classList.add('hidden');
     document.getElementById('scanResultData').classList.remove('hidden');
     
-    // --- ปรับปรุง Badge: สีเข้ม + ไอคอนนาฬิกา (Processing) ---
+    // ตั้งค่า Badge สถานะ
     const badge = document.getElementById('resIoBadge');
-    badge.innerHTML = `<span class="flex items-center gap-3">
-        ${predictedStatus} 
-        <i data-lucide="loader-2" class="w-10 h-10 animate-spin text-white/70"></i>
-    </span>`;
-    badge.className = `absolute top-0 right-0 px-12 py-6 rounded-bl-[40px] font-black text-5xl text-white shadow-xl z-10 tracking-widest ${predictedStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
-    document.getElementById('resCardId').textContent = card.cardId;
+    badge.textContent = predictedStatus;
+    badge.className = `absolute top-0 right-0 px-10 py-4 rounded-bl-[2.5rem] font-black text-4xl text-white shadow-md z-10 transition-all duration-500 ${predictedStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
     
-    // >>> บรรทัดที่เพิ่มใหม่: สั่งวาด Badge สิทธิทันทีจากข้อมูลในเครื่อง <<<
-    renderResultAreaBadges(card.areaAccessIds);
-    // -----------------------------------------------------------
+    // แสดงข้อมูลพื้นฐาน (ทันที)
     document.getElementById('resCardId').textContent = card.cardId;
     document.getElementById('resFullName').textContent = `${card.firstName} ${card.lastName}`;
     document.getElementById('resOrg').textContent = card.organization || 'ไม่ระบุหน่วยงาน';
     document.getElementById('resCardType').textContent = typeInfo.typeName;
-    document.getElementById('resVehicle').textContent = card.vehicleReg || '-';
+    
+    // แก้บั๊ก ขีด (-) โดยใส่ข้อมูลที่มีอยู่ก่อนแล้ว
     document.getElementById('resExpiry').textContent = formatDateOnly(card.expiryDate);
-    document.getElementById('resTime').innerHTML = `<span class="text-orange-500 flex items-center gap-1"><i data-lucide="cloud-upload" class="w-4 h-4"></i> กำลังส่งข้อมูล...</span>`;
+    document.getElementById('resTime').innerHTML = `<span class="text-orange-500 animate-pulse">กำลังบันทึก...</span>`;
 
-    lucide.createIcons(); // วาดไอคอนใหม่
+    // วาดเลขสิทธิพื้นที่ทันที
+    renderResultAreaBadges(card.areaAccessIds);
 
+    // โหลดรูปภาพ
     if (card.imageUrl && card.imageUrl.trim() !== '') {
         const tempImg = new Image();
         tempImg.onload = function() {
@@ -2374,6 +2355,7 @@ function showInstantUI(card, typeInfo, predictedStatus) {
         };
         tempImg.src = card.imageUrl;
     }
+    lucide.createIcons();
 }
 
 /**
@@ -2510,93 +2492,61 @@ function renderResultAreaBadges(areaIdsStr) {
     if (!container) return;
     
     container.innerHTML = '';
-    // ลด Padding และความโค้งมนของกล่องสีขาวลง
     container.className = "mx-auto min-h-[80px] p-3 bg-white rounded-2xl border-2 border-dashed border-sky-50 shadow-inner transition-all duration-500 flex items-center justify-center";
 
     if (!areaIdsStr || String(areaIdsStr).trim() === "") {
-        container.innerHTML = '<span class="text-[10px] text-gray-300 italic">ไม่มีระบุ</span>';
+        container.innerHTML = '<span class="text-[10px] text-gray-300 italic">ไม่มีสิทธิ</span>';
         return;
     }
 
     const ids = String(areaIdsStr).split(',').map(s => s.trim()).filter(s => s !== "");
     ids.sort((a, b) => parseInt(a) - parseInt(b));
 
+    // ปรับ Grid ถ้ามี 3-4 อัน
     if (ids.length >= 3) {
         container.classList.add('grid', 'grid-cols-2', 'gap-2');
-        container.style.maxWidth = '140px'; // ย่อ Grid
+        container.style.maxWidth = '140px';
     } else {
         container.classList.add('flex', 'flex-wrap', 'justify-center', 'gap-3');
-        container.style.maxWidth = '220px';
+        container.style.maxWidth = '200px';
     }
 
     ids.forEach(num => {
         const area = allAreas.find(a => String(a.areaNumber) === String(num));
         const bgColor = area ? area.colorCode : '#475569';
         const textColor = getContrastYIQ(bgColor);
-
-        // ย่อขนาดจาก w-24 เป็น w-14 หรือ w-16
         const sizeClass = ids.length >= 3 ? 'w-14 h-14' : 'w-16 h-16';
         const textClass = ids.length >= 3 ? 'text-2xl' : 'text-4xl';
 
         container.innerHTML += `
             <div class="${sizeClass} rounded-xl shadow-lg border-2 border-white flex items-center justify-center animate-fadeIn transform hover:scale-105 transition-all duration-300" 
-                 style="background-color: ${bgColor}; color: ${textColor};" 
-                 title="${area ? area.areaName : 'พื้นที่ ' + num}">
+                 style="background-color: ${bgColor}; color: ${textColor};" title="${area ? area.areaName : ''}">
                 <span class="${textClass} font-black leading-none">${num}</span>
-            </div>
-        `;
+            </div>`;
     });
-} 
+}
 function confirmStatusUI(finalStatus, logTime, fullRes = null) {
-    // 1. ตรวจสอบว่าพนักงานที่ตอบกลับมา คือคนเดียวกับที่แสดงบนจอปัจจุบันหรือไม่
     if (fullRes && String(fullRes.cardInfo.cardId).toUpperCase() === currentDisplayCardId) {
+        // อัปเดตเวลาบันทึกจริง
+        document.getElementById('resTime').textContent = formatDateTime(logTime).split('|')[1].trim(); 
         
-        // --- อัปเดตป้ายสถานะ (Badge IN/OUT) ขนาดใหญ่ ---
-        const badge = document.getElementById('resIoBadge');
-        if (badge) {
-            badge.innerHTML = finalStatus; 
-            badge.className = `absolute top-0 right-0 px-20 py-6 rounded-bl-[40px] font-black text-5xl text-white shadow-2xl z-10 tracking-widest transition-all duration-500 ${finalStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
-        }
-        // >>> เพิ่มบรรทัดนี้ลงไปเพื่อให้วาด Badge เลขพื้นที่ <<<
-        //renderResultAreaBadges(fullRes.cardInfo.areaAccessIds);
-        // ----------------------------------------------
-        // --- อัปเดตวันเวลาที่บันทึกสำเร็จ ---
-        const resTimeEl = document.getElementById('resTime');
-        if (resTimeEl) {
-            resTimeEl.innerHTML = formatDateTime(logTime).replace(' | ', '<br>');
-        }
-        
-        // --- อัปเดตข้อมูลผู้ติดตาม (ถ้ามี) ---
+        // อัปเดตข้อมูลผู้ติดตาม (ถ้ามี)
         const compBox = document.getElementById('resCompanionBox');
-        if (compBox) {
-            if (fullRes.companionName && fullRes.companionName.trim() !== "") {
-                document.getElementById('resCompanionName').textContent = fullRes.companionName;
-                document.getElementById('resCompanionId').textContent = fullRes.companionCardId;
-                document.getElementById('resCompanionOrg').textContent = fullRes.companionOrg || '-';
-                compBox.classList.remove('hidden');
-            } else {
-                compBox.classList.add('hidden');
-            }
+        if (fullRes.companionName) {
+            document.getElementById('resCompanionName').textContent = fullRes.companionName;
+            document.getElementById('resCompanionId').textContent = fullRes.companionCardId;
+            document.getElementById('resCompanionOrg').textContent = fullRes.companionOrg || '-';
+            compBox.classList.remove('hidden');
         }
 
-        // --- จัดการส่วน "ช่วยจำใบหน้า" (Improve AI) ---
+        // แสดงปุ่มถ่ายรูปเสริม (เฉพาะโหมดกล้อง)
         if (isCameraActive) { 
-            const improveBox = document.getElementById('improveAiBox');
-            if (improveBox) {
-                // *** จุดสำคัญ: เราจะไม่ไปอัปเดตค่า lowScoreVal อีกแล้ว เพื่อให้มันนิ่งตามที่แสกนได้ในตอนแรก ***
-                improveBox.classList.remove('hidden');
-            }
+            document.getElementById('improveAiBox').classList.remove('hidden');
         }
-    } 
-    // 2. ถ้าเป็นพนักงานคนก่อนหน้า (กรณีแสกนรัวๆ) ให้แสดงเป็น Toast แจ้งเตือนเล็กๆ แทน
-    else if (fullRes) {
+    } else if (fullRes) {
         showSuccessToast(fullRes.cardInfo.cardId, fullRes.cardInfo.firstName, finalStatus);
     }
-
-    // 3. สั่ง Refresh ตารางประวัติล่าสุด และ Dashboard
-    if (fullRes) {
-        updateRecentLogsList(fullRes, logTime, finalStatus);
-    }
+    if (fullRes) updateRecentLogsList(fullRes, logTime, finalStatus);
 }
 
 /**
