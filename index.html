@@ -2509,28 +2509,24 @@ function renderResultAreaBadges(areaIdsStr) {
     const container = document.getElementById('resAreaBadges');
     if (!container) return;
     
-    // ล้างข้อมูลและคลาสเลย์เอาต์เดิมออกก่อน
     container.innerHTML = '';
-    container.className = "mx-auto min-h-[120px] p-6 bg-white rounded-[2.5rem] border-2 border-dashed border-sky-100 shadow-inner transition-all duration-500";
+    // ลด Padding และความโค้งมนของกล่องสีขาวลง
+    container.className = "mx-auto min-h-[80px] p-3 bg-white rounded-2xl border-2 border-dashed border-sky-50 shadow-inner transition-all duration-500 flex items-center justify-center";
 
     if (!areaIdsStr || String(areaIdsStr).trim() === "") {
-        container.classList.add('flex', 'items-center', 'justify-center', 'w-full', 'max-w-sm');
-        container.innerHTML = '<span class="text-xs text-gray-300 italic">รอการแสกน...</span>';
+        container.innerHTML = '<span class="text-[10px] text-gray-300 italic">ไม่มีระบุ</span>';
         return;
     }
 
     const ids = String(areaIdsStr).split(',').map(s => s.trim()).filter(s => s !== "");
     ids.sort((a, b) => parseInt(a) - parseInt(b));
 
-    // --- ตรรกะการจัดเลย์เอาต์ ---
     if (ids.length >= 3) {
-        // กรณี 3-4 หมายเลข: ใช้ Grid 2x2
-        container.classList.add('grid', 'grid-cols-2', 'gap-4', 'place-items-center');
-        container.style.maxWidth = '260px'; // บีบความกว้างเพื่อให้เป็นทรงจัตุรัส 2x2
+        container.classList.add('grid', 'grid-cols-2', 'gap-2');
+        container.style.maxWidth = '140px'; // ย่อ Grid
     } else {
-        // กรณี 1-2 หมายเลข: ใช้ Flex กึ่งกลาง
-        container.classList.add('flex', 'flex-wrap', 'justify-center', 'gap-5', 'items-center', 'w-full');
-        container.style.maxWidth = '384px'; // ความกว้างปกติ (max-w-sm)
+        container.classList.add('flex', 'flex-wrap', 'justify-center', 'gap-3');
+        container.style.maxWidth = '220px';
     }
 
     ids.forEach(num => {
@@ -2538,15 +2534,15 @@ function renderResultAreaBadges(areaIdsStr) {
         const bgColor = area ? area.colorCode : '#475569';
         const textColor = getContrastYIQ(bgColor);
 
-        // ปรับขนาด Badge เล็กน้อยเพื่อให้ลงตัวใน Grid 2x2 (จาก w-24 เป็น w-22)
-        const sizeClass = ids.length >= 3 ? 'w-22 h-22 sm:w-24 sm:h-24' : 'w-24 h-24';
-        const textClass = ids.length >= 3 ? 'text-5xl' : 'text-6xl';
+        // ย่อขนาดจาก w-24 เป็น w-14 หรือ w-16
+        const sizeClass = ids.length >= 3 ? 'w-14 h-14' : 'w-16 h-16';
+        const textClass = ids.length >= 3 ? 'text-2xl' : 'text-4xl';
 
         container.innerHTML += `
-            <div class="${sizeClass} rounded-2xl shadow-2xl border-4 border-white flex items-center justify-center animate-fadeIn transform hover:scale-105 transition-all duration-300" 
+            <div class="${sizeClass} rounded-xl shadow-lg border-2 border-white flex items-center justify-center animate-fadeIn transform hover:scale-105 transition-all duration-300" 
                  style="background-color: ${bgColor}; color: ${textColor};" 
                  title="${area ? area.areaName : 'พื้นที่ ' + num}">
-                <span class="${textClass} font-black leading-none drop-shadow-md">${num}</span>
+                <span class="${textClass} font-black leading-none">${num}</span>
             </div>
         `;
     });
