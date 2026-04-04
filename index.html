@@ -2112,23 +2112,27 @@ async function handleVehicleScan(cardId) {
     const gateIds = String(v.allowedGateIds || '').split(',').filter(x=>x);
     const gateNames = allGates.filter(g => gateIds.includes(String(g.id))).map(g => g.name).join(', ');
     
-    let detailHtml = `
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-            <div class="bg-slate-100 p-2 rounded-xl border border-slate-200">
-                <span class="text-[10px] font-black text-slate-500 uppercase block">หน่วยงาน / สังกัดรถ</span>
-                <span class="text-lg font-black text-slate-700">${v.organization || 'ไม่ระบุ'}</span>
+     let detailHtml = `
+        <div class="flex flex-wrap items-center gap-4 mt-4">
+            <div class="bg-slate-100 px-5 py-3 rounded-2xl border border-slate-200 shadow-sm min-w-[150px]">
+                <span class="text-[10px] font-black text-slate-500 uppercase block mb-1">หน่วยงาน / สังกัดรถ</span>
+                <span class="text-xl font-black text-slate-800">${v.organization || 'ไม่ระบุ'}</span>
             </div>
-            <div class="bg-blue-50 p-2 rounded-xl border border-blue-100">
-                <span class="text-[10px] font-black text-blue-500 uppercase block">จุดเข้าออกที่อนุญาต</span>
-                <span class="text-sm font-bold text-blue-700">${gateNames || 'ทุกจุดเข้า-ออก'}</span>
+            <div class="bg-blue-50 px-5 py-3 rounded-2xl border border-blue-100 shadow-sm min-w-[200px]">
+                <span class="text-[10px] font-black text-blue-500 uppercase block mb-1">จุดเข้าออกที่อนุญาต</span>
+                <span class="text-lg font-bold text-blue-800">${gateNames || 'ทุกจุดเข้า-ออก'}</span>
             </div>
-            <div class="bg-indigo-50 p-2 rounded-xl border border-indigo-100 col-span-1 sm:col-span-2">
-                <span class="text-[10px] font-black text-indigo-500 uppercase block mb-1">พื้นที่ที่อนุญาต (Zone Access)</span>
-                <div class="flex gap-2">
+            <div class="bg-red-50 px-5 py-3 rounded-2xl border border-red-100 shadow-sm min-w-[180px]">
+                <span class="text-[10px] font-black text-red-500 uppercase block mb-1">วันหมดอายุบัตรรถ</span>
+                <span class="text-xl font-black text-red-600">${formatDateOnly(v.expiryDate)}</span>
+            </div>
+            <div class="bg-indigo-50 px-5 py-3 rounded-2xl border border-indigo-100 shadow-sm flex-1 min-w-[200px]">
+                <span class="text-[10px] font-black text-indigo-500 uppercase block mb-2">พื้นที่ที่อนุญาต (ZONE ACCESS)</span>
+                <div class="flex gap-3">
                     ${areaIds.map(num => `
-                        <div class="flex items-center gap-1 bg-indigo-600 text-white px-3 py-1 rounded-lg shadow-sm">
-                            <span class="text-[10px] font-bold opacity-70">เขต</span>
-                            <span class="text-xl font-black">${num}</span>
+                        <div class="flex items-center gap-2 bg-indigo-600 text-white px-4 py-1.5 rounded-xl shadow-md">
+                            <span class="text-xs font-bold opacity-70 uppercase">เขต</span>
+                            <span class="text-2xl font-black">${num}</span>
                         </div>
                     `).join('')}
                 </div>
@@ -2139,7 +2143,8 @@ async function handleVehicleScan(cardId) {
     
     const badge = document.getElementById('stgIoBadge');
     badge.textContent = vehicleSession.mode;
-    badge.className = `px-6 py-2 rounded-full font-black text-white text-xl ${vehicleSession.mode==='IN'?'bg-green-600 shadow-green-200':'bg-orange-600 shadow-orange-200'} shadow-lg`;
+    // ขยายเป็น px-12 py-5 และ text-5xl (ใหญ่มาก) พร้อมเงาหนา
+    badge.className = `px-12 py-5 rounded-[2rem] font-black text-white text-5xl shadow-2xl transition-all duration-300 ${vehicleSession.mode==='IN'?'bg-green-600 ring-8 ring-green-100':'bg-orange-600 ring-8 ring-orange-100'}`;
 
     // 3. จัดการรายชื่อพนักงานขาเข้า/ขาออก
     if (vehicleSession.mode === 'OUT') {
@@ -2227,67 +2232,71 @@ function renderStagingList() {
     const btnSave = document.getElementById('btnSaveVehicle');
     let html = '';
 
-    const drawItem = (p, isDriver, index) => {
+     const drawItem = (p, isDriver, index) => {
         const areaIds = String(p.areaAccessIds || '').split(',').filter(x=>x);
         const expDate = new Date(p.expiryDate);
         const isExp = expDate.setHours(23,59,59) < new Date();
         const imgUrl = p.imageUrl || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png';
 
         return `
-        <div class="p-5 ${isDriver?'bg-amber-50 border-amber-300':'bg-white border-slate-200'} border-2 rounded-[2rem] shadow-sm animate-fadeIn mb-4 group transition-all">
-            <div class="flex flex-wrap lg:flex-nowrap items-center gap-6">
+        <div class="p-6 ${isDriver?'bg-amber-50/40 border-amber-300':'bg-white border-slate-100'} border-2 rounded-[2.5rem] shadow-sm animate-fadeIn mb-4 group transition-all hover:border-blue-400">
+            <div class="flex flex-col lg:flex-row items-center gap-8">
                 
-                <!-- 1. รูปและประเภท (ใหญ่ขึ้น) -->
+                <!-- 1. รูปพนักงาน (ซ้ายสุด) -->
                 <div class="relative shrink-0">
-                    <img src="${imgUrl}" class="w-20 h-20 rounded-[1.5rem] object-cover border-4 border-white shadow-md" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'">
-                    <span class="absolute -bottom-2 -right-1 text-[10px] font-black ${isDriver?'bg-amber-500':'bg-slate-600'} text-white px-3 py-1 rounded-full uppercase shadow-lg border-2 border-white">${isDriver?'Driver':'Pax'}</span>
+                    <img src="${imgUrl}" class="w-24 h-24 rounded-[2rem] object-cover border-4 border-white shadow-xl" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'">
+                    <span class="absolute -bottom-2 -right-1 text-xs font-black ${isDriver?'bg-amber-500':'bg-slate-600'} text-white px-4 py-1 rounded-full uppercase shadow-lg border-2 border-white">${isDriver?'Driver':'Passenger'}</span>
                 </div>
 
-                <!-- 2. ชื่อและรหัส (ตัวใหญ่พิเศษ) -->
-                <div class="flex-1 min-w-[200px]">
-                    <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">ชื่อ-นามสกุล / รหัสพนักงาน</span>
-                    <p class="text-2xl font-black text-gray-800 leading-tight">${p.firstName} ${p.lastName}</p>
-                    <p class="text-lg font-bold text-blue-600 mt-1">${p.cardId}</p>
+                <!-- 2. ชื่อและรหัส (ขยับมาซ้ายและใหญ่ขึ้น) -->
+                <div class="flex-1 min-w-[250px]">
+                    <span class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] block mb-1">พนักงาน / รหัส</span>
+                    <p class="text-3xl font-black text-gray-800 leading-tight">${p.firstName} ${p.lastName}</p>
+                    <div class="inline-block mt-2 bg-blue-600 text-white px-3 py-0.5 rounded-lg text-lg font-black shadow-sm">${p.cardId}</div>
                 </div>
 
-                <!-- 3. หน่วยงาน (มีหัวข้อ) -->
-                <div class="w-48 shrink-0">
-                    <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">หน่วยงาน / สังกัด</span>
-                    <p class="text-md font-bold text-gray-700">${p.organization || '-'}</p>
-                </div>
-
-                <!-- 4. สิทธิ์พื้นที่ (มีหัวข้อ + Badge ใหญ่ขึ้น) -->
-                <div class="w-32 shrink-0">
-                    <span class="text-[10px] font-black text-indigo-400 uppercase tracking-widest block mb-2">สิทธิ์พื้นที่ (Zone)</span>
-                    <div class="flex flex-wrap gap-1">
-                        ${areaIds.map(num => `<span class="w-7 h-7 bg-indigo-600 text-white text-md flex items-center justify-center rounded-lg font-black shadow-sm">${num}</span>`).join('')}
+                <!-- 3. ข้อมูลอื่นๆ ทำเป็น Badge แนวนอน -->
+                <div class="flex flex-wrap lg:flex-nowrap items-center gap-4 shrink-0">
+                    
+                    <!-- หน่วยงาน -->
+                    <div class="bg-gray-100 px-4 py-2 rounded-2xl border border-gray-200 min-w-[160px]">
+                        <span class="text-[9px] font-black text-gray-500 uppercase block">หน่วยงาน</span>
+                        <p class="text-md font-bold text-gray-700 truncate">${p.organization || '-'}</p>
                     </div>
+
+                    <!-- สิทธิ์พื้นที่ -->
+                    <div class="bg-indigo-50 px-4 py-2 rounded-2xl border border-indigo-100 min-w-[120px]">
+                        <span class="text-[9px] font-black text-indigo-400 uppercase block mb-1">Zone</span>
+                        <div class="flex gap-1.5">
+                            ${areaIds.map(num => `<span class="w-8 h-8 bg-indigo-600 text-white text-lg flex items-center justify-center rounded-xl font-black shadow-sm">${num}</span>`).join('')}
+                        </div>
+                    </div>
+
+                    <!-- วันหมดอายุ (ป้องกันโดนตัดบรรทัด) -->
+                    <div class="bg-white px-4 py-2 rounded-2xl border-2 ${isExp?'border-red-500 bg-red-50':'border-gray-200'} min-w-[160px] text-center">
+                        <span class="text-[9px] font-black text-gray-500 uppercase block">วันหมดอายุ</span>
+                        <p class="text-lg font-black ${isExp?'text-red-600':'text-gray-800'} whitespace-nowrap">${formatDateOnly(p.expiryDate)}</p>
+                    </div>
+
                 </div>
 
-                <!-- 5. วันหมดอายุ (ชัดเจน) -->
-                <div class="w-32 shrink-0 text-center lg:text-left">
-                    <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">วันหมดอายุ</span>
-                    <p class="text-md font-black ${isExp?'text-red-600 bg-red-50':'text-slate-800'} px-2 py-1 rounded-lg">${formatDateOnly(p.expiryDate)}</p>
-                </div>
-
-                <!-- 6. ปุ่มจัดการ (ใหญ่ขึ้น) -->
-                <div class="flex gap-2 ml-auto">
+                <!-- 4. ปุ่มจัดการ (ขวาสุด) -->
+                <div class="flex gap-3 shrink-0 ml-auto">
                     ${(isDriver === false && vehicleSession.mode === 'IN') ? `
-                        <button onclick="swapToDriver(${index})" class="p-3 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-600 hover:text-white transition shadow-sm border border-blue-100">
+                        <button onclick="swapToDriver(${index})" class="w-14 h-14 bg-blue-50 text-blue-600 rounded-3xl hover:bg-blue-600 hover:text-white transition shadow-md border border-blue-100 flex items-center justify-center">
                             <i data-lucide="refresh-cw" class="w-6 h-6"></i>
                         </button>` : ''}
-                    <button onclick="${isDriver?'removeDriver()':'removePassenger('+index+')'}" class="p-3 bg-red-50 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition shadow-sm border border-red-100">
+                    <button onclick="${isDriver?'removeDriver()':'removePassenger('+index+')'}" class="w-14 h-14 bg-red-50 text-red-500 rounded-3xl hover:bg-red-500 hover:text-white transition shadow-md border border-red-100 flex items-center justify-center">
                         <i data-lucide="trash-2" class="w-6 h-6"></i>
                     </button>
                 </div>
             </div>
             
-            <!-- ผู้ติดตาม (ตัวหนาขึ้น) -->
+            <!-- ผู้ติดตาม (แถบยาวเต็มความกว้าง) -->
             ${p.companionCardId ? `
-                <div class="mt-4 ml-24 p-3 bg-indigo-50 rounded-2xl border-2 border-indigo-100 flex items-center gap-3 animate-fadeIn">
-                    <div class="bg-indigo-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase shadow-sm">ผู้ติดตาม (Companion)</div>
-                    <span class="text-lg font-black text-indigo-800">${p.companionName}</span>
-                    <span class="text-sm font-bold text-indigo-400">(${p.companionCardId})</span>
+                <div class="mt-5 ml-32 p-4 bg-indigo-50/50 rounded-3xl border-2 border-dashed border-indigo-200 flex items-center gap-4 animate-fadeIn">
+                    <span class="bg-indigo-600 text-white px-4 py-1 rounded-full text-xs font-black uppercase shadow-sm">Companion</span>
+                    <p class="text-xl font-black text-indigo-800">${p.companionName} <span class="text-indigo-400 font-bold ml-2">(${p.companionCardId})</span></p>
                 </div>` : ''}
         </div>`;
     };
