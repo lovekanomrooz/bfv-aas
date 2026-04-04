@@ -2068,21 +2068,26 @@ function calcVehicleExpiry() {
         expInput.value = date.toISOString().split('T')[0];
     }
 }
-	  function renderVehicleGateCheckboxes(selectedStr = '') {
+function renderVehicleGateCheckboxes(selectedStr = '') {
     const container = document.getElementById('vGateCheckboxes');
-    const selectedArr = selectedStr.split(',');
     
-    // ปรับปรุงการตรวจสอบให้ไม่สนตัวพิมพ์เล็ก/ใหญ่ (true/TRUE)
+    // --- แก้ไขจุดนี้: บังคับให้เป็น String และล้างค่าว่าง ---
+    const val = (selectedStr === null || selectedStr === undefined) ? '' : String(selectedStr);
+    const selectedArr = val.split(',').map(s => s.trim());
+    
+    // กรองเฉพาะประตูที่อนุญาตให้รถผ่าน (allowedVehicle === true)
     const vehicleGates = allGates.filter(g => String(g.allowedVehicle).toUpperCase() === 'TRUE');
     
     if(vehicleGates.length === 0) {
-        container.innerHTML = '<p class="text-xs text-red-400 p-2">ไม่มีประตูที่รองรับรถ (กรุณาไปตั้งค่าที่จุดเข้าออกก่อน)</p>';
+        container.innerHTML = '<p class="text-xs text-red-400 p-2">ไม่มีประตูที่รองรับรถ</p>';
         return;
     }
 
     container.innerHTML = vehicleGates.map(g => `
         <label class="flex items-center gap-2 p-2 hover:bg-blue-50 rounded-lg cursor-pointer transition border border-transparent hover:border-blue-100">
-            <input type="checkbox" class="v-gate-cb w-4 h-4 text-blue-600 rounded" value="${g.id}" ${selectedArr.includes(String(g.id))?'checked':''}>
+            <input type="checkbox" class="v-gate-cb w-4 h-4 text-blue-600 rounded" 
+                   value="${g.id}" 
+                   ${selectedArr.includes(String(g.id)) ? 'checked' : ''}>
             <span class="text-xs font-bold text-gray-700">${g.name}</span>
         </label>
     `).join('');
@@ -2146,8 +2151,8 @@ function openVehicleModal() {
         expiryDate: document.getElementById('vExpiryDate').value,
         otherDetails: document.getElementById('vOtherDetails').value.trim(),
         status: document.querySelector('input[name="vStatus"]:checked').value,
-        allowedGateIds: Array.from(document.querySelectorAll('.v-gate-cb:checked')).map(cb => cb.value).join(','),
-        areaAccessIds: Array.from(document.querySelectorAll('.v-area-cb:checked')).map(cb => cb.value).join(',')
+        allowedGateIds: String(Array.from(document.querySelectorAll('.v-gate-cb:checked')).map(cb => cb.value).join(',')),
+    areaAccessIds: String(Array.from(document.querySelectorAll('.v-area-cb:checked')).map(cb => cb.value).join(','))
     };
 
     showLoader('กำลังบันทึกข้อมูลรถ...');
@@ -6522,21 +6527,26 @@ function startReturnCooldown() {
     }
 
     // (ส่วน Checkbox Area ปล่อยไว้เหมือนเดิม)
-    function renderAreaCheckboxesGen(selectedAreaStr, containerId, inputClass) {
-        const container = document.getElementById(containerId);
-        if(!container) return;
-        if(allAreas.length === 0) { container.innerHTML = '<span class="text-xs text-gray-400 col-span-full">ยังไม่ได้ตั้งค่าพื้นที่</span>'; return; }
-        
-        let selectedArr = [];
-        if(selectedAreaStr) selectedArr = selectedAreaStr.toString().split(',');
+   function renderAreaCheckboxesGen(selectedAreaStr, containerId, inputClass) {
+    const container = document.getElementById(containerId);
+    if(!container) return;
+    if(allAreas.length === 0) { container.innerHTML = '<span class="text-xs text-gray-400 col-span-full">ยังไม่ได้ตั้งค่าพื้นที่</span>'; return; }
+    
+    // --- แก้ไขจุดนี้: บังคับเป็น String ก่อน Split ---
+    const val = (selectedAreaStr === null || selectedAreaStr === undefined) ? '' : String(selectedAreaStr);
+    const selectedArr = val.split(',').map(s => s.trim());
 
-        let html = '';
-        allAreas.filter(a => a.status === 'active').forEach(a => {
-            const isChecked = selectedArr.includes(String(a.areaNumber)) ? 'checked' : '';
-            html += `<label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-white border border-transparent hover:border-gray-200 transition bg-white/50"><input type="checkbox" class="w-4 h-4 text-blue-600 rounded ${inputClass}" value="${a.areaNumber}" ${isChecked}><div class="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold text-gray-900 shadow-sm border border-gray-300" style="background-color: ${a.colorCode};">${a.areaNumber}</div><span class="text-xs font-bold text-gray-700 truncate">${a.areaName}</span></label>`;
-        });
-        container.innerHTML = html;
-    }
+    let html = '';
+    allAreas.filter(a => a.status === 'active').forEach(a => {
+        const isChecked = selectedArr.includes(String(a.areaNumber)) ? 'checked' : '';
+        html += `<label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-white border border-transparent hover:border-gray-200 transition bg-white/50">
+            <input type="checkbox" class="w-4 h-4 text-blue-600 rounded ${inputClass}" value="${a.areaNumber}" ${isChecked}>
+            <div class="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold text-gray-900 shadow-sm border border-gray-300" style="background-color: ${a.colorCode};">${a.areaNumber}</div>
+            <span class="text-xs font-bold text-gray-700 truncate">${a.areaName}</span>
+        </label>`;
+    });
+    container.innerHTML = html;
+}
 	
 	function updateAreaCheckboxState() {
     const checkboxes = document.querySelectorAll('.input-area-cb');
