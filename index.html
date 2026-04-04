@@ -2125,18 +2125,14 @@ function openVehicleModal() {
     document.getElementById('vehicleModal').classList.remove('hidden');
     lucide.createIcons();
 }
-	 async function saveVehicle() {
+	async function saveVehicle() {
     const id = document.getElementById('editVehicleDbId').value;
     const cardId = document.getElementById('vCardIdInp').value.trim().toUpperCase();
     const typeId = document.getElementById('vTypeInp').value;
     const reg = document.getElementById('vVehicleReg').value.trim();
     const fName = document.getElementById('vApplicantFirstName').value.trim();
 
-    // ตรวจสอบฟิลด์ที่บังคับ
-    if(!cardId) return showToast('กรุณาระบุรหัสบัตร', 'error');
-    if(!typeId) return showToast('กรุณาเลือกประเภทบัตรรถ', 'error');
-    if(!reg) return showToast('กรุณากรอกทะเบียนรถ', 'error');
-    if(!fName) return showToast('กรุณากรอกชื่อผู้ยื่นคำขอ', 'error');
+    if(!cardId || !typeId || !reg || !fName) return showToast('กรุณากรอกข้อมูลที่จำเป็นให้ครบ', 'error');
 
     const data = {
         cardId: cardId,
@@ -2154,30 +2150,28 @@ function openVehicleModal() {
         areaAccessIds: Array.from(document.querySelectorAll('.v-area-cb:checked')).map(cb => cb.value).join(',')
     };
 
-   showLoader('กำลังบันทึกข้อมูลรถ...');
+    showLoader('กำลังบันทึกข้อมูลรถ...');
     try {
         let result;
         if(id) {
             data.id = id;
             result = await apiCall('updateVehicle', data);
+            // อัปเดตข้อมูลในตัวแปร Cache (Local)
             const idx = allVehicles.findIndex(x => Number(x.id) === Number(id));
             if(idx !== -1) allVehicles[idx] = result;
             showToast('แก้ไขข้อมูลรถสำเร็จ', 'success');
         } else {
             result = await apiCall('addVehicle', data);
-            allVehicles.unshift(result); // เพิ่มตัวใหม่ไว้บนสุดของ Cache ในเครื่อง
+            allVehicles.unshift(result);
             showToast('เพิ่มรถใหม่สำเร็จ', 'success');
         }
         
         closeVehicleModal();
-        filterVehiclesTable(); // วาดตารางใหม่ทันทีจาก Cache ในเครื่อง
+        // วาดตารางใหม่ทันที
+        filterVehiclesTable(); 
         
-        // ดึงตัวเลข Dashboard ใหม่เบื้องหลัง
-        apiCall('getInitialData', {}, false).then(res => {
-            renderVehicleDashboard(res.vehicleStats);
-        });
-
     } catch (err) {
+        console.error(err);
         showToast('เกิดข้อผิดพลาดในการบันทึก', 'error');
     } finally {
         hideLoader();
@@ -2334,13 +2328,14 @@ function closeTypeVehicleModal() {
  * ฟังก์ชันโหลดข้อมูลยานพาหนะมาแก้ไข (Edit Vehicle)
  */
 function editVehicle(id) {
+    // 1. ค้นหาข้อมูลรถ โดยบังคับ ID เป็น Number เพื่อป้องกัน Type Mismatch
     const v = allVehicles.find(x => Number(x.id) === Number(id));
     if (!v) return showToast('ไม่พบข้อมูลยานพาหนะ', 'error');
 
     document.getElementById('vehicleModalTitle').innerHTML = '<i data-lucide="edit"></i> แก้ไขข้อมูลยานพาหนะ';
     document.getElementById('editVehicleDbId').value = v.id;
 
-    // แยกส่วนรหัสบัตร
+    // 2. แยกส่วนรหัสบัตร (เช่น V001/2569) เข้า 3 ช่อง Prefix, Number, Year
     const fullId = v.cardId || '';
     const parts = fullId.split('/');
     if(parts.length === 2) {
@@ -2351,16 +2346,19 @@ function editVehicle(id) {
             const numStr = numMatch[0];
             document.getElementById('vGenPrefix').value = firstPart.substring(0, firstPart.length - numStr.length);
             document.getElementById('vGenNum').value = parseInt(numStr);
+        } else {
+            document.getElementById('vGenPrefix').value = firstPart;
+            document.getElementById('vGenNum').value = "";
         }
     }
     document.getElementById('vCardIdInp').value = v.cardId;
 
-    // โหลดประเภทบัตรรถ
+    // 3. โหลดประเภทบัตรรถลง Dropdown
     document.getElementById('vTypeInp').innerHTML = typeVehicles.map(t => 
-        `<option value="${t.id}" ${parseInt(t.id) === parseInt(v.typeId) ? 'selected' : ''}>${t.typeName}</option>`
+        `<option value="${t.id}" ${Number(t.id) === Number(v.typeId) ? 'selected' : ''}>${t.typeName}</option>`
     ).join('');
 
-    // ใส่ข้อมูลพื้นฐาน (SCHEMA ใหม่)
+    // 4. ใส่ข้อมูลพนักงาน/หน่วยงาน
     document.getElementById('vApplicantFirstName').value = v.applicantFirstName || '';
     document.getElementById('vApplicantLastName').value = v.applicantLastName || '';
     document.getElementById('vApplicantPosition').value = v.applicantPosition || '';
@@ -2368,22 +2366,29 @@ function editVehicle(id) {
     document.getElementById('vVehicleReg').value = v.vehicleReg || '';
     document.getElementById('vOtherDetails').value = v.otherDetails || '';
     
-    // วันที่
-    const formatDateForInp = (d) => d ? new Date(d).toISOString().split('T')[0] : "";
+    // 5. จัดการวันที่ (ต้องเป็น YYYY-MM-DD เท่านั้น)
+    const formatDateForInp = (d) => {
+        if(!d) return "";
+        try {
+            return new Date(d).toISOString().split('T')[0];
+        } catch(e) { return ""; }
+    };
     document.getElementById('vIssueDate').value = formatDateForInp(v.issueDate);
     document.getElementById('vExpiryDate').value = formatDateForInp(v.expiryDate);
 
-    // สถานะ
-    const rad = document.querySelector(`input[name="vStatus"][value="${v.status}"]`);
+    // 6. สถานะ Active/Inactive
+    const statusVal = v.status === 'active' ? 'active' : 'inactive';
+    const rad = document.querySelector(`input[name="vStatus"][value="${statusVal}"]`);
     if(rad) rad.checked = true;
 
-    // วาด Checkbox
+    // 7. วาด Checkbox ประตู และ พื้นที่ (เรียกฟังก์ชันเดิมที่คุณมี)
     renderVehicleGateCheckboxes(v.allowedGateIds || '');
     renderAreaCheckboxesGen(v.areaAccessIds || '', 'vAreaCheckboxes', 'v-area-cb');
     
-    // ตรวจสอบสถานะการล็อก 4 ช่อง
+    // 8. ตรวจสอบสถานะการล็อก 4 ช่องพื้นที่
     updateVehicleAreaCheckboxState(); 
 
+    // 9. แสดง Modal และอัปเดตไอคอน
     document.getElementById('vehicleModal').classList.remove('hidden');
     if (window.lucide) lucide.createIcons();
 }
