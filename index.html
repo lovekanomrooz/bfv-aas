@@ -1380,8 +1380,12 @@ gap: 1px !important;
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div><label class="block text-xs font-bold text-gray-500 mb-1">ประเภทบัตรรถ</label><select id="vTypeInp" class="w-full border p-2.5 rounded-xl" onchange="calcVehicleExpiry()"></select></div>
                 <div><label class="block text-xs font-bold text-gray-500 mb-1">ทะเบียนรถ</label><input type="text" id="vVehicleReg" class="w-full border p-2.5 rounded-xl" placeholder="เช่น กข 1234"></div>
-                <div><label class="block text-xs font-bold text-gray-500 mb-1">ผู้ยื่นคำขอทำบัตร</label><input type="text" id="vApplicantName" class="w-full border p-2.5 rounded-xl"></div>
-                <div><label class="block text-xs font-bold text-gray-500 mb-1">หน่วยงาน</label><input type="text" id="vOrganization" class="w-full border p-2.5 rounded-xl"></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div><label class="block text-xs font-bold text-gray-500 mb-1">ชื่อผู้ยื่นคำขอ <span class="text-red-500">*</span></label><input type="text" id="vApplicantFirstName" class="w-full border p-2.5 rounded-xl"></div>
+    <div><label class="block text-xs font-bold text-gray-500 mb-1">นามสกุลผู้ยื่นคำขอ</label><input type="text" id="vApplicantLastName" class="w-full border p-2.5 rounded-xl"></div>
+    <div><label class="block text-xs font-bold text-gray-500 mb-1">ตำแหน่ง</label><input type="text" id="vApplicantPosition" class="w-full border p-2.5 rounded-xl" placeholder="เช่น วิศวกร, พนักงานขับรถ"></div>
+    <div><label class="block text-xs font-bold text-gray-500 mb-1">หน่วยงาน</label><input type="text" id="vOrganization" class="w-full border p-2.5 rounded-xl"></div>
+</div>
             </div>
 
             <!-- การเลือกประตู (กรองเฉพาะที่ให้รถเข้า) -->
@@ -1418,28 +1422,47 @@ gap: 1px !important;
 </div>
 
 <!-- Modal: ประเภทบัตรรถ -->
+<!-- Modal: ประเภทบัตรรถ (แก้ไขให้เหมือนบัตรพนักงาน) -->
 <div id="typeVehicleModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeTypeVehicleModal()"></div>
-    <div class="relative bg-white rounded-2xl w-full max-w-md shadow-2xl animate-fadeIn">
-        <div class="bg-blue-800 text-white p-4 rounded-t-2xl flex justify-between items-center"><h3 id="typeVehicleModalTitle" class="font-bold">ประเภทบัตรรถ</h3></div>
+    <div class="relative bg-white rounded-2xl w-full max-w-md flex flex-col shadow-2xl animate-fadeIn">
+        <div class="bg-blue-600 text-white p-4 rounded-t-2xl flex justify-between items-center">
+            <h3 id="typeVehicleModalTitle" class="font-bold flex items-center gap-2 text-lg"><i data-lucide="settings-2"></i> ประเภทบัตรรถ</h3>
+            <button onclick="closeTypeVehicleModal()" class="hover:bg-white/20 p-1.5 rounded-lg transition"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
         <div class="p-6 space-y-4 bg-gray-50">
             <input type="hidden" id="editTypeVehicleId">
-            <div><label class="block text-sm font-bold mb-1">ชื่อประเภทบัตรรถ</label><input type="text" id="tvName" class="w-full border p-2.5 rounded-xl"></div>
-            <div class="grid grid-cols-2 gap-2 bg-white p-3 rounded-xl border">
-                <input type="number" id="tvValue" class="border p-2 rounded-lg text-center" placeholder="จำนวน">
-                <select id="tvType" class="border p-2 rounded-lg bg-gray-50">
-                    <option value="year">ปี</option><option value="month">เดือน</option><option value="day">วัน</option><option value="custom">กำหนดเอง</option>
+            <div>
+                <label class="block text-sm font-bold mb-1 text-gray-700">ชื่อประเภทบัตรรถ <span class="text-red-500">*</span></label>
+                <input type="text" id="tvName" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="เช่น บัตรรถพนักงาน, บัตรรถผู้รับเหมา">
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-gray-200">
+                <label class="block text-sm font-bold mb-2 text-gray-700">ระยะเวลาการใช้งาน (อายุบัตร) <span class="text-red-500">*</span></label>
+                <div class="flex gap-2">
+                    <input type="number" id="tvValue" class="w-1/2 border p-2.5 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 font-bold text-center" placeholder="ตัวเลข" min="1">
+                    <select id="tvType" onchange="toggleVehicleCustomDuration()" class="w-1/2 border p-2.5 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 font-bold bg-gray-50">
+                      <option value="year">ปี (Years)</option>
+                      <option value="month">เดือน (Months)</option>
+                      <option value="day">วัน (Days)</option>
+                      <option value="custom">กำหนดเอง (ตอนออกบัตร)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="bg-red-50 p-4 rounded-xl border border-red-100 flex items-center justify-between cursor-pointer" onclick="document.getElementById('tvIsTemp').click()">
+                <div><p class="font-bold text-red-900 text-sm">กำหนดให้เป็น "บัตรชั่วคราว"</p><p class="text-xs text-red-600 mt-0.5">ระบบจะแสดงข้อความ บัตรชั่วคราว บนข้อมูล</p></div>
+                <input type="checkbox" id="tvIsTemp" class="w-5 h-5 text-red-600 rounded focus:ring-red-500" onclick="event.stopPropagation()">
+            </div>
+            <div>
+                <label class="block text-sm font-bold mb-2 text-gray-700">สถานะใช้งาน</label>
+                <select id="tvStatus" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 bg-white font-medium">
+                    <option value="active">เปิดใช้งาน (Active)</option>
+                    <option value="inactive">ปิดใช้งาน (Inactive)</option>
                 </select>
             </div>
-            <label class="flex items-center gap-2 p-3 bg-red-50 rounded-xl border border-red-100 cursor-pointer">
-                <input type="checkbox" id="tvIsTemp" class="w-5 h-5 text-red-600 rounded">
-                <span class="text-sm font-bold text-red-800">เป็นบัตรชั่วคราว</span>
-            </label>
-            <select id="tvStatus" class="w-full border p-2.5 rounded-xl"><option value="active">เปิดใช้งาน</option><option value="inactive">ปิดใช้งาน</option></select>
         </div>
-        <div class="p-4 border-t flex justify-end gap-2 bg-white rounded-b-2xl">
-            <button onclick="closeTypeVehicleModal()" class="px-4 py-2">ยกเลิก</button>
-            <button onclick="saveTypeVehicle()" class="px-6 py-2 bg-blue-800 text-white rounded-xl font-bold">บันทึก</button>
+        <div class="p-4 border-t bg-white rounded-b-2xl flex justify-end gap-3 shadow-inner">
+            <button onclick="closeTypeVehicleModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition">ยกเลิก</button>
+            <button onclick="saveTypeVehicle()" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition">บันทึก</button>
         </div>
     </div>
 </div>	 
@@ -1793,16 +1816,16 @@ function calcVehicleExpiry() {
     const container = document.getElementById('vGateCheckboxes');
     const selectedArr = selectedStr.split(',');
     
-    // กรองเอาเฉพาะประตูที่ allowedVehicle === true
-    const vehicleGates = allGates.filter(g => g.allowedVehicle === true || g.allowedVehicle === 'TRUE');
+    // ปรับปรุงการตรวจสอบให้ไม่สนตัวพิมพ์เล็ก/ใหญ่ (true/TRUE)
+    const vehicleGates = allGates.filter(g => String(g.allowedVehicle).toUpperCase() === 'TRUE');
     
     if(vehicleGates.length === 0) {
-        container.innerHTML = '<p class="text-xs text-red-400">ไม่มีประตูที่อนุญาตให้รถเข้าออก (ไปตั้งค่าที่จุดเข้าออกก่อน)</p>';
+        container.innerHTML = '<p class="text-xs text-red-400 p-2">ไม่มีประตูที่รองรับรถ (กรุณาไปตั้งค่าที่จุดเข้าออกก่อน)</p>';
         return;
     }
 
     container.innerHTML = vehicleGates.map(g => `
-        <label class="flex items-center gap-2 p-2 hover:bg-blue-50 rounded-lg cursor-pointer transition">
+        <label class="flex items-center gap-2 p-2 hover:bg-blue-50 rounded-lg cursor-pointer transition border border-transparent hover:border-blue-100">
             <input type="checkbox" class="v-gate-cb w-4 h-4 text-blue-600 rounded" value="${g.id}" ${selectedArr.includes(String(g.id))?'checked':''}>
             <span class="text-xs font-bold text-gray-700">${g.name}</span>
         </label>
@@ -1813,16 +1836,33 @@ function openVehicleModal() {
     document.getElementById('vehicleModalTitle').innerHTML = '<i data-lucide="truck"></i> เพิ่มยานพาหนะใหม่';
     document.getElementById('editVehicleDbId').value = '';
     
-    // ตั้งค่าประเภทบัตรรถลง Dropdown
+    // รีเซ็ตรหัสผ่านเลข Auto (เหมือนพนักงาน)
+    const currentYear = new Date().getFullYear() + 543;
+    let maxNum = 0;
+    const suffix = '/' + currentYear;
+    
+    allVehicles.forEach(v => {
+        if(v.cardId && v.cardId.endsWith(suffix)) {
+            const prefixAndNum = v.cardId.replace(suffix, '');
+            const numMatch = prefixAndNum.match(/\d+$/);
+            if(numMatch) {
+                const num = parseInt(numMatch[0]);
+                if(!isNaN(num) && num > maxNum) maxNum = num;
+            }
+        }
+    });
+
+    document.getElementById('vGenPrefix').value = 'V'; // ค่าเริ่มต้นเป็น V
+    document.getElementById('vGenNum').value = maxNum + 1;
+    document.getElementById('vGenYear').value = currentYear;
+    updateVehicleIdPreview();
+
+    // ล้างช่องกรอกอื่นๆ
+    ['vApplicantFirstName','vApplicantLastName','vApplicantPosition','vOrganization','vVehicleReg','vOtherDetails'].forEach(id => document.getElementById(id).value = '');
+    
     document.getElementById('vTypeInp').innerHTML = typeVehicles.map(t => `<option value="${t.id}">${t.typeName}</option>`).join('');
-    
-    // รีเซ็ตฟอร์ม
-    ['vGenPrefix','vGenNum','vGenYear','vCardIdInp','vVehicleReg','vApplicantName','vOrganization','vOtherDetails','vIssueDate','vExpiryDate'].forEach(id => document.getElementById(id).value = '');
-    
-    // วาด Checkbox ประตู และ พื้นที่
     renderVehicleGateCheckboxes('');
     renderAreaCheckboxesGen('', 'vAreaCheckboxes', 'v-area-cb');
-    
     document.getElementById('vIssueDate').value = new Date().toISOString().split('T')[0];
     calcVehicleExpiry();
     document.getElementById('vehicleModal').classList.remove('hidden');
@@ -1955,32 +1995,35 @@ function editTypeVehicle(id) {
 async function saveTypeVehicle() {
     const id = document.getElementById('editTypeVehicleId').value;
     const name = document.getElementById('tvName').value.trim();
-    if (!name) return showToast('กรุณากรอกชื่อประเภท', 'error');
+    const typeStr = document.getElementById('tvType').value;
+    let val = parseInt(document.getElementById('tvValue').value);
+
+    if(typeStr === 'custom') val = 0;
+    if(!name || (typeStr !== 'custom' && !val)) return showToast('กรุณากรอกข้อมูลให้ครบ', 'error');
 
     const data = {
         typeName: name,
-        durationValue: document.getElementById('tvValue').value,
-        durationType: document.getElementById('tvType').value,
+        durationValue: val,
+        durationType: typeStr,
         isTemporary: document.getElementById('tvIsTemp').checked,
         status: document.getElementById('tvStatus').value
     };
 
     showLoader('กำลังบันทึก...');
     try {
+        let result;
         if (id) {
             data.id = id;
-            await apiCall('updateTypeVehicle', data);
-            showToast('แก้ไขประเภทรถสำเร็จ', 'success');
+            result = await apiCall('updateTypeVehicle', data);
+            const idx = typeVehicles.findIndex(x => Number(x.id) === Number(id));
+            if(idx !== -1) typeVehicles[idx] = result;
         } else {
-            await apiCall('addTypeVehicle', data);
-            showToast('เพิ่มประเภทรถสำเร็จ', 'success');
+            result = await apiCall('addTypeVehicle', data);
+            typeVehicles.push(result);
         }
+        showToast('บันทึกสำเร็จ', 'success');
         closeTypeVehicleModal();
-        
-        // โหลดข้อมูลใหม่
-        const res = await apiCall('getInitialData', {}, false);
-        typeVehicles = res.typeVehicles;
-        renderTypeVehiclesTable();
+        renderTypeVehiclesTable(); // สั่งวาดตารางทันทีไม่ต้องรอโหลดใหม่ทั้งหมด
     } catch (e) {
         showToast('เกิดข้อผิดพลาด', 'error');
     } finally {
@@ -2089,6 +2132,20 @@ function editVehicle(id) {
 function closeVehicleModal() {
     document.getElementById('vehicleModal').classList.add('hidden');
 }
+
+function toggleVehicleCustomDuration() {
+    const type = document.getElementById('tvType').value;
+    const valInput = document.getElementById('tvValue');
+    if(type === 'custom') {
+        valInput.disabled = true;
+        valInput.value = '0';
+        valInput.classList.add('bg-gray-200', 'cursor-not-allowed', 'text-transparent shadow-inner');
+    } else {
+        valInput.disabled = false;
+        if(valInput.value === '0') valInput.value = '1';
+        valInput.classList.remove('bg-gray-200', 'cursor-not-allowed', 'text-transparent shadow-inner');
+    }
+}	  
 	  // ---------------จบ รถ-----------------------
 	  // ------------- AI VOICE -----------------
 	  // เพิ่มค่าเริ่มต้นในตัวแปร systemSettings
@@ -2436,6 +2493,8 @@ function toggleHybridCamera() {
                     cardStats = data.cardStats || { total:0, active:0, inactive:0, byType:{} };
                     monthlyStats = data.monthlyStats || { total: 0, in: 0, out: 0, gates: {} };
                     allAreas = data.areas || [];
+					allVehicles = data.allVehicles || [];
+					typeVehicles = data.typeVehicles || [];
 
                     updateGateSelects(); 
                     if(currentPage === 'home') {
