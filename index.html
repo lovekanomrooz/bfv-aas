@@ -386,29 +386,30 @@ gap: 1px !important;
 				   <!-- ส่วนแสดงผลการจัดการรถ (Vehicle Staging) -->
 <!-- ค้นหา id="vehicleStagingArea" แล้วเปลี่ยนเนื้อหาภายในเป็นชุดนี้ -->
 <div id="vehicleStagingArea" class="hidden min-h-full">
-    <div class="bg-white rounded-[2rem] p-5 border border-blue-100 shadow-xl relative overflow-hidden">
+    <div class="bg-white rounded-[2.5rem] p-6 border border-blue-50 shadow-2xl relative overflow-hidden">
         
-        <!-- Header: ชื่อรถและ Badge IN/OUT -->
-        <div class="flex justify-between items-start mb-4">
-            <div class="flex items-center gap-4">
-                <div class="w-14 h-14 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg shrink-0">
-                    <i data-lucide="truck" class="w-7 h-7"></i>
+        <!-- Header Section -->
+        <div class="flex justify-between items-center mb-6 bg-slate-50/50 p-4 rounded-[2rem] border border-slate-100">
+            <div class="flex items-center gap-5">
+                <div class="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
+                    <i data-lucide="truck" class="w-9 h-9"></i>
                 </div>
                 <div>
-                    <h4 id="stgVehicleReg" class="text-2xl font-black text-blue-900 leading-tight">-</h4>
-                    <p id="stgVehicleId" class="text-blue-500 font-bold text-xs uppercase tracking-wider">รหัส: -</p>
+                    <h4 id="stgVehicleReg" class="text-3xl font-black text-slate-800 leading-none">-</h4>
+                    <div class="flex items-center gap-2 mt-2">
+                        <span class="bg-blue-100 text-blue-700 px-3 py-0.5 rounded-lg text-xs font-black tracking-widest uppercase">Vehicle ID</span>
+                        <p id="stgVehicleId" class="text-blue-600 font-bold text-lg leading-none">-</p>
+                    </div>
                 </div>
             </div>
             
-            <!-- Badge IN/OUT: ปรับขนาดให้ใหญ่แต่ไม่ล้นจอ -->
-            <div id="stgIoBadge" class="px-10 py-4 rounded-[1.5rem] font-black text-white text-4xl shadow-xl transition-all duration-300">
-                -
-            </div>
+            <!-- Badge IN/OUT: ใหญ่และชัดเจน -->
+            <div id="stgIoBadge" class="px-14 py-6 rounded-[2rem] font-black text-white text-5xl shadow-xl transform rotate-3 transition-all duration-500">-</div>
         </div>
 
-        <!-- รายละเอียดรถ: เรียงตามเงื่อนไขใหม่ -->
-        <div id="stgVehicleDetails" class="mb-6">
-            <!-- JS จะวาดข้อมูลตรงนี้ -->
+        <!-- รายละเอียดรถ: เปลี่ยนเป็นระบบ Cards Dashboard -->
+        <div id="stgVehicleDetails" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <!-- ข้อมูลการ์ด 4 ใบจะถูกวาดที่นี่ -->
         </div>
 
         <!-- รายการคนในรถ -->
@@ -2083,115 +2084,104 @@ processMainScan = function() {
  * ฟังก์ชันจัดการเมื่อแสกนบัตรรถสำเร็จ
  */
 async function handleVehicleScan(cardId) {
-    // 1. [Reset UI & Data] ล้างข้อมูลเซสชันเดิมและคืนค่าปุ่มบันทึกทันทีเพื่อให้แสกนใหม่ต่อได้เลย
+    // 1. Reset Session & UI
     vehicleSession = { mode: 'IN', vehicle: null, driver: null, passengers: [] };
-    
     const btnSave = document.getElementById('btnSaveVehicle');
-    if (btnSave) {
-        btnSave.disabled = true;
-        btnSave.textContent = "บันทึกข้อมูล";
+    if(btnSave) { 
+        btnSave.disabled = true; 
         btnSave.classList.remove('bg-gray-400', 'bg-emerald-600');
         btnSave.classList.add('bg-blue-600');
-        // คืนค่าฟังก์ชันคลิกกรณีที่ถูกเปลี่ยนเป็นเริ่มคันใหม่
-        btnSave.onclick = saveVehicleSession; 
+        btnSave.onclick = saveVehicleSession;
     }
 
-    // 2. ค้นหาข้อมูลรถในฐานข้อมูล
     const v = allVehicles.find(x => String(x.cardId).toUpperCase() === cardId.toUpperCase());
     if (!v) return showAlert('ไม่พบข้อมูลรถ', `ไม่พบรหัสรถ ${cardId} ในระบบ`, 'error');
     if (v.status !== 'active') return showAlert('รถถูกระงับ', `รถคันนี้ถูกระงับการใช้งาน`, 'error');
 
-    // ตรวจสอบวันหมดอายุของบัตรรถ (สิ้นสุดวันที่กำหนด)
     if (new Date() > new Date(v.expiryDate).setHours(23, 59, 59)) {
-        return showAlert('รถหมดอายุ', `บัตรรถคันนี้หมดอายุแล้วเมื่อ ${formatDateOnly(v.expiryDate)}`, 'error');
+        return showAlert('รถหมดอายุ', `บัตรรถหมดอายุแล้วเมื่อ ${formatDateOnly(v.expiryDate)}`, 'error');
     }
 
-    // ตั้งค่าตัวแปรเซสชันและโหมด
     vehicleSession.vehicle = v;
     vehicleSession.mode = (v.currentStatus === 'IN') ? 'OUT' : 'IN';
     
-    // แสดง UI ส่วนจัดการรถ และซ่อนส่วนแสกนคนปกติ
     document.getElementById('scanResultEmpty').classList.add('hidden');
     document.getElementById('scanResultData').classList.add('hidden');
     document.getElementById('vehicleStagingArea').classList.remove('hidden');
     
     document.getElementById('stgVehicleReg').textContent = v.vehicleReg;
-    document.getElementById('stgVehicleId').textContent = `รหัสบัตร: ${v.cardId}`;
-    
-    // เตรียมข้อมูลพื้นที่และประตู
+    document.getElementById('stgVehicleId').textContent = v.cardId;
+
     const areaIds = String(v.areaAccessIds || '').split(',').filter(x => x !== "");
     const gateIds = String(v.allowedGateIds || '').split(',').filter(x => x !== "");
     const gateNames = allGates.filter(g => gateIds.includes(String(g.id))).map(g => g.name).join(', ');
-    
-    // 3. วาดรายละเอียดรถ (จัดเลย์เอาต์แนวนอน และใช้สีพื้นที่จริง)
+
+    // --- เลย์เอาต์ใหม่: ข้อมูลรถแบบ Dashboard Cards ---
     let detailHtml = `
-        <div class="flex flex-wrap gap-30 -mt-15"> 
-            <div class="flex flex-wrap items-center gap-2">
-                <!-- ส่วนสังกัด -->
-                <div class="bg-slate-100 px-4 py-2 rounded-xl border border-slate-200 flex items-center gap-2 shadow-sm">
-                    <span class="text-[9px] font-black text-slate-500 uppercase">หน่วยงาน:</span>
-                    <span class="text-base font-black text-slate-800">${v.organization || 'ไม่ระบุ'}</span>
-                </div>
-                <!-- ส่วนประตู -->
-                <div class="bg-blue-50 px-4 py-2 rounded-xl border border-blue-100 flex items-center gap-2 shadow-sm">
-                    <span class="text-[9px] font-black text-blue-500 uppercase">จุดเข้าออก:</span>
-                    <span class="text-base font-bold text-blue-800">${gateNames || 'ทุกจุดเข้า-ออก'}</span>
-                </div>
-                <!-- ส่วนพื้นที่ (ดึงสีจากฐานข้อมูลพื้นที่) -->
-                <div class="bg-indigo-50 px-4 py-2 rounded-xl border border-indigo-100 flex items-center gap-2 shadow-sm">
-                    <span class="text-[9px] font-black text-indigo-500 uppercase">พื้นที่อนุญาต:</span>
-                    <div class="flex gap-1.5">
-                        ${areaIds.map(num => {
-                            const areaSetting = allAreas.find(a => String(a.areaNumber) === String(num));
-                            const color = areaSetting ? areaSetting.colorCode : '#4f46e5';
-                            const textColor = getContrastYIQ(color);
-                            return `<span style="background-color: ${color}; color: ${textColor}" 
-                                          class="px-2.5 py-0.5 rounded-lg text-base flex items-center justify-center font-black shadow-sm">
-                                        ${num}
-                                    </span>`;
-                        }).join('')}
-                    </div>
-                </div>
-                <!-- วันหมดอายุ (ขยับไปขวาสุด) -->
-                <div class="bg-red-50 px-4 py-2 rounded-xl border border-red-100 flex items-center gap-2 shadow-sm">
-                    <span class="text-[10px] font-black text-red-500 uppercase">หมดอายุบัตรรถ:</span>
-                    <span class="text-base font-black text-red-600">${formatDateOnly(v.expiryDate)}</span>
-                </div>
+        <!-- Card 1: หน่วยงาน -->
+        <div class="bg-white border-2 border-slate-100 p-4 rounded-[1.5rem] shadow-sm flex flex-col items-center text-center">
+            <div class="w-10 h-10 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center mb-2">
+                <i data-lucide="building-2" class="w-5 h-5"></i>
             </div>
+            <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">หน่วยงาน / สังกัด</span>
+            <p class="text-base font-black text-slate-700 leading-tight">${v.organization || 'ไม่ระบุ'}</p>
+        </div>
+
+        <!-- Card 2: ประตู -->
+        <div class="bg-white border-2 border-blue-50 p-4 rounded-[1.5rem] shadow-sm flex flex-col items-center text-center">
+            <div class="w-10 h-10 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-2">
+                <i data-lucide="map-pin" class="w-5 h-5"></i>
+            </div>
+            <span class="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-1">จุดเข้าออกที่อนุญาต</span>
+            <p class="text-sm font-bold text-blue-800 leading-tight">${gateNames || 'ทุกจุดเข้า-ออก'}</p>
+        </div>
+
+        <!-- Card 3: สิทธิ์พื้นที่ -->
+        <div class="bg-white border-2 border-indigo-50 p-4 rounded-[1.5rem] shadow-sm flex flex-col items-center text-center">
+            <div class="w-10 h-10 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mb-2">
+                <i data-lucide="shield-check" class="w-5 h-5"></i>
+            </div>
+            <span class="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-2">พื้นที่ (Zone Access)</span>
+            <div class="flex flex-wrap justify-center gap-1.5">
+                ${areaIds.length > 0 ? areaIds.map(num => {
+                    const area = allAreas.find(a => String(a.areaNumber) === String(num));
+                    const color = area ? area.colorCode : '#4f46e5';
+                    return `<span style="background-color: ${color}; color: ${getContrastYIQ(color)}" class="w-8 h-8 rounded-lg flex items-center justify-center text-lg font-black shadow-sm">${num}</span>`;
+                }).join('') : '<span class="text-xs font-bold text-slate-300 italic">ไม่มีสิทธิ์</span>'}
+            </div>
+        </div>
+
+        <!-- Card 4: วันหมดอายุ -->
+        <div class="bg-red-50 border-2 border-red-100 p-4 rounded-[1.5rem] shadow-sm flex flex-col items-center text-center relative overflow-hidden">
+            <div class="absolute -right-2 -bottom-2 opacity-10 rotate-12 text-red-600">
+                <i data-lucide="calendar-off" class="w-16 h-16"></i>
+            </div>
+            <div class="w-10 h-10 bg-white text-red-500 rounded-full flex items-center justify-center mb-2 shadow-sm">
+                <i data-lucide="calendar" class="w-5 h-5"></i>
+            </div>
+            <span class="text-[9px] font-black text-red-400 uppercase tracking-widest mb-1">วันหมดอายุบัตรรถ</span>
+            <p class="text-lg font-black text-red-600 leading-none">${formatDateOnly(v.expiryDate)}</p>
         </div>
     `;
     document.getElementById('stgVehicleDetails').innerHTML = detailHtml;
     
-    // 4. ปรับสถานะ Badge IN/OUT ให้ใหญ่และชัดเจน
+    // ตั้งค่า Badge
     const badge = document.getElementById('stgIoBadge');
     badge.textContent = vehicleSession.mode;
-    badge.className = `px-12 py-5 rounded-[2.5rem] font-black text-white text-6xl shadow-2xl transition-all duration-300 ${vehicleSession.mode === 'IN' ? 'bg-green-600 ring-8 ring-green-100' : 'bg-orange-600 ring-8 ring-orange-100'}`;
+    badge.className = `px-14 py-6 rounded-[2rem] font-black text-white text-5xl shadow-2xl transition-all duration-500 ${vehicleSession.mode==='IN'?'bg-green-600 ring-8 ring-green-100':'bg-orange-600 ring-8 ring-orange-100'}`;
 
-    // 5. จัดการ Logic ขาเข้า/ขาออก
+    // จัดการขาออก/ขาเข้า (Logic เดิม)
     if (vehicleSession.mode === 'OUT') {
         showLoader('กำลังตรวจสอบพนักงานในรถ...');
         try {
-            // ดึงรายชื่อพนักงานที่มีสถานะ IN และเข้ามาพร้อมรถคันนี้ล่าสุด
             const peopleIn = await apiCall('getPeopleInVehicle', { vehicleCardId: v.cardId }, false);
             vehicleSession.passengers = peopleIn || [];
-            
-            if(vehicleSession.passengers.length > 0) {
-                showToast(`พบพนักงานในรถ ${vehicleSession.passengers.length} ท่าน`, 'success');
-            } else {
-                showToast('ไม่พบรายชื่อพนักงานที่เข้าพร้อมรถคันนี้', 'warning');
-            }
-        } catch(e) { 
-            console.error("Error fetching people in vehicle:", e); 
-            showToast('ดึงข้อมูลรายชื่อในรถล้มเหลว', 'error');
-        }
+        } catch(e) { console.error(e); }
         hideLoader();
     } else {
-        // กรณีขาเข้า (IN) ให้เปลี่ยน Placeholder เพื่อแจ้งเตือนการแสกนคนขับ
-        showToast('รถรหัส ' + v.cardId + ' พร้อมแสกนคนเข้า', 'info');
         document.getElementById('scanInput').placeholder = "แสกนบัตรคนขับ...";
     }
 
-    // 6. วาดรายการรายชื่อ (ใช้ฟังก์ชัน Grid ที่เราทำไว้เพื่อให้ทุกแถวตรงกัน)
     renderStagingList();
 }
 
