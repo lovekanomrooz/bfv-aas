@@ -2113,10 +2113,26 @@ async function handleVehicleScan(cardId) {
     const gateNames = allGates.filter(g => gateIds.includes(String(g.id))).map(g => g.name).join(', ');
     
     let detailHtml = `
-        <span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded font-bold text-slate-600">สังกัด: ${v.organization || '-'}</span>
-        <span class="text-[10px] bg-blue-50 px-2 py-0.5 rounded font-bold text-blue-600">ประตู: ${gateNames || 'ทุกประตู'}</span>
-        <div class="flex gap-1 mt-1">
-            ${areaIds.map(num => `<span class="w-5 h-5 bg-indigo-600 text-white text-[10px] flex items-center justify-center rounded-md font-bold">${num}</span>`).join('')}
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+            <div class="bg-slate-100 p-2 rounded-xl border border-slate-200">
+                <span class="text-[10px] font-black text-slate-500 uppercase block">หน่วยงาน / สังกัดรถ</span>
+                <span class="text-lg font-black text-slate-700">${v.organization || 'ไม่ระบุ'}</span>
+            </div>
+            <div class="bg-blue-50 p-2 rounded-xl border border-blue-100">
+                <span class="text-[10px] font-black text-blue-500 uppercase block">จุดเข้าออกที่อนุญาต</span>
+                <span class="text-sm font-bold text-blue-700">${gateNames || 'ทุกจุดเข้า-ออก'}</span>
+            </div>
+            <div class="bg-indigo-50 p-2 rounded-xl border border-indigo-100 col-span-1 sm:col-span-2">
+                <span class="text-[10px] font-black text-indigo-500 uppercase block mb-1">พื้นที่ที่อนุญาต (Zone Access)</span>
+                <div class="flex gap-2">
+                    ${areaIds.map(num => `
+                        <div class="flex items-center gap-1 bg-indigo-600 text-white px-3 py-1 rounded-lg shadow-sm">
+                            <span class="text-[10px] font-bold opacity-70">เขต</span>
+                            <span class="text-xl font-black">${num}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
         </div>
     `;
     document.getElementById('stgVehicleDetails').innerHTML = detailHtml;
@@ -2198,6 +2214,8 @@ function addPersonToVehicle(person, companion = null) {
         }
         vehicleSession.driver = personData;
         showToast('บันทึกคนขับแล้ว', 'success');
+    // --- แก้ไขข้อ 1: เปลี่ยนเป็นแสกนผู้โดยสารทันทีที่ได้คนขับ ---
+        document.getElementById('scanInput').placeholder = "แสกนบัตรผู้โดยสาร (ถ้ามี)...";
     } else {
         vehicleSession.passengers.push(personData);
     }
@@ -2216,61 +2234,60 @@ function renderStagingList() {
         const imgUrl = p.imageUrl || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png';
 
         return `
-        <div class="p-4 ${isDriver?'bg-amber-50/50 border-amber-200':'bg-white border-slate-100'} border-2 rounded-3xl shadow-sm animate-fadeIn mb-3 group hover:border-blue-300 transition-all">
-            <div class="flex flex-wrap lg:flex-nowrap items-center gap-4">
+        <div class="p-5 ${isDriver?'bg-amber-50 border-amber-300':'bg-white border-slate-200'} border-2 rounded-[2rem] shadow-sm animate-fadeIn mb-4 group transition-all">
+            <div class="flex flex-wrap lg:flex-nowrap items-center gap-6">
                 
-                <!-- 1. รูปและประเภท -->
+                <!-- 1. รูปและประเภท (ใหญ่ขึ้น) -->
                 <div class="relative shrink-0">
-                    <img src="${imgUrl}" class="w-14 h-14 rounded-2xl object-cover border-2 border-white shadow-sm" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'">
-                    <span class="absolute -bottom-2 -right-1 text-[7px] font-black ${isDriver?'bg-amber-500':'bg-slate-500'} text-white px-1.5 py-0.5 rounded-full uppercase shadow-sm border border-white">${isDriver?'Driver':'Pax'}</span>
+                    <img src="${imgUrl}" class="w-20 h-20 rounded-[1.5rem] object-cover border-4 border-white shadow-md" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'">
+                    <span class="absolute -bottom-2 -right-1 text-[10px] font-black ${isDriver?'bg-amber-500':'bg-slate-600'} text-white px-3 py-1 rounded-full uppercase shadow-lg border-2 border-white">${isDriver?'Driver':'Pax'}</span>
                 </div>
 
-                <!-- 2. ชื่อและรหัส (ขยายพื้นที่) -->
-                <div class="flex-1 min-w-[180px]">
-                    <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-0.5">ชื่อ-นามสกุล / รหัสพนักงาน</span>
-                    <p class="font-black text-gray-800 leading-tight">${p.firstName} ${p.lastName}</p>
-                    <p class="text-[11px] font-bold text-blue-600">${p.cardId}</p>
+                <!-- 2. ชื่อและรหัส (ตัวใหญ่พิเศษ) -->
+                <div class="flex-1 min-w-[200px]">
+                    <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">ชื่อ-นามสกุล / รหัสพนักงาน</span>
+                    <p class="text-2xl font-black text-gray-800 leading-tight">${p.firstName} ${p.lastName}</p>
+                    <p class="text-lg font-bold text-blue-600 mt-1">${p.cardId}</p>
                 </div>
 
-                <!-- 3. หน่วยงาน -->
-                <div class="w-32 lg:w-40 shrink-0">
-                    <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-0.5">หน่วยงาน/สังกัด</span>
-                    <p class="text-xs font-bold text-gray-600 truncate">${p.organization || '-'}</p>
+                <!-- 3. หน่วยงาน (มีหัวข้อ) -->
+                <div class="w-48 shrink-0">
+                    <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">หน่วยงาน / สังกัด</span>
+                    <p class="text-md font-bold text-gray-700">${p.organization || '-'}</p>
                 </div>
 
-                <!-- 4. สิทธิ์พื้นที่ -->
-                <div class="w-24 shrink-0">
-                    <span class="text-[9px] font-black text-indigo-400 uppercase tracking-widest block mb-1">สิทธิ์พื้นที่</span>
+                <!-- 4. สิทธิ์พื้นที่ (มีหัวข้อ + Badge ใหญ่ขึ้น) -->
+                <div class="w-32 shrink-0">
+                    <span class="text-[10px] font-black text-indigo-400 uppercase tracking-widest block mb-2">สิทธิ์พื้นที่ (Zone)</span>
                     <div class="flex flex-wrap gap-1">
-                        ${areaIds.length > 0 
-                            ? areaIds.map(num => `<span class="w-5 h-5 bg-indigo-600 text-white text-[10px] flex items-center justify-center rounded-md font-black shadow-sm">${num}</span>`).join('')
-                            : '<span class="text-[10px] text-gray-300 font-bold">ไม่มีสิทธิ์</span>'}
+                        ${areaIds.map(num => `<span class="w-7 h-7 bg-indigo-600 text-white text-md flex items-center justify-center rounded-lg font-black shadow-sm">${num}</span>`).join('')}
                     </div>
                 </div>
 
-                <!-- 5. วันหมดอายุ -->
-                <div class="w-28 shrink-0">
-                    <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-0.5">วันหมดอายุ</span>
-                    <p class="text-[11px] font-black ${isExp?'text-red-500':'text-slate-700'}">${formatDateOnly(p.expiryDate)}</p>
+                <!-- 5. วันหมดอายุ (ชัดเจน) -->
+                <div class="w-32 shrink-0 text-center lg:text-left">
+                    <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">วันหมดอายุ</span>
+                    <p class="text-md font-black ${isExp?'text-red-600 bg-red-50':'text-slate-800'} px-2 py-1 rounded-lg">${formatDateOnly(p.expiryDate)}</p>
                 </div>
 
-                <!-- 6. ปุ่มจัดการ -->
-                <div class="flex gap-1 ml-auto">
+                <!-- 6. ปุ่มจัดการ (ใหญ่ขึ้น) -->
+                <div class="flex gap-2 ml-auto">
                     ${(isDriver === false && vehicleSession.mode === 'IN') ? `
-                        <button onclick="swapToDriver(${index})" class="p-2.5 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-600 hover:text-white transition shadow-sm border border-blue-100" title="สลับเป็นคนขับ">
-                            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                        <button onclick="swapToDriver(${index})" class="p-3 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-600 hover:text-white transition shadow-sm border border-blue-100">
+                            <i data-lucide="refresh-cw" class="w-6 h-6"></i>
                         </button>` : ''}
-                    <button onclick="${isDriver?'removeDriver()':'removePassenger('+index+')'}" class="p-2.5 bg-red-50 text-red-400 rounded-2xl hover:bg-red-500 hover:text-white transition shadow-sm border border-red-100" title="ลบออก">
-                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    <button onclick="${isDriver?'removeDriver()':'removePassenger('+index+')'}" class="p-3 bg-red-50 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition shadow-sm border border-red-100">
+                        <i data-lucide="trash-2" class="w-6 h-6"></i>
                     </button>
                 </div>
             </div>
             
-            <!-- ผู้ติดตาม (ถ้ามี) -->
+            <!-- ผู้ติดตาม (ตัวหนาขึ้น) -->
             ${p.companionCardId ? `
-                <div class="mt-3 ml-16 p-2 bg-indigo-50/50 rounded-xl border border-indigo-100 flex items-center gap-3 animate-fadeIn">
-                    <div class="bg-indigo-500 text-white px-2 py-0.5 rounded text-[8px] font-black">COMPANION</div>
-                    <span class="text-[11px] font-bold text-indigo-700">ผู้ติดตาม: ${p.companionName} (${p.companionCardId})</span>
+                <div class="mt-4 ml-24 p-3 bg-indigo-50 rounded-2xl border-2 border-indigo-100 flex items-center gap-3 animate-fadeIn">
+                    <div class="bg-indigo-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase shadow-sm">ผู้ติดตาม (Companion)</div>
+                    <span class="text-lg font-black text-indigo-800">${p.companionName}</span>
+                    <span class="text-sm font-bold text-indigo-400">(${p.companionCardId})</span>
                 </div>` : ''}
         </div>`;
     };
@@ -2303,7 +2320,11 @@ function cancelVehicleSession() {
     vehicleSession = { mode: 'IN', vehicle: null, driver: null, passengers: [] };
     document.getElementById('vehicleStagingArea').classList.add('hidden');
     document.getElementById('scanResultEmpty').classList.remove('hidden');
-    document.getElementById('scanInput').placeholder = "แสกนหรือกรอกรหัสบัตร ที่นี่!!";
+    
+    // --- คืนค่า Placeholder เป็นแสกนรถ ---
+    const input = document.getElementById('scanInput');
+    input.placeholder = "แสกนรหัสบัตรรถ...";
+    input.focus();
 }
 
 async function saveVehicleSession() {
