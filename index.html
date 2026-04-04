@@ -2132,7 +2132,7 @@ function openVehicleModal() {
     const reg = document.getElementById('vVehicleReg').value.trim();
     const fName = document.getElementById('vApplicantFirstName').value.trim();
 
-    if(!cardId || !typeId || !reg || !fName) return showToast('กรุณากรอกข้อมูลที่จำเป็นให้ครบ', 'error');
+    if(!cardId || !typeId || !reg || !fName) return showToast('กรุณากรอกข้อมูลให้ครบ', 'error');
 
     const data = {
         cardId: cardId,
@@ -2156,9 +2156,11 @@ function openVehicleModal() {
         if(id) {
             data.id = id;
             result = await apiCall('updateVehicle', data);
-            // อัปเดตข้อมูลในตัวแปร Cache (Local)
-            const idx = allVehicles.findIndex(x => Number(x.id) === Number(id));
-            if(idx !== -1) allVehicles[idx] = result;
+            
+            // อัปเดตข้อมูลใน Master Array
+            const mIdx = allVehicles.findIndex(x => Number(x.id) === Number(id));
+            if(mIdx !== -1) allVehicles[mIdx] = result;
+            
             showToast('แก้ไขข้อมูลรถสำเร็จ', 'success');
         } else {
             result = await apiCall('addVehicle', data);
@@ -2167,11 +2169,11 @@ function openVehicleModal() {
         }
         
         closeVehicleModal();
-        // วาดตารางใหม่ทันที
-        filterVehiclesTable(); 
         
+        // บังคับให้ค้นหาและวาดตารางใหม่เพื่อให้ข้อมูลในตารางเป็นปัจจุบัน
+        filterVehiclesTable(); 
+
     } catch (err) {
-        console.error(err);
         showToast('เกิดข้อผิดพลาดในการบันทึก', 'error');
     } finally {
         hideLoader();
@@ -2328,28 +2330,25 @@ function closeTypeVehicleModal() {
  * ฟังก์ชันโหลดข้อมูลยานพาหนะมาแก้ไข (Edit Vehicle)
  */
 function editVehicle(id) {
-    // ใช้ Number() เพื่อให้แน่ใจว่าการเปรียบเทียบ ID ถูกต้อง 100%
     const searchId = Number(id);
+    // ค้นหาจากฐานข้อมูลหลัก
+    let v = allVehicles.find(x => Number(x.id) === searchId);
     
-    // ค้นหาจาก allVehicles (ฐานข้อมูลหลักในเครื่อง)
-    const v = allVehicles.find(x => Number(x.id) === searchId);
+    // ถ้าหาไม่เจอใน master ให้หาในรายการที่ filter อยู่ (ป้องกันบั๊กหลังรีเฟรชบางส่วน)
+    if (!v) v = currentFilteredVehicles.find(x => Number(x.id) === searchId);
     
-    if (!v) {
-        // หากหาไม่เจอใน allVehicles ให้ลองหาใน currentFilteredVehicles (เผื่อกรณีข้อมูลยังโหลดไม่ครบ)
-        const vAlt = currentFilteredVehicles.find(x => Number(x.id) === searchId);
-        if(!vAlt) return showToast('ไม่พบข้อมูลยานพาหนะ กรุณารีเฟรชหน้าจอ', 'error');
-        return populateVehicleModal(vAlt);
-    }
-    
+    if (!v) return showToast('ไม่พบข้อมูลยานพาหนะ กรุณากดปุ่มอัปเดตข้อมูล', 'error');
+
     populateVehicleModal(v);
 }
 
 // แยกฟังก์ชันใส่ข้อมูลลง Modal เพื่อความสะอาดของโค้ด
+// แยกฟังก์ชันใส่ข้อมูลลง Modal เพื่อความเสถียร
 function populateVehicleModal(v) {
     document.getElementById('vehicleModalTitle').innerHTML = '<i data-lucide="edit"></i> แก้ไขข้อมูลยานพาหนะ';
     document.getElementById('editVehicleDbId').value = v.id;
 
-    // แยกส่วนรหัสบัตร
+    // แยกส่วนรหัสบัตร V001/2569
     const fullId = String(v.cardId || '');
     const parts = fullId.split('/');
     if(parts.length === 2) {
@@ -2361,10 +2360,14 @@ function populateVehicleModal(v) {
             document.getElementById('vGenPrefix').value = firstPart.substring(0, firstPart.length - numStr.length);
             document.getElementById('vGenNum').value = parseInt(numStr);
         }
+    } else {
+        document.getElementById('vGenPrefix').value = fullId;
+        document.getElementById('vGenNum').value = '';
+        document.getElementById('vGenYear').value = '';
     }
     document.getElementById('vCardIdInp').value = v.cardId;
 
-    // เลือกประเภทบัตรรถ
+    // โหลดประเภทบัตรรถ
     document.getElementById('vTypeInp').innerHTML = typeVehicles.map(t => 
         `<option value="${t.id}" ${Number(t.id) === Number(v.typeId) ? 'selected' : ''}>${t.typeName}</option>`
     ).join('');
@@ -2376,18 +2379,22 @@ function populateVehicleModal(v) {
     document.getElementById('vVehicleReg').value = v.vehicleReg || '';
     document.getElementById('vOtherDetails').value = v.otherDetails || '';
     
-    const formatDateForInp = (d) => d ? new Date(d).toISOString().split('T')[0] : "";
+    const formatDateForInp = (d) => {
+        if(!d) return "";
+        const date = new Date(d);
+        return isNaN(date.getTime()) ? "" : date.toISOString().split('T')[0];
+    };
     document.getElementById('vIssueDate').value = formatDateForInp(v.issueDate);
     document.getElementById('vExpiryDate').value = formatDateForInp(v.expiryDate);
 
     const rad = document.querySelector(`input[name="vStatus"][value="${v.status}"]`);
     if(rad) rad.checked = true;
 
-    // วาด Checkbox ใหม่และติ๊กอันที่เคยเลือกไว้
+    // วาด Checkbox ประตูและพื้นที่
     renderVehicleGateCheckboxes(v.allowedGateIds || '');
     renderAreaCheckboxesGen(v.areaAccessIds || '', 'vAreaCheckboxes', 'v-area-cb');
     
-    // *** สำคัญมาก: ต้องเรียกฟังก์ชันนี้หลังจากวาด Checkbox เสร็จ เพื่อให้มันจางตั้งแต่เปิด Modal ***
+    // สำคัญ: สั่งตรวจสอบความจางทันทีที่เปิด Modal
     updateVehicleAreaCheckboxState(); 
 
     document.getElementById('vehicleModal').classList.remove('hidden');
@@ -6558,36 +6565,45 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
 // >>> ตรวจสอบเลือก 4 พื้นที่ บัตรรถ
 	  // ฟังก์ชันช่วยทำให้ Checkbox ที่เหลือจางลงเมื่อเลือกครบ 4
 // ฟังก์ชันปรับสถานะ Checkbox พื้นที่ (จาง/ชัด)
+// ฟังก์ชันปรับสถานะ Checkbox พื้นที่รถ (จาง/ชัด)
 function updateVehicleAreaCheckboxState() {
     const container = document.getElementById('vAreaCheckboxes');
+    if(!container) return;
+
     const checkboxes = container.querySelectorAll('.v-area-cb');
     const checkedBoxes = container.querySelectorAll('.v-area-cb:checked');
-    
+    const limit = 2; // กำหนดโควตาพื้นที่รถตามที่คุณต้องการ (ในโค้ดคุณคือ 2)
+
     checkboxes.forEach(cb => {
         const label = cb.closest('label');
-        if (checkedBoxes.length >= 2 && !cb.checked) {
-            // ถ้าเลือกครบ 4 และตัวนี้ไม่ได้ถูกเลือก -> ให้จางและคลิกไม่ได้
+        if (checkedBoxes.length >= limit && !cb.checked) {
+            // ถ้าเลือกครบโควตา และตัวนี้ไม่ได้ถูกเลือก -> ให้จางและคลิกไม่ได้
             cb.disabled = true;
             label.classList.add('cb-disabled');
+            label.style.opacity = "0.3";
+            label.style.pointerEvents = "none";
         } else {
-            // ถ้ายังไม่ครบ 4 หรือเป็นตัวที่ถูกเลือกอยู่ -> ให้ชัดและคลิกได้ปกติ
+            // ถ้ายังไม่ครบ หรือเป็นตัวที่เลือกอยู่ -> ให้ชัดและคลิกได้
             cb.disabled = false;
             label.classList.remove('cb-disabled');
+            label.style.opacity = "1";
+            label.style.pointerEvents = "auto";
         }
     });
 }
 
-// Event Listener สำหรับดักจับการคลิก (ปรับปรุงใหม่)
+// ผูกเหตุการณ์การคลิกใหม่ให้เสถียรขึ้น
 document.getElementById('vAreaCheckboxes').addEventListener('change', function(e) {
     if (e.target.classList.contains('v-area-cb')) {
+        const limit = 2;
         const checkedCount = document.querySelectorAll('.v-area-cb:checked').length;
         
-        if (checkedCount > 2) {
-            e.target.checked = false; // ยกเลิกตัวที่เพิ่งติ๊กเกินมา
-            showToast('เลือกได้สูงสุด 2 พื้นที่เท่านั้น', 'warning');
+        if (checkedCount > limit) {
+            e.target.checked = false;
+            showToast(`รถยนต์เลือกพื้นที่ได้สูงสุด ${limit} พื้นที่เท่านั้น`, 'warning');
         }
         
-        // สำคัญ: ต้องสั่งอัปเดตสถานะจาง/ชัดใหม่ทุกครั้งที่มีการเปลี่ยนแปลง
+        // สั่งอัปเดตความจาง/ชัด ทุกครั้งที่มีการคลิก (ไม่ว่าจะติ๊กเข้าหรือติ๊กออก)
         updateVehicleAreaCheckboxState();
     }
 });
