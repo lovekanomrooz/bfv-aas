@@ -2046,18 +2046,28 @@ processMainScan = function() {
         return originalProcessMainScan();
     }
     
-    // --- Logic สำหรับการสแกนรถ ---
     const input = document.getElementById('scanInput');
     const code = input.value.trim().toUpperCase();
     if (!code) return;
 
-    if (!vehicleSession.vehicle) {
-        // ขั้นตอนที่ 1: ตรวจสอบรถ
+    // --- [Logic ใหม่เพื่อให้แสกนต่อเนื่องได้] ---
+    
+    // 1. ตรวจสอบก่อนว่ารหัสที่แสกนมา "เป็นบัตรรถ" หรือไม่
+    const isVehicleCard = allVehicles.some(x => String(x.cardId).toUpperCase() === code);
+
+    if (isVehicleCard) {
+        // ถ้าเป็นบัตรรถ -> ให้เริ่มกระบวนการจัดการรถคันใหม่ทันที (จะยกเลิกคันเก่าอัตโนมัติ)
         handleVehicleScan(code);
     } else {
-        // ขั้นตอนที่ 2: ตรวจสอบคน (คนขับ/ผู้โดยสาร)
-        handlePersonForVehicle(code);
+        // ถ้าไม่ใช่บัตรรถ -> ให้ถือว่าเป็นพนักงาน (คนขับ/ผู้โดยสาร)
+        if (vehicleSession.vehicle) {
+            handlePersonForVehicle(code);
+        } else {
+            // ถ้าแสกนบัตรคนแต่ยังไม่ได้แสกนรถคันไหนเลย
+            showAlert('กรุณาแสกนรถก่อน', 'กรุณาแสกนบัตรรถก่อนที่จะแสกนบัตรพนักงาน', 'warning');
+        }
     }
+    
     input.value = '';
     input.focus();
 };
@@ -2069,10 +2079,9 @@ async function handleVehicleScan(cardId) {
     const btnSave = document.getElementById('btnSaveVehicle');
     if (btnSave) {
         btnSave.disabled = true;
-        btnSave.textContent = "บันทึกข้อมูล"; // ข้อความเริ่มต้น
-        // คืนค่าสีปุ่มเป็นสีน้ำเงิน (กรณีที่คันก่อนหน้าเพิ่งบันทึกสำเร็จจนปุ่มเป็นสีเทา)
-        btnSave.classList.remove('bg-gray-400');
-        btnSave.classList.add('bg-blue-600');
+        btnSave.textContent = "บันทึกข้อมูล";
+        btnSave.classList.remove('bg-gray-400'); // ลบสีเทาออก
+        btnSave.classList.add('bg-blue-600');    // ใส่สีน้ำเงินคืน
     }
 
     // 2. ค้นหาข้อมูลรถ
