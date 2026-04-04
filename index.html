@@ -579,16 +579,40 @@ gap: 1px !important;
     </div>
 
     <!-- Search & Filters -->
-    <div class="bg-white rounded-2xl card-shadow p-4 mb-2 flex flex-wrap gap-4 items-center border-t-4 border-blue-500">
-        <div class="relative flex-1 min-w-[200px] max-w-md">
-            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
-            <input type="text" id="vehicleSearchInput" onkeyup="filterVehiclesTable()" placeholder="ค้นหา รหัสบัตร, ทะเบียน, ชื่อพนักงาน..." class="w-full pl-10 pr-4 py-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50">
-        </div>
-        <select id="vehicleTypeFilter" onchange="filterVehiclesTable()" class="px-4 py-2.5 border rounded-xl outline-none bg-white"></select>
-        <select id="vehicleStatusFilter" onchange="filterVehiclesTable()" class="px-4 py-2.5 border rounded-xl outline-none bg-white">
-            <option value="">ทุกสถานะบัตร</option><option value="active">Active</option><option value="inactive">Inactive</option>
-        </select>
+    <!-- Search & Filters (อัปเดตใหม่ให้เหมือนหน้าพนักงาน) -->
+<div class="bg-white rounded-2xl card-shadow p-4 mb-2 flex flex-wrap gap-4 items-center border-t-4 border-blue-500">
+    <!-- ค้นหาอิสระ -->
+    <div class="relative flex-1 min-w-[200px] max-w-md">
+        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+        <input type="text" id="vehicleSearchInput" onkeyup="filterVehiclesTable()" placeholder="ค้นหา รหัสบัตร, ทะเบียน, ชื่อพนักงาน..." class="w-full pl-10 pr-4 py-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50">
     </div>
+    
+    <!-- กรองประเภท -->
+    <select id="vehicleTypeFilter" onchange="filterVehiclesTable()" class="px-4 py-2.5 border rounded-xl outline-none bg-white font-medium text-gray-700"></select>
+    
+    <!-- กรองสถานะ Active/Inactive -->
+    <select id="vehicleStatusFilter" onchange="filterVehiclesTable()" class="px-4 py-2.5 border rounded-xl outline-none bg-white font-medium text-gray-700">
+        <option value="">ทุกสถานะบัตร</option>
+        <option value="active">เปิดใช้งาน (Active)</option>
+        <option value="inactive">ระงับใช้งาน (Inactive)</option>
+    </select>
+
+    <!-- เพิ่ม: กรองสถานะวันหมดอายุ -->
+    <select id="vehicleExpiryFilter" onchange="filterVehiclesTable()" class="px-4 py-2.5 border rounded-xl outline-none bg-white text-gray-700">
+        <option value="">สถานะวันหมดอายุ (ทั้งหมด)</option>
+        <option value="valid">ยังไม่หมดอายุ</option>
+        <option value="expired">หมดอายุแล้ว</option>
+    </select>
+
+    <!-- เพิ่ม: เรียงลำดับข้อมูล -->
+    <select id="vehicleSortFilter" onchange="filterVehiclesTable()" class="px-4 py-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-blue-50 text-blue-900 font-bold">
+        <option value="newest">ใหม่ล่าสุดก่อน</option>
+        <option value="oldest">เก่าสุดก่อน</option>
+        <option value="name">เรียงตามชื่อ (ก-ฮ)</option>
+        <option value="cardIdAsc">เรียงตามรหัสบัตร (น้อยไปมาก)</option>
+        <option value="cardIdDesc">เรียงตามรหัสบัตร (มากไปน้อย)</option>
+    </select>
+</div>
 
     <!-- Table -->
     <div class="bg-white rounded-2xl card-shadow overflow-hidden mt-2">
@@ -7113,11 +7137,20 @@ async function downloadVehiclePdfCard() {
     html2pdf().set(opt).from(pdfWrapper).save();
 }
 
-	  function filterVehiclesTable() {
+	/**
+ * ฟังก์ชันกรองข้อมูลในตารางยานพาหนะ (Search, Filter, Sort)
+ */
+function filterVehiclesTable() {
     const txt = document.getElementById('vehicleSearchInput').value.trim().toLowerCase();
     const tId = document.getElementById('vehicleTypeFilter').value;
     const st = document.getElementById('vehicleStatusFilter').value;
+    const exp = document.getElementById('vehicleExpiryFilter').value; // ค่าใหม่
+    const sortBy = document.getElementById('vehicleSortFilter').value; // ค่าใหม่
 
+    const now = new Date();
+    now.setHours(0,0,0,0); // ตั้งเป็นเริ่มวันเพื่อเช็ควันหมดอายุแบบเต็มวัน
+
+    // 1. กรองข้อมูล (Filtering)
     currentFilteredVehicles = allVehicles.filter(v => {
         const cardId = String(v.cardId || "").toLowerCase();
         const reg = String(v.vehicleReg || "").toLowerCase();
@@ -7125,21 +7158,46 @@ async function downloadVehiclePdfCard() {
         const lName = String(v.applicantLastName || "").toLowerCase();
         const org = String(v.organization || "").toLowerCase();
 
-        // ค้นหาครอบคลุมทุกฟิลด์
+        // ค้นหาข้อความ
         const matchTxt = !txt || (cardId.includes(txt) || reg.includes(txt) || fName.includes(txt) || lName.includes(txt) || org.includes(txt));
+        // กรองประเภท
         const matchType = !tId || String(v.typeId) === String(tId);
+        // กรองสถานะ
         const matchStatus = !st || v.status === st;
+        
+        // กรองวันหมดอายุ (Logic ใหม่)
+        let matchExp = true;
+        if (exp) {
+            const vExp = new Date(v.expiryDate);
+            vExp.setHours(23,59,59,999); // หมดอายุสิ้นวัน
+            if (exp === 'expired' && vExp >= now) matchExp = false;
+            if (exp === 'valid' && vExp < now) matchExp = false;
+        }
 
-        return matchTxt && matchType && matchStatus;
+        return matchTxt && matchType && matchStatus && matchExp;
     });
 
-    // อัปเดตข้อความผลลัพธ์
+    // 2. เรียงลำดับข้อมูล (Sorting) (Logic ใหม่)
+    if (sortBy === 'newest') {
+        currentFilteredVehicles.sort((a, b) => Number(b.id) - Number(a.id));
+    } else if (sortBy === 'oldest') {
+        currentFilteredVehicles.sort((a, b) => Number(a.id) - Number(b.id));
+    } else if (sortBy === 'name') {
+        currentFilteredVehicles.sort((a, b) => String(a.applicantFirstName).localeCompare(String(b.applicantFirstName), 'th'));
+    } else if (sortBy === 'cardIdAsc') {
+        currentFilteredVehicles.sort((a, b) => String(a.cardId).localeCompare(String(b.cardId), undefined, {numeric: true}));
+    } else if (sortBy === 'cardIdDesc') {
+        currentFilteredVehicles.sort((a, b) => String(b.cardId).localeCompare(String(a.cardId), undefined, {numeric: true}));
+    }
+
+    // 3. แสดงผลจำนวนรายการที่พบ
     const resText = document.getElementById('vehicleSearchResultText');
     if (resText) {
         resText.innerHTML = `<i data-lucide="filter" class="w-4 h-4 inline mr-1"></i> พบ <span class="text-lg font-black text-blue-600 mx-1">${currentFilteredVehicles.length}</span> รายการ`;
     }
 
-    cardsPagination.page = 1; // รีเซ็ตหน้าเป็นหน้า 1
+    // 4. วาดตารางใหม่พร้อม Reset หน้าแบ่งหน้า
+    cardsPagination.page = 1; 
     renderVehiclesTable();
     if (window.lucide) lucide.createIcons();
 }
