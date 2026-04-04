@@ -6868,9 +6868,9 @@ async function previewIdCard(id) {
 document.addEventListener('change', function(e) {
     if (e.target.classList.contains('input-area-cb')) {
         const checkedCount = document.querySelectorAll('.input-area-cb:checked').length;
-        if (checkedCount > 4) {
+        if (checkedCount > 2) {
             e.target.checked = false; // ยกเลิกการเลือกช่องที่ 5
-            showToast('เลือกได้สูงสุด 4 พื้นที่เท่านั้น', 'warning');
+            showToast('เลือกได้สูงสุด 2 พื้นที่เท่านั้น', 'warning');
         }
     }
 });
@@ -7004,7 +7004,7 @@ async function previewVehicleCard(id) {
 
         // ปรับตำแหน่งป้าย "บัตรชั่วคราว" ให้อยู่เหนือกรอบพื้นที่
         const tempEl = document.getElementById('renderTempV');
-        tempEl.className = "absolute top-[105px] left-0 right-0 text-center text-red-600 font-black text-[16px] opacity-0 transition-opacity z-20";
+        tempEl.className = "absolute top-[100px] left-0 right-0 text-center text-red-600 font-black text-[16px] opacity-0 transition-opacity z-20";
         tempEl.style.opacity = (t.isTemporary === true || t.isTemporary === 'TRUE') ? '1' : '0';
 
         // บาร์โค้ดแนวตั้ง (ปรับตำแหน่งให้สมดุล)
