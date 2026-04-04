@@ -3492,13 +3492,13 @@ async function saveCard() {
     }).join('');
     lucide.createIcons();
 }
-    function openGateModal() { 
-    document.getElementById('gateModalTitle').innerHTML='<i data-lucide="boom-box"></i> เพิ่มจุดเข้าออก'; 
-    document.getElementById('editGateId').value=''; 
-    ['gateName','gateLocation'].forEach(id=>document.getElementById(id).value=''); 
-    document.getElementById('gateStatus').value='active'; 
+   function openGateModal() { 
+    document.getElementById('gateModalTitle').innerHTML = '<i data-lucide="boom-box"></i> เพิ่มจุดเข้าออก'; 
+    document.getElementById('editGateId').value = ''; 
+    ['gateName','gateLocation'].forEach(id => document.getElementById(id).value = ''); 
+    document.getElementById('gateStatus').value = 'active'; 
     
-    // รีเซ็ต Checkbox ยานพาหนะ
+    // บังคับรีเซ็ตเป็น False เสมอเวลาเพิ่มใหม่
     document.getElementById('gateAllowedVehicle').checked = false; 
     
     renderAreaCheckboxesGen('', 'gateAreaCheckboxes', 'input-gate-area-cb');
@@ -3515,8 +3515,10 @@ async function saveCard() {
     document.getElementById('gateLocation').value = g.location || '';
     document.getElementById('gateStatus').value = g.status;
 
-    // โหลดค่า Checkbox ยานพาหนะ (รองรับทั้ง Boolean และ String จาก Sheet)
-    document.getElementById('gateAllowedVehicle').checked = (g.allowedVehicle === true || g.allowedVehicle === 'TRUE');
+     // --- ปรับปรุงตรงนี้เพื่อให้ดักจับค่าได้ทุกรูปแบบ ---
+    const val = g.allowedVehicle;
+    document.getElementById('gateAllowedVehicle').checked = (val === true || val === 'TRUE' || val === 'true');
+    // -------------------------------------------
 
     renderAreaCheckboxesGen(g.allowedAreas || '', 'gateAreaCheckboxes', 'input-gate-area-cb');
     document.getElementById('gateModal').classList.remove('hidden');
@@ -3528,39 +3530,39 @@ async function saveCard() {
     const name = document.getElementById('gateName').value.trim();
     if(!name) return showToast('กรุณากรอกชื่อจุดเข้าออก', 'error');
 
+    // เตรียม Object ข้อมูล
     const d = { 
         name: name, 
         location: document.getElementById('gateLocation').value.trim(), 
         status: document.getElementById('gateStatus').value,
-        // เพิ่มบรรทัดนี้เพื่อส่งค่า
-        allowedVehicle: document.getElementById('gateAllowedVehicle').checked 
+        // ดึงค่าจาก Checkbox โดยตรง
+        allowedVehicle: document.getElementById('gateAllowedVehicle').checked,
+        // ดึงค่าพื้นที่ที่ติ๊กไว้
+        allowedAreas: Array.from(document.querySelectorAll('.input-gate-area-cb:checked')).map(cb => cb.value).join(',')
     };
 
-    const oldApiCall = window.apiCall;
-    window.apiCall = async function(action, data, hide) {
-        const checkedBoxes = Array.from(document.querySelectorAll('.input-gate-area-cb:checked')).map(cb => cb.value);
-        data.allowedAreas = checkedBoxes.join(',');
-        // มั่นใจว่า data ตัวที่จะส่งไปมีค่า allowedVehicle
-        data.allowedVehicle = d.allowedVehicle; 
-        return oldApiCall(action, data, hide);
-    };
-
-    // ทำงานตามปกติ
-    if(id) { 
-        d.id = parseInt(id); 
-        await apiCall('updateGate', d); 
-        const idx = allGates.findIndex(x=>x.id===d.id); 
-        if(idx!==-1) allGates[idx]={...allGates[idx], ...d}; 
-        showToast('แก้ไขสำเร็จ', 'success'); 
-    } else { 
-        const res = await apiCall('addGate', d); 
-        allGates.push(res); 
-        showToast('เพิ่มสำเร็จ', 'success'); 
+    showLoader('กำลังบันทึกข้อมูลจุดเข้าออก...');
+    
+    try {
+        if(id) { 
+            d.id = parseInt(id); 
+            const res = await apiCall('updateGate', d); 
+            const idx = allGates.findIndex(x => Number(x.id) === Number(id));
+            if(idx !== -1) allGates[idx] = res; // อัปเดตค่าใน Cache ของหน้าเว็บ
+            showToast('แก้ไขข้อมูลสำเร็จ', 'success'); 
+        } else { 
+            const res = await apiCall('addGate', d); 
+            allGates.push(res); 
+            showToast('เพิ่มจุดเข้าออกใหม่สำเร็จ', 'success'); 
+        }
+        closeGateModal(); 
+        renderGatesGrid(); 
+        updateGateSelects();
+    } catch (err) {
+        showToast('บันทึกล้มเหลว: ' + err.message, 'error');
+    } finally {
+        hideLoader();
     }
-    window.apiCall = oldApiCall; // คืนค่า apiCall ปกติ
-    closeGateModal(); 
-    renderGatesGrid(); 
-    updateGateSelects();
 }
     async function deleteGate(id) { if(confirm('ลบจุดเข้าออกนี้?')) { await apiCall('deleteGate', {id}); allGates = allGates.filter(r=>r.id!==id); renderGatesGrid(); updateGateSelects(); showToast('ลบสำเร็จ', 'success'); } }
 
