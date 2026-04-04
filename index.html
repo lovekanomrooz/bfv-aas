@@ -2320,32 +2320,31 @@ function showInstantUI(card, typeInfo, predictedStatus) {
     const iconEl = document.getElementById('resCardIcon');
     const compBox = document.getElementById('resCompanionBox');
 
-    // รีเซ็ตหน้าจอ
+    // --- แก้บั๊กที่ 2: ล้างรูปภาพเดิมทิ้งทันที ---
+    imgEl.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
     imgEl.classList.add('hidden');
     iconEl.classList.remove('hidden');
     compBox.classList.add('hidden');
+    
     document.getElementById('scanResultEmpty').classList.add('hidden');
     document.getElementById('scanResultData').classList.remove('hidden');
     
-    // ตั้งค่า Badge สถานะ
+    // --- แก้บั๊กที่ 4: ปรับขนาด Badge ให้ใหญ่เท่ากันเสมอ (ใช้ px-16 py-6) ---
     const badge = document.getElementById('resIoBadge');
     badge.textContent = predictedStatus;
-    badge.className = `absolute top-0 right-0 px-10 py-4 rounded-bl-[2.5rem] font-black text-4xl text-white shadow-md z-10 transition-all duration-500 ${predictedStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
+    badge.className = `absolute top-0 right-0 px-16 py-6 rounded-bl-[2.5rem] font-black text-5xl text-white shadow-lg z-10 transition-all duration-500 ${predictedStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
     
-    // แสดงข้อมูลพื้นฐาน (ทันที)
     document.getElementById('resCardId').textContent = card.cardId;
     document.getElementById('resFullName').textContent = `${card.firstName} ${card.lastName}`;
     document.getElementById('resOrg').textContent = card.organization || 'ไม่ระบุหน่วยงาน';
     document.getElementById('resCardType').textContent = typeInfo.typeName;
     
-    // แก้บั๊ก ขีด (-) โดยใส่ข้อมูลที่มีอยู่ก่อนแล้ว
+    // แก้บั๊ก ขีด (-)
     document.getElementById('resExpiry').textContent = formatDateOnly(card.expiryDate);
-    document.getElementById('resTime').innerHTML = `<span class="text-orange-500 animate-pulse">กำลังบันทึก...</span>`;
+    document.getElementById('resTime').innerHTML = `<span class="text-orange-500 animate-pulse text-sm">กำลังบันทึกข้อมูล...</span>`;
 
-    // วาดเลขสิทธิพื้นที่ทันที
     renderResultAreaBadges(card.areaAccessIds);
 
-    // โหลดรูปภาพ
     if (card.imageUrl && card.imageUrl.trim() !== '') {
         const tempImg = new Image();
         tempImg.onload = function() {
@@ -2527,19 +2526,33 @@ function renderResultAreaBadges(areaIdsStr) {
 }
 function confirmStatusUI(finalStatus, logTime, fullRes = null) {
     if (fullRes && String(fullRes.cardInfo.cardId).toUpperCase() === currentDisplayCardId) {
-        // อัปเดตเวลาบันทึกจริง
-        document.getElementById('resTime').textContent = formatDateTime(logTime).split('|')[1].trim(); 
         
-        // อัปเดตข้อมูลผู้ติดตาม (ถ้ามี)
+        // --- แก้บั๊กที่ 3: อัปเดตสถานะในฐานข้อมูลจำลอง (Cache) ของเครื่องด้วย ---
+        const cardIdx = allCards.findIndex(c => String(c.cardId).toUpperCase() === currentDisplayCardId);
+        if (cardIdx !== -1) {
+            allCards[cardIdx].currentStatus = finalStatus;
+            allCards[cardIdx].lastLogTime = logTime;
+        }
+
+        // อัปเดตขนาด Badge ให้ใหญ่เท่าตอนแรก
+        const badge = document.getElementById('resIoBadge');
+        badge.textContent = finalStatus;
+        badge.className = `absolute top-0 right-0 px-16 py-6 rounded-bl-[2.5rem] font-black text-5xl text-white shadow-lg z-10 transition-all duration-500 ${finalStatus === 'IN' ? 'bg-green-600' : 'bg-orange-600'}`;
+
+        // แสดงเวลาบันทึกจริง
+        document.getElementById('resTime').innerHTML = formatDateTime(logTime).replace(' | ', '<br>');
+        
+        // อัปเดตข้อมูลผู้ติดตาม (แก้บั๊กที่ 1 ส่วนการแสดงผล)
         const compBox = document.getElementById('resCompanionBox');
-        if (fullRes.companionName) {
+        if (fullRes.companionName && fullRes.companionName.trim() !== "") {
             document.getElementById('resCompanionName').textContent = fullRes.companionName;
             document.getElementById('resCompanionId').textContent = fullRes.companionCardId;
             document.getElementById('resCompanionOrg').textContent = fullRes.companionOrg || '-';
             compBox.classList.remove('hidden');
+        } else {
+            compBox.classList.add('hidden');
         }
 
-        // แสดงปุ่มถ่ายรูปเสริม (เฉพาะโหมดกล้อง)
         if (isCameraActive) { 
             document.getElementById('improveAiBox').classList.remove('hidden');
         }
@@ -2724,28 +2737,29 @@ function startBackgroundSync() {
     }
 
     function processCompanionScan() {
-        const gateId = document.getElementById('scanGateSelect').value;
-        const mainCardId = document.getElementById('companionModalMainCardId').value.toUpperCase();
-        const compBarcodeInp = document.getElementById('compBarcode');
-        const compCardId = compBarcodeInp.value.trim().toUpperCase();
+    const gateId = document.getElementById('scanGateSelect').value;
+    const mainCardId = document.getElementById('companionModalMainCardId').value.toUpperCase();
+    const compBarcodeInp = document.getElementById('compBarcode');
+    const compCardId = compBarcodeInp.value.trim().toUpperCase();
 
-        if(!compCardId) return compBarcodeInp.focus();
+    if(!compCardId) return compBarcodeInp.focus();
 
-        // ตรวจสอบบัตรผู้ติดตาม
-        const compCard = allCards.find(c => String(c.cardId).toUpperCase() === compCardId);
-        if (!compCard) return showAlert('ไม่พบข้อมูล', `ไม่พบบัตรผู้ติดตามหมายเลข ${compCardId} ในระบบ`, 'error');
-        if (compCard.status !== 'active') return showAlert('ถูกระงับ', `บัตรผู้ติดตามถูกระงับการใช้งาน`, 'error');
-        const compExpDate = new Date(compCard.expiryDate);
-        compExpDate.setHours(23, 59, 59, 999); // ปรับเวลาให้เป็น 23:59:59 ของวันนั้น
-        if (new Date() > compExpDate) return showAlert('บัตรหมดอายุ', `บัตรผู้ติดตามหมดอายุแล้ว`, 'error');
+    const compCard = allCards.find(c => String(c.cardId).toUpperCase() === compCardId);
+    if (!compCard) return showAlert('ไม่พบข้อมูล', `ไม่พบบัตรผู้ติดตามหมายเลข ${compCardId}`, 'error');
+    if (compCard.status !== 'active') return showAlert('ถูกระงับ', `บัตรผู้ติดตามถูกระงับการใช้งาน`, 'error');
 
-        const gate = allGates.find(g => parseInt(g.id) === parseInt(gateId));
-        const mainCard = allCards.find(c => String(c.cardId).toUpperCase() === mainCardId);
-        const typeInfo = typeCards.find(t => parseInt(t.id) === parseInt(mainCard.typeId));
+    const mainCard = allCards.find(c => String(c.cardId).toUpperCase() === mainCardId);
+    const typeInfo = typeCards.find(t => parseInt(t.id) === parseInt(mainCard.typeId));
 
-        closeCompanionModal();
-        executeScanSuccessLocal(gate, mainCard, typeInfo, 'IN', compCard);
-    }
+    closeCompanionModal();
+
+    // --- จุดตาย: ต้องเปลี่ยนมาใช้ executeScanFinal เพื่อส่งข้อมูลไป Server ---
+    currentDisplayCardId = mainCard.cardId; // จดจำ ID ที่กำลังโชว์
+    showInstantUI(mainCard, typeInfo, 'IN'); // โชว์ UI ทันที
+    
+    // ส่งข้อมูลไปบันทึกลง Google Sheets
+    executeScanFinal(gateId, mainCard.cardId, compCard.cardId, 'IN', `${mainCard.firstName} ${mainCard.lastName}`);
+}
 
     function handleScanSuccess(res) {
 	const mode = systemSettings.announcementMode;
