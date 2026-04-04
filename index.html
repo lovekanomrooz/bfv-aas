@@ -2328,15 +2328,29 @@ function closeTypeVehicleModal() {
  * ฟังก์ชันโหลดข้อมูลยานพาหนะมาแก้ไข (Edit Vehicle)
  */
 function editVehicle(id) {
-    // 1. ค้นหาข้อมูลรถ โดยบังคับ ID เป็น Number เพื่อป้องกัน Type Mismatch
-    const v = allVehicles.find(x => Number(x.id) === Number(id));
-    if (!v) return showToast('ไม่พบข้อมูลยานพาหนะ', 'error');
+    // ใช้ Number() เพื่อให้แน่ใจว่าการเปรียบเทียบ ID ถูกต้อง 100%
+    const searchId = Number(id);
+    
+    // ค้นหาจาก allVehicles (ฐานข้อมูลหลักในเครื่อง)
+    const v = allVehicles.find(x => Number(x.id) === searchId);
+    
+    if (!v) {
+        // หากหาไม่เจอใน allVehicles ให้ลองหาใน currentFilteredVehicles (เผื่อกรณีข้อมูลยังโหลดไม่ครบ)
+        const vAlt = currentFilteredVehicles.find(x => Number(x.id) === searchId);
+        if(!vAlt) return showToast('ไม่พบข้อมูลยานพาหนะ กรุณารีเฟรชหน้าจอ', 'error');
+        return populateVehicleModal(vAlt);
+    }
+    
+    populateVehicleModal(v);
+}
 
+// แยกฟังก์ชันใส่ข้อมูลลง Modal เพื่อความสะอาดของโค้ด
+function populateVehicleModal(v) {
     document.getElementById('vehicleModalTitle').innerHTML = '<i data-lucide="edit"></i> แก้ไขข้อมูลยานพาหนะ';
     document.getElementById('editVehicleDbId').value = v.id;
 
-    // 2. แยกส่วนรหัสบัตร (เช่น V001/2569) เข้า 3 ช่อง Prefix, Number, Year
-    const fullId = v.cardId || '';
+    // แยกส่วนรหัสบัตร
+    const fullId = String(v.cardId || '');
     const parts = fullId.split('/');
     if(parts.length === 2) {
         document.getElementById('vGenYear').value = parts[1];
@@ -2346,19 +2360,15 @@ function editVehicle(id) {
             const numStr = numMatch[0];
             document.getElementById('vGenPrefix').value = firstPart.substring(0, firstPart.length - numStr.length);
             document.getElementById('vGenNum').value = parseInt(numStr);
-        } else {
-            document.getElementById('vGenPrefix').value = firstPart;
-            document.getElementById('vGenNum').value = "";
         }
     }
     document.getElementById('vCardIdInp').value = v.cardId;
 
-    // 3. โหลดประเภทบัตรรถลง Dropdown
+    // เลือกประเภทบัตรรถ
     document.getElementById('vTypeInp').innerHTML = typeVehicles.map(t => 
         `<option value="${t.id}" ${Number(t.id) === Number(v.typeId) ? 'selected' : ''}>${t.typeName}</option>`
     ).join('');
 
-    // 4. ใส่ข้อมูลพนักงาน/หน่วยงาน
     document.getElementById('vApplicantFirstName').value = v.applicantFirstName || '';
     document.getElementById('vApplicantLastName').value = v.applicantLastName || '';
     document.getElementById('vApplicantPosition').value = v.applicantPosition || '';
@@ -2366,29 +2376,20 @@ function editVehicle(id) {
     document.getElementById('vVehicleReg').value = v.vehicleReg || '';
     document.getElementById('vOtherDetails').value = v.otherDetails || '';
     
-    // 5. จัดการวันที่ (ต้องเป็น YYYY-MM-DD เท่านั้น)
-    const formatDateForInp = (d) => {
-        if(!d) return "";
-        try {
-            return new Date(d).toISOString().split('T')[0];
-        } catch(e) { return ""; }
-    };
+    const formatDateForInp = (d) => d ? new Date(d).toISOString().split('T')[0] : "";
     document.getElementById('vIssueDate').value = formatDateForInp(v.issueDate);
     document.getElementById('vExpiryDate').value = formatDateForInp(v.expiryDate);
 
-    // 6. สถานะ Active/Inactive
-    const statusVal = v.status === 'active' ? 'active' : 'inactive';
-    const rad = document.querySelector(`input[name="vStatus"][value="${statusVal}"]`);
+    const rad = document.querySelector(`input[name="vStatus"][value="${v.status}"]`);
     if(rad) rad.checked = true;
 
-    // 7. วาด Checkbox ประตู และ พื้นที่ (เรียกฟังก์ชันเดิมที่คุณมี)
+    // วาด Checkbox ใหม่และติ๊กอันที่เคยเลือกไว้
     renderVehicleGateCheckboxes(v.allowedGateIds || '');
     renderAreaCheckboxesGen(v.areaAccessIds || '', 'vAreaCheckboxes', 'v-area-cb');
     
-    // 8. ตรวจสอบสถานะการล็อก 4 ช่องพื้นที่
+    // *** สำคัญมาก: ต้องเรียกฟังก์ชันนี้หลังจากวาด Checkbox เสร็จ เพื่อให้มันจางตั้งแต่เปิด Modal ***
     updateVehicleAreaCheckboxState(); 
 
-    // 9. แสดง Modal และอัปเดตไอคอน
     document.getElementById('vehicleModal').classList.remove('hidden');
     if (window.lucide) lucide.createIcons();
 }
@@ -6556,28 +6557,38 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
 
 // >>> ตรวจสอบเลือก 4 พื้นที่ บัตรรถ
 	  // ฟังก์ชันช่วยทำให้ Checkbox ที่เหลือจางลงเมื่อเลือกครบ 4
+// ฟังก์ชันปรับสถานะ Checkbox พื้นที่ (จาง/ชัด)
 function updateVehicleAreaCheckboxState() {
-    const checkboxes = document.querySelectorAll('.v-area-cb');
-    const checkedBoxes = document.querySelectorAll('.v-area-cb:checked');
+    const container = document.getElementById('vAreaCheckboxes');
+    const checkboxes = container.querySelectorAll('.v-area-cb');
+    const checkedBoxes = container.querySelectorAll('.v-area-cb:checked');
     
     checkboxes.forEach(cb => {
         const label = cb.closest('label');
         if (checkedBoxes.length >= 2 && !cb.checked) {
+            // ถ้าเลือกครบ 4 และตัวนี้ไม่ได้ถูกเลือก -> ให้จางและคลิกไม่ได้
             cb.disabled = true;
-            label.classList.add('cb-disabled'); // ต้องมี style .cb-disabled ใน CSS ด้วย
+            label.classList.add('cb-disabled');
         } else {
+            // ถ้ายังไม่ครบ 4 หรือเป็นตัวที่ถูกเลือกอยู่ -> ให้ชัดและคลิกได้ปกติ
             cb.disabled = false;
             label.classList.remove('cb-disabled');
         }
     });
 }
+
+// Event Listener สำหรับดักจับการคลิก (ปรับปรุงใหม่)
 document.getElementById('vAreaCheckboxes').addEventListener('change', function(e) {
     if (e.target.classList.contains('v-area-cb')) {
         const checkedCount = document.querySelectorAll('.v-area-cb:checked').length;
+        
         if (checkedCount > 2) {
-            e.target.checked = false;
+            e.target.checked = false; // ยกเลิกตัวที่เพิ่งติ๊กเกินมา
             showToast('เลือกได้สูงสุด 2 พื้นที่เท่านั้น', 'warning');
         }
+        
+        // สำคัญ: ต้องสั่งอัปเดตสถานะจาง/ชัดใหม่ทุกครั้งที่มีการเปลี่ยนแปลง
+        updateVehicleAreaCheckboxState();
     }
 });
     renderAreaCheckboxes = function(selectedAreaStr) { renderAreaCheckboxesGen(selectedAreaStr, 'cardAreaCheckboxes', 'input-area-cb'); }
