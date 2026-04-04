@@ -1555,44 +1555,45 @@ gap: 1px !important;
     </div>
 </div>
 	<!-- Modal: พรีวิวและปริ้นบัตรรถ -->
+<!-- Modal: พรีวิวและปริ้นบัตรรถ (แก้ไขตำแหน่งและเพิ่มหน้าหลัง) -->
 <div id="idVehicleCardModal" class="fixed inset-0 z-[200] hidden flex flex-col items-center justify-center p-2">
     <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeIdVehicleCardModal()"></div>
     <div class="relative bg-white rounded-2xl w-full max-w-[850px] flex flex-col shadow-2xl animate-fadeIn overflow-hidden max-h-[98vh]">
         <div class="bg-blue-600 text-white p-4 flex justify-between items-center shrink-0">
             <h3 class="font-bold flex items-center gap-2 text-lg"><i data-lucide="printer"></i> พิมพ์บัตรยานพาหนะ</h3>
-            <!-- แก้ไขปุ่มปิด (X) ให้กดได้ -->
             <button onclick="closeIdVehicleCardModal()" class="hover:bg-white/20 p-1.5 rounded-lg transition"><i data-lucide="x" class="w-5 h-5"></i></button>
         </div>
         
-        <div class="p-8 overflow-y-auto bg-gray-300 flex-1 flex justify-center">
-            <div id="printVehicleCardContainer" class="flex flex-col md:flex-row gap-8">
+        <div class="p-8 overflow-y-auto bg-gray-200 flex-1 flex justify-center">
+            <!-- คอนเทนเนอร์ที่จะถูกจับภาพทำ PDF -->
+            <div id="printVehicleCardContainer" class="flex flex-col md:flex-row gap-8 bg-transparent">
                 
-                <!-- หน้าบัตร (Front) - ขนาด 95x115mm (ประมาณ 360x435px) -->
+                <!-- หน้าบัตร (Front) -->
                 <div id="printCardFrontV" class="relative w-[360px] h-[435px] bg-white rounded-2xl overflow-hidden shadow-xl shrink-0 select-none box-border">
                     <img id="tplFrontImgV" src="" class="absolute inset-0 w-full h-full object-fill z-0" crossorigin="anonymous">
                     
                     <div class="absolute inset-0 z-10">
-                        <!-- บาร์โค้ดแนวตั้งด้านขวา -->
-                        <div class="absolute top-[80px] right-[-35px] transform rotate-90 flex flex-col items-center">
-                            <div class="font-barcode text-4xl text-black leading-none" id="renderBarcodeV">*V001*</div>
-                            <div class="text-[10px] font-bold text-gray-800" id="renderBarcodeTextV">V001</div>
+                        <!-- บาร์โค้ดแนวตั้ง (ปรับตำแหน่งไม่ให้ทับชื่อสนามบิน) -->
+                        <div class="absolute top-[35px] right-[-30px] transform rotate-90 flex flex-col items-center">
+                            <div class="font-barcode text-5xl text-black leading-none" id="renderBarcodeV">*V001*</div>
+                            <div class="text-[10px] font-bold text-gray-800 -mt-1" id="renderBarcodeTextV">V001/2569</div>
                         </div>
 
+                        <!-- ป้ายบัตรชั่วคราว (ย้ายไปอยู่ด้านบนกรอบตัวเลข) -->
+                        <div id="renderTempV" class="absolute top-[105px] left-0 right-0 text-center text-red-600 font-black text-[18px] opacity-0 transition-opacity">บัตรชั่วคราว</div>
+
                         <!-- ตัวเลขพื้นที่ (กึ่งกลาง) -->
-                        <div id="renderAreaBoxesV" class="absolute top-[135px] left-0 right-0 flex justify-center gap-1 h-[90px]"></div>
+                        <div id="renderAreaBoxesV" class="absolute top-[130px] left-0 right-0 flex justify-center gap-1 h-[90px]"></div>
 
-                        <!-- ป้ายบัตรชั่วคราว -->
-                        <div id="renderTempV" class="absolute top-[228px] left-0 right-0 text-center text-red-600 font-black text-[18px] opacity-0">บัตรชั่วคราว</div>
-
-                        <!-- ข้อมูลข้อความ (จัดตำแหน่งตามรูป) -->
+                        <!-- ข้อมูลข้อความ -->
                         <div class="absolute top-[255px] left-[35px] text-left space-y-2 text-black font-bold text-[14px] leading-tight">
-                            <div><span id="lblOrgV_Disp">สังกัด</span>: <span id="renderOrgV" class="font-black text-[15px]">-</span></div>
-                            <div><span id="lblRegV_Disp">ทะเบียนรถ</span>: <span id="renderRegV" class="font-black text-[15px] text-red-600">-</span></div>
-                            <div><span id="lblIdV_Disp">เลขควบคุม</span>: <span id="renderCardIdV" class="font-black text-[15px]">-</span></div>
+                            <div><span class="v-lbl-org">สังกัด</span>: <span id="renderOrgV" class="font-black text-[15px]">-</span></div>
+                            <div><span class="v-lbl-reg">ทะเบียนรถ</span>: <span id="renderRegV" class="font-black text-[15px] text-red-600">-</span></div>
+                            <div><span class="v-lbl-id">เลขควบคุม</span>: <span id="renderCardIdV" class="font-black text-[15px]">-</span></div>
                             <div>หมดอายุ: <span id="renderExpV" class="font-black text-[17px] text-red-600">-</span></div>
                         </div>
 
-                        <!-- ช่องทางเข้าออก (ล่างซ้าย) -->
+                        <!-- ช่องทางเข้าออก -->
                         <div class="absolute bottom-6 left-[35px] text-left">
                             <div class="text-[11px] font-bold text-orange-600">ช่องทางเข้า - ออก</div>
                             <div id="renderGatesV" class="text-[14px] font-black leading-tight">-</div>
@@ -1600,25 +1601,25 @@ gap: 1px !important;
                     </div>
                 </div>
 
-                <!-- หน้าหลัง (Back) -->
+                <!-- หน้าบัตร (Back) -->
                 <div id="printCardBackV" class="relative w-[360px] h-[435px] bg-white rounded-2xl overflow-hidden shadow-xl shrink-0 select-none box-border">
                     <img id="tplBackImgV" src="" class="absolute inset-0 w-full h-full object-fill z-0" crossorigin="anonymous">
-                    <div class="absolute inset-0 z-10 flex flex-col p-6">
-                        <div class="bg-white/90 rounded-lg py-2 mb-2 text-center">
-                            <div id="renderRulesTitleV1" class="text-red-600 font-black text-[18px]">-</div>
-                            <div id="renderRulesTitleV2" class="text-red-600 font-bold text-[11px]">-</div>
-                            <div id="renderRulesTitleV3" class="text-red-600 font-bold text-[11px]">-</div>
+                    <div class="absolute inset-0 z-10 flex flex-col px-8 py-10">
+                        <div class="text-center mb-4">
+                            <div id="renderRulesTitleV1" class="text-red-600 font-black text-[20px] leading-tight">-</div>
+                            <div id="renderRulesTitleV2" class="text-red-600 font-bold text-[11px] leading-tight">-</div>
+                            <div id="renderRulesTitleV3" class="text-red-600 font-bold text-[11px] leading-tight">-</div>
                         </div>
-                        <div id="renderRulesV" class="bg-white/80 p-3 rounded-xl text-[11px] leading-relaxed flex-1 overflow-hidden"></div>
-                        <div class="mt-2 text-center text-[10px] font-bold text-gray-600 space-y-0.5">
+                        <div id="renderRulesV" class="text-gray-800 text-[11px] leading-relaxed whitespace-pre-line flex-1 font-medium overflow-hidden"></div>
+                        <div class="mt-4 text-center text-[10px] font-bold text-gray-500 space-y-0.5">
                             <div id="renderFooterV1">-</div><div id="renderFooterV2">-</div><div id="renderFooterV3">-</div>
                         </div>
                     </div>
                 </div>
+
             </div>
         </div>
 
-        <!-- ปุ่มควบคุมด้านล่าง (Export & Close) -->
         <div class="p-4 border-t bg-white flex justify-end gap-3 shrink-0">
             <button onclick="closeIdVehicleCardModal()" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition">ปิดหน้าต่าง</button>
             <button onclick="downloadVehiclePdfCard()" class="px-6 py-2.5 bg-pink-600 hover:bg-pink-700 text-white font-bold rounded-xl shadow-lg transition flex items-center gap-2"><i data-lucide="download"></i> ดาวน์โหลด PDF</button>
@@ -1963,7 +1964,7 @@ function renderVehicleDashboard(stats) {
  * 3. แก้ไขตาราง (เพิ่มคอลัมน์ และปุ่มจัดการ)
  */
 function renderVehiclesTable() {
-    const start = (cardsPagination.page - 1) * 10; // ใช้ pagination ตัวเดียวกับคนได้หรือแยกใหม่
+    const start = (cardsPagination.page - 1) * 10;
     const list = currentFilteredVehicles || [];
     const tbody = document.getElementById('vehiclesTableBody');
     
@@ -1974,24 +1975,21 @@ function renderVehiclesTable() {
 
     tbody.innerHTML = list.slice(start, start + 10).map(v => {
         const t = typeVehicles.find(x => Number(x.id) === Number(v.typeId)) || {typeName:'Unknown'};
-        const applicantName = `${v.applicantFirstName || ''} ${v.applicantLastName || ''}`.trim() || '-';
+        const fullName = `${v.applicantFirstName || ''} ${v.applicantLastName || ''}`.trim();
+        
         return `
         <tr class="border-b border-gray-50 hover:bg-gray-50 transition">
             <td class="px-4 py-3 font-black text-blue-700">${v.cardId}</td>
             <td class="px-4 py-3 font-bold text-gray-800">${v.vehicleReg}</td>
-            <td class="px-4 py-3"><div class="font-bold text-gray-800">${applicantName}</div><div class="text-[10px] text-sky-600">${v.organization || '-'}</div></td>
+            <td class="px-4 py-3"><div class="font-bold text-gray-800">${fullName}</div><div class="text-[10px] text-sky-600">${v.organization || '-'}</div></td>
             <td class="px-4 py-3 text-xs font-bold"><span class="bg-gray-100 px-2 py-1 rounded">${t.typeName}</span></td>
             <td class="px-4 py-3 text-center text-xs font-medium text-gray-600">${formatDateOnly(v.expiryDate)}</td>
+            <td class="px-4 py-3 text-center"><span class="text-[10px] font-black px-2 py-1 rounded ${v.status==='active'?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}">${v.status.toUpperCase()}</span></td>
+            <td class="px-4 py-3 text-center"><span class="px-2 py-1 rounded text-[10px] font-black ${v.currentStatus==='IN'?'bg-green-600 text-white':'bg-gray-200 text-gray-600'}">${v.currentStatus || 'OUT'}</span></td>
             <td class="px-4 py-3 text-center">
-                <span class="text-[10px] font-black px-2 py-1 rounded ${v.status==='active'?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}">${v.status.toUpperCase()}</span>
-            </td>
-            <td class="px-4 py-3 text-center">
-                <span class="px-2 py-1 rounded text-[10px] font-black ${v.currentStatus==='IN'?'bg-green-600 text-white':'bg-gray-200 text-gray-600'}">${v.currentStatus || 'OUT'}</span>
-            </td>
-            <td class="px-4 py-3 text-center">
-                <button onclick="previewVehicleCard(${v.id})" class="text-pink-600 bg-pink-50 hover:bg-pink-100 p-1.5 rounded-lg transition mr-1"><i data-lucide="printer" class="w-4 h-4"></i></button>
-                <button onclick="editVehicle(${v.id})" class="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 p-1.5 rounded-lg transition mr-1"><i data-lucide="edit" class="w-4 h-4"></i></button>
-                <button onclick="deleteVehicle(${v.id})" class="text-red-500 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                <button onclick="previewVehicleCard(${v.id})" class="text-pink-600 bg-pink-50 hover:bg-pink-100 p-1 rounded transition mr-1" title="ปริ้น"><i data-lucide="printer" class="w-4 h-4"></i></button>
+                <button onclick="editVehicle(${v.id})" class="text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded text-xs font-bold transition mr-1">แก้ไข</button>
+                <button onclick="deleteVehicle(${v.id})" class="text-red-500 bg-red-50 hover:bg-red-100 p-1 rounded transition"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
             </td>
         </tr>`;
     }).join('');
@@ -2071,7 +2069,7 @@ function calcVehicleExpiry() {
 function openVehicleModal() {
     document.getElementById('vehicleModalTitle').innerHTML = '<i data-lucide="truck"></i> เพิ่มยานพาหนะใหม่';
     document.getElementById('editVehicleDbId').value = '';
-    
+    updateVehicleAreaCheckboxState();
     // รีเซ็ตรหัสผ่านเลข Auto (เหมือนพนักงาน)
     const currentYear = new Date().getFullYear() + 543;
     let maxNum = 0;
@@ -2098,7 +2096,7 @@ function openVehicleModal() {
     
     document.getElementById('vTypeInp').innerHTML = typeVehicles.map(t => `<option value="${t.id}">${t.typeName}</option>`).join('');
     renderVehicleGateCheckboxes('');
-    renderAreaCheckboxesGen('', 'vAreaCheckboxes', 'v-area-cb');
+	renderAreaCheckboxesGen('', 'vAreaCheckboxes', 'v-area-cb');
     document.getElementById('vIssueDate').value = new Date().toISOString().split('T')[0];
     calcVehicleExpiry();
     document.getElementById('vehicleModal').classList.remove('hidden');
@@ -2133,21 +2131,29 @@ function openVehicleModal() {
         areaAccessIds: Array.from(document.querySelectorAll('.v-area-cb:checked')).map(cb => cb.value).join(',')
     };
 
-    showLoader('กำลังบันทึกข้อมูลรถ...');
+   showLoader('กำลังบันทึกข้อมูลรถ...');
     try {
+        let result;
         if(id) {
             data.id = id;
-            await apiCall('updateVehicle', data);
+            result = await apiCall('updateVehicle', data);
+            const idx = allVehicles.findIndex(x => Number(x.id) === Number(id));
+            if(idx !== -1) allVehicles[idx] = result;
             showToast('แก้ไขข้อมูลรถสำเร็จ', 'success');
         } else {
-            await apiCall('addVehicle', data);
+            result = await apiCall('addVehicle', data);
+            allVehicles.unshift(result); // เพิ่มตัวใหม่ไว้บนสุดของ Cache ในเครื่อง
             showToast('เพิ่มรถใหม่สำเร็จ', 'success');
         }
+        
         closeVehicleModal();
-        // รีเฟรชตาราง
-        const res = await apiCall('getInitialData', {}, false);
-        allVehicles = res.allVehicles || [];
-        renderVehiclesTable();
+        filterVehiclesTable(); // วาดตารางใหม่ทันทีจาก Cache ในเครื่อง
+        
+        // ดึงตัวเลข Dashboard ใหม่เบื้องหลัง
+        apiCall('getInitialData', {}, false).then(res => {
+            renderVehicleDashboard(res.vehicleStats);
+        });
+
     } catch (err) {
         showToast('เกิดข้อผิดพลาดในการบันทึก', 'error');
     } finally {
@@ -2337,7 +2343,7 @@ function editVehicle(id) {
         document.getElementById('vGenYear').value = "";
     }
     document.getElementById('vCardIdInp').value = v.cardId;
-
+	updateVehicleAreaCheckboxState();
     // 4. โหลดประเภทบัตรรถลง Dropdown และเลือกค่าเดิม
     document.getElementById('vTypeInp').innerHTML = typeVehicles.map(t => 
         `<option value="${t.id}" ${parseInt(t.id) === parseInt(v.typeId) ? 'selected' : ''}>${t.typeName}</option>`
@@ -6534,6 +6540,33 @@ document.getElementById('cardAreaCheckboxes').addEventListener('change', functio
         updateAreaCheckboxState();
     }
 });
+
+// >>> ตรวจสอบเลือก 4 พื้นที่ บัตรรถ
+	  // ฟังก์ชันช่วยทำให้ Checkbox ที่เหลือจางลงเมื่อเลือกครบ 4
+function updateVehicleAreaCheckboxState() {
+    const checkboxes = document.querySelectorAll('.v-area-cb');
+    const checkedBoxes = document.querySelectorAll('.v-area-cb:checked');
+    
+    checkboxes.forEach(cb => {
+        const label = cb.closest('label');
+        if (checkedBoxes.length >= 4 && !cb.checked) {
+            cb.disabled = true;
+            label.classList.add('cb-disabled'); // ต้องมี style .cb-disabled ใน CSS ด้วย
+        } else {
+            cb.disabled = false;
+            label.classList.remove('cb-disabled');
+        }
+    });
+}
+document.getElementById('vAreaCheckboxes').addEventListener('change', function(e) {
+    if (e.target.classList.contains('v-area-cb')) {
+        const checkedCount = document.querySelectorAll('.v-area-cb:checked').length;
+        if (checkedCount > 4) {
+            e.target.checked = false;
+            showToast('เลือกได้สูงสุด 4 พื้นที่เท่านั้น', 'warning');
+        }
+    }
+});
     renderAreaCheckboxes = function(selectedAreaStr) { renderAreaCheckboxesGen(selectedAreaStr, 'cardAreaCheckboxes', 'input-area-cb'); }
 
     const origOpenGateModal = openGateModal;
@@ -6922,56 +6955,59 @@ async function previewVehicleCard(id) {
     showLoader('กำลังเตรียมข้อมูลบัตรรถ...');
     try {
         const v = allVehicles.find(x => Number(x.id) === Number(id));
-        const t = typeVehicles.find(x => parseInt(x.id) === parseInt(v.typeId)) || {};
+        const t = typeVehicles.find(x => Number(x.id) === Number(v.typeId)) || {};
 
         document.getElementById('tplFrontImgV').src = systemSettings.cardTplFrontV || '';
+        document.getElementById('tplBackImgV').src = systemSettings.cardTplBackV || '';
         
-        // วาดกล่องพื้นที่สีแดง 2x1 หรือตามจำนวน
+        // วาดกล่องพื้นที่ (สีตามที่ตั้งค่าพื้นที่ไว้)
         const areaContainer = document.getElementById('renderAreaBoxesV');
         const areaIds = String(v.areaAccessIds || '').split(',').filter(x => x);
-        areaContainer.innerHTML = areaIds.map(num => `
-            <div class="w-[90px] h-[90px] bg-red-600 border-2 border-black flex items-center justify-center text-white text-6xl font-black">
-                ${num}
-            </div>
-        `).join('');
+        areaContainer.innerHTML = areaIds.map(num => {
+            const areaSetting = allAreas.find(a => String(a.areaNumber) === String(num));
+            const color = areaSetting ? areaSetting.colorCode : '#ff0000';
+            const textColor = getContrastYIQ(color);
+            return `
+                <div class="w-[90px] h-[90px] border-2 border-black flex items-center justify-center text-6xl font-black shadow-md" 
+                     style="background-color: ${color}; color: ${textColor};">
+                    ${num}
+                </div>`;
+        }).join('');
+
+        // บาร์โค้ด
+        document.getElementById('renderBarcodeV').textContent = `*${v.cardId}*`;
+        document.getElementById('renderBarcodeTextV').textContent = v.cardId;
 
         // บัตรชั่วคราว
         const tempEl = document.getElementById('renderTempV');
         tempEl.style.opacity = (t.isTemporary === true || t.isTemporary === 'TRUE') ? '1' : '0';
 
-        // คำศัพท์และข้อมูล
-        document.getElementById('lblOrgV_Disp').textContent = systemSettings.lblOrgV || 'สังกัดบริษัท';
-        document.getElementById('lblRegV_Disp').textContent = systemSettings.lblRegV || 'เลขทะเบียนยานพาหนะ';
-        document.getElementById('lblIdV_Disp').textContent = systemSettings.lblIdV || 'ทะเบียนควบคุมเลขที่';
-        
+        // ข้อมูลอื่นๆ... (สังกัด, ทะเบียน, วันหมดอายุ)
         document.getElementById('renderOrgV').textContent = v.organization || '-';
         document.getElementById('renderRegV').textContent = v.vehicleReg || '-';
         document.getElementById('renderCardIdV').textContent = v.cardId || '-';
         document.getElementById('renderExpV').textContent = formatDateOnly(v.expiryDate);
 
-		//-------บัตรรถ
-		document.getElementById('tplBackImgV').src = systemSettings.cardTplBackV || '';
-document.getElementById('renderRulesTitleV1').textContent = systemSettings.rulesTitleV1 || 'ข้อควรปฏิบัติ';
-document.getElementById('renderRulesTitleV2').textContent = systemSettings.rulesTitleV2 || '';
-document.getElementById('renderRulesTitleV3').textContent = systemSettings.rulesTitleV3 || '';
-document.getElementById('renderRulesV').innerHTML = (systemSettings.cardTplRulesV || '').replace(/\n/g, '<br>');
-document.getElementById('renderFooterV1').textContent = systemSettings.cardFooterV1 || '';
-document.getElementById('renderFooterV2').textContent = systemSettings.cardFooterV2 || '';
-document.getElementById('renderFooterV3').textContent = systemSettings.cardFooterV3 || '';
-        // ดึงชื่อประตูจาก ID
+        // หน้าหลัง
+        document.getElementById('renderRulesTitleV1').textContent = systemSettings.rulesTitleV1 || 'ข้อควรปฏิบัติ';
+        document.getElementById('renderRulesTitleV2').textContent = systemSettings.rulesTitleV2 || '';
+        document.getElementById('renderRulesTitleV3').textContent = systemSettings.rulesTitleV3 || '';
+        document.getElementById('renderRulesV').innerHTML = (systemSettings.cardTplRulesV || '').replace(/\n/g, '<br>');
+        document.getElementById('renderFooterV1').textContent = systemSettings.cardFooterV1 || '';
+        document.getElementById('renderFooterV2').textContent = systemSettings.cardFooterV2 || '';
+        document.getElementById('renderFooterV3').textContent = systemSettings.cardFooterV3 || '';
+
+        // ช่องทางเข้าออก
         const gateIds = String(v.allowedGateIds || '').split(',');
         const gateNames = allGates.filter(g => gateIds.includes(String(g.id))).map(g => g.name).join(', ');
         document.getElementById('renderGatesV').textContent = gateNames || 'ทุกจุดเข้า-ออก';
-
-        // บาร์โค้ด
-        document.getElementById('renderBarcodeV').textContent = `*${v.cardId}*`;
 
         hideLoader();
         document.getElementById('idVehicleCardModal').classList.remove('hidden');
         lucide.createIcons();
     } catch(e) {
         hideLoader();
-        showToast('เกิดข้อผิดพลาดในการโหลดพรีวิว', 'error');
+        showToast('โหลดพรีวิวไม่สำเร็จ', 'error');
     }
 }
 
@@ -6981,15 +7017,31 @@ function closeIdVehicleCardModal() {
 
 async function downloadVehiclePdfCard() {
     const cardId = document.getElementById('renderBarcodeTextV').textContent;
-    const element = document.getElementById('printVehicleCardContainer');
+    const front = document.getElementById('printCardFrontV');
+    const back = document.getElementById('printCardBackV');
+
+    const pdfWrapper = document.createElement('div');
+    pdfWrapper.style.width = '360px';
+    pdfWrapper.style.background = 'white';
+
+    const fClone = front.cloneNode(true);
+    fClone.style.boxShadow = 'none';
+    const bClone = back.cloneNode(true);
+    bClone.style.boxShadow = 'none';
+
+    pdfWrapper.appendChild(fClone);
+    pdfWrapper.appendChild(bClone);
+
     const opt = {
         margin: 0,
-        filename: `Vehicle_Card_${cardId}.pdf`,
+        filename: `Vehicle_Card_${cardId.replace(/\//g, '-')}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 3, useCORS: true },
-        jsPDF: { unit: 'px', format: [360, 435], orientation: 'portrait' } // 95x115mm ratio
+        jsPDF: { unit: 'px', format: [360, 435], orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'] }
     };
-    html2pdf().set(opt).from(element).save();
+
+    html2pdf().set(opt).from(pdfWrapper).save();
 }
 
 	  function filterVehiclesTable() {
