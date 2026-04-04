@@ -311,7 +311,10 @@ gap: 1px !important;
                                    
                                    <div class="grid grid-cols-2 gap-y-3 gap-x-4 text-sm">
                                        <div><span class="text-gray-500 block text-xs">ประเภทบัตร</span><span id="resCardType" class="font-bold text-gray-800 bg-gray-200 px-2 py-0.5 rounded">-</span></div>
-                                       <div><span class="text-gray-500 block text-xs">ทะเบียนรถ</span><span id="resVehicle" class="font-medium text-gray-800">-</span></div>
+                                       <div class="hidden"> <!-- ซ่อนส่วนแสดงทะเบียนรถในหน้าแสกนด้วยถ้าต้องการ -->
+    <span class="text-gray-500 block text-xs">ทะเบียนรถ</span>
+    <span id="resVehicle" class="font-medium text-gray-800">-</span>
+</div>
                                        <div><span class="text-gray-500 block text-xs">วันหมดอายุ (หมดอายุเวลา 23:59:59 น.)</span><span id="resExpiry" class="font-medium text-gray-800">-</span></div>
                                        <div><span class="text-gray-500 block text-xs">เวลาบันทึก</span><span id="resTime" class="font-bold text-green-600">-</span></div>
                                    </div>
@@ -1162,7 +1165,11 @@ gap: 1px !important;
             </div>
 
             <div class="col-span-2 md:col-span-1"><label class="block text-sm font-bold mb-1 text-gray-700 mt-2">ประเภทบัตร <span class="text-red-500">*</span></label><select id="cardTypeInp" class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-green-500 bg-white" onchange="calcExpiryDate()"></select></div>
-            <div class="col-span-2 md:col-span-1"><label class="block text-sm font-bold mb-1 text-gray-700 mt-2">ทะเบียนรถ</label><input type="text" id="cardVehicle" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-green-500 bg-white" placeholder="เช่น กข 1234 กทม"></div>
+            <!-- ค้นหาโค้ดส่วนนี้ใน cardModal -->
+<div class="col-span-2 md:col-span-1 hidden"> <!-- เพิ่มคลาส hidden ตรงนี้ -->
+    <label class="block text-sm font-bold mb-1 text-gray-700 mt-2">ทะเบียนรถ</label>
+    <input type="text" id="cardVehicle" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-green-500 bg-white" placeholder="เช่น กข 1234 กทม">
+</div>
             
             <div class="col-span-2 md:col-span-1"><label class="block text-sm font-bold mb-1 text-gray-700">ชื่อ <span class="text-red-500">*</span></label><input type="text" id="cardFirstName" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-green-500 bg-white"></div>
             <div class="col-span-2 md:col-span-1"><label class="block text-sm font-bold mb-1 text-gray-700">นามสกุล</label><input type="text" id="cardLastName" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-green-500 bg-white"></div>
