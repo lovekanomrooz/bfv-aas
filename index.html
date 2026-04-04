@@ -1476,7 +1476,7 @@ gap: 1px !important;
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="col-span-1">
                     <label class="block text-xs font-bold text-gray-500 mb-1">ประเภทบัตรรถ <span class="text-red-500">*</span></label>
-                    <select id="vTypeInp" class="w-full border p-3 rounded-xl bg-white font-bold text-blue-800" onchange="calcVehicleExpiry()"></select>
+                    <select id="vTypeInp" class="w-full border p-3 rounded-xl bg-white font-bold text-blue-800" onchange="calcVehicleExpiry(true)"></select>
                 </div>
                 <div class="col-span-1">
                     <label class="block text-xs font-bold text-gray-500 mb-1">ทะเบียนรถ <span class="text-red-500">*</span></label>
@@ -1515,7 +1515,7 @@ gap: 1px !important;
             </div>
 
             <div class="grid grid-cols-2 gap-4 border-t pt-4">
-                <div><label class="block text-xs font-bold text-gray-500 mb-1">วันออกบัตร</label><input type="date" id="vIssueDate" class="w-full border p-3 rounded-xl bg-white" onchange="calcVehicleExpiry()"></div>
+                <div><label class="block text-xs font-bold text-gray-500 mb-1">วันออกบัตร</label><input type="date" id="vIssueDate" class="w-full border p-3 rounded-xl bg-white" onchange="calcVehicleExpiry(true)"></div>
                 <div><label class="block text-xs font-bold text-red-500 mb-1">วันหมดอายุ (Auto)</label><input type="date" id="vExpiryDate" class="w-full border p-3 rounded-xl bg-red-50 font-bold text-red-700" readonly></div>
             </div>
 
@@ -2063,7 +2063,7 @@ function updateVehicleIdPreview() {
     document.getElementById('vCardIdInp').value = p + (n||'') + (y ? '/' + y : '');
 }
 
-function calcVehicleExpiry() {
+function calcVehicleExpiry(forceRecalc = true) {
     const typeId = document.getElementById('vTypeInp').value;
     const issueStr = document.getElementById('vIssueDate').value;
     const expInput = document.getElementById('vExpiryDate');
@@ -2073,23 +2073,31 @@ function calcVehicleExpiry() {
     if(!typeInfo) return;
 
     if(typeInfo.durationType === 'custom') {
+        // กรณี "กำหนดเอง" -> ปลดล็อกช่อง
         expInput.readOnly = false;
         expInput.classList.remove('bg-red-50', 'cursor-not-allowed');
-        expInput.classList.add('bg-orange-50', 'cursor-pointer');
-        // รีเซ็ตเป็นวันออกบัตร (วันปัจจุบัน) เมื่อเลือกกำหนดเอง
-        expInput.value = issueStr; 
+        expInput.classList.add('bg-orange-50', 'cursor-pointer', 'border-orange-300');
+        
+        // ถ้าเป็นการเปลี่ยนประเภทบัตรใหม่ (ไม่ใช่ตอนเปิด Modal ครั้งแรก) ให้รีเซ็ตวันที่เริ่มต้น
+        if(forceRecalc) {
+            expInput.value = issueStr; 
+        }
     } else {
+        // กรณี "ล็อกเวลา" -> ปิดล็อกช่อง
         expInput.readOnly = true;
         expInput.classList.add('bg-red-50', 'cursor-not-allowed');
-        expInput.classList.remove('bg-orange-50', 'cursor-pointer');
+        expInput.classList.remove('bg-orange-50', 'cursor-pointer', 'border-orange-300');
         
-        let date = new Date(issueStr);
-        const val = parseInt(typeInfo.durationValue);
-        if(typeInfo.durationType === 'year') date.setFullYear(date.getFullYear() + val);
-        else if(typeInfo.durationType === 'month') date.setMonth(date.getMonth() + val);
-        else if(typeInfo.durationType === 'day') date.setDate(date.getDate() + val);
-        
-        expInput.value = date.toISOString().split('T')[0];
+        // ถ้าไม่ใช่การโหลดครั้งแรก ให้คำนวณวันที่ใหม่ตามสูตร
+        if(forceRecalc) {
+            let date = new Date(issueStr);
+            const val = parseInt(typeInfo.durationValue);
+            if(typeInfo.durationType === 'year') date.setFullYear(date.getFullYear() + val);
+            else if(typeInfo.durationType === 'month') date.setMonth(date.getMonth() + val);
+            else if(typeInfo.durationType === 'day') date.setDate(date.getDate() + val);
+            
+            expInput.value = date.toISOString().split('T')[0];
+        }
     }
 }
 function renderVehicleGateCheckboxes(selectedStr = '') {
@@ -2415,15 +2423,15 @@ function populateVehicleModal(v) {
     };
     document.getElementById('vIssueDate').value = formatDateForInp(v.issueDate);
     document.getElementById('vExpiryDate').value = formatDateForInp(v.expiryDate);
-
+	 // 4. สั่งตรวจสอบสถานะ Lock/Unlock โดยส่งค่า false ไป (เพื่อไม่ให้คำนวณวันที่ใหม่ทับของเก่า)
+    calcVehicleExpiry(false); 
     const rad = document.querySelector(`input[name="vStatus"][value="${v.status}"]`);
     if(rad) rad.checked = true;
 
     // วาด Checkbox ประตูและพื้นที่
+    // 5. วาด Checkbox และตรวจสอบความจาง
     renderVehicleGateCheckboxes(v.allowedGateIds || '');
     renderAreaCheckboxesGen(v.areaAccessIds || '', 'vAreaCheckboxes', 'v-area-cb');
-    
-    // สำคัญ: สั่งตรวจสอบความจางทันทีที่เปิด Modal
     updateVehicleAreaCheckboxState(); 
 
     document.getElementById('vehicleModal').classList.remove('hidden');
