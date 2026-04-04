@@ -2063,10 +2063,19 @@ processMainScan = function() {
 };
 
 async function handleVehicleScan(cardId) {
-    // 1. เพิ่ม Logic การ Reset ข้อมูลเดิมทันที เพื่อให้เริ่มแสกนคันใหม่ได้เลยแม้หน้าจอเดิมจะค้างอยู่ (แก้ข้อ 1)
+    // 1. [Reset UI & Data] ล้างข้อมูลเซสชันเดิมและคืนค่าปุ่มบันทึกทันที
     vehicleSession = { mode: 'IN', vehicle: null, driver: null, passengers: [] };
     
-    // ค้นหารถ
+    const btnSave = document.getElementById('btnSaveVehicle');
+    if (btnSave) {
+        btnSave.disabled = true;
+        btnSave.textContent = "บันทึกข้อมูล"; // ข้อความเริ่มต้น
+        // คืนค่าสีปุ่มเป็นสีน้ำเงิน (กรณีที่คันก่อนหน้าเพิ่งบันทึกสำเร็จจนปุ่มเป็นสีเทา)
+        btnSave.classList.remove('bg-gray-400');
+        btnSave.classList.add('bg-blue-600');
+    }
+
+    // 2. ค้นหาข้อมูลรถ
     const v = allVehicles.find(x => String(x.cardId).toUpperCase() === cardId.toUpperCase());
     if (!v) return showAlert('ไม่พบข้อมูลรถ', `ไม่พบรหัสรถ ${cardId} ในระบบ`, 'error');
     if (v.status !== 'active') return showAlert('รถถูกระงับ', `รถคันนี้ถูกระงับการใช้งาน`, 'error');
@@ -2076,11 +2085,11 @@ async function handleVehicleScan(cardId) {
         return showAlert('รถหมดอายุ', `บัตรรถคันนี้หมดอายุแล้ว`, 'error');
     }
 
-    // กำหนดข้อมูลรถและโหมด (IN/OUT)
+    // ตั้งค่ารถและโหมด
     vehicleSession.vehicle = v;
     vehicleSession.mode = (v.currentStatus === 'IN') ? 'OUT' : 'IN';
     
-    // จัดการ UI การแสดงผล
+    // แสดง UI ส่วนจัดการรถ
     document.getElementById('scanResultEmpty').classList.add('hidden');
     document.getElementById('scanResultData').classList.add('hidden');
     document.getElementById('vehicleStagingArea').classList.remove('hidden');
@@ -2089,7 +2098,7 @@ async function handleVehicleScan(cardId) {
     document.getElementById('stgVehicleId').textContent = `รหัสบัตร: ${v.cardId}`;
     document.getElementById('stgVehicleExp').textContent = `หมดอายุ: ${formatDateOnly(v.expiryDate)}`;
     
-    // --- [ส่วนเดิมของคุณ: วาดสิทธิ์พื้นที่และประตู - ห้ามตัด] ---
+    // วาดสิทธิ์พื้นที่และประตู
     const areaIds = String(v.areaAccessIds || '').split(',').filter(x=>x);
     const gateIds = String(v.allowedGateIds || '').split(',').filter(x=>x);
     const gateNames = allGates.filter(g => gateIds.includes(String(g.id))).map(g => g.name).join(', ');
@@ -2102,37 +2111,31 @@ async function handleVehicleScan(cardId) {
         </div>
     `;
     document.getElementById('stgVehicleDetails').innerHTML = detailHtml;
-    // --- [จบส่วนเดิม] ---
-
+    
     const badge = document.getElementById('stgIoBadge');
     badge.textContent = vehicleSession.mode;
     badge.className = `px-6 py-2 rounded-full font-black text-white text-xl ${vehicleSession.mode==='IN'?'bg-green-600 shadow-green-200':'bg-orange-600 shadow-orange-200'} shadow-lg`;
 
-    // 2. Logic จัดการขาออก: ดึงรายชื่อคนที่ค้างอยู่ในรถ (แก้ข้อ 2)
+    // 3. จัดการรายชื่อพนักงานขาเข้า/ขาออก
     if (vehicleSession.mode === 'OUT') {
         showLoader('กำลังตรวจสอบพนักงานในรถ...');
         try {
-            // เรียก API ไปดึงคนในรถขาออก
+            // ดึงคนจาก Log อัตโนมัติ
             const peopleIn = await apiCall('getPeopleInVehicle', { vehicleCardId: v.cardId }, false);
             vehicleSession.passengers = peopleIn || [];
-            
-            if(vehicleSession.passengers.length > 0) {
-                showToast(`พบพนักงานในรถ ${vehicleSession.passengers.length} ท่าน`, 'success');
-            } else {
+            if(vehicleSession.passengers.length === 0) {
                 showToast('ไม่พบข้อมูลพนักงานค้างในรถ', 'info');
+            } else {
+                showToast(`พบพนักงาน ${vehicleSession.passengers.length} คน`, 'success');
             }
-        } catch(e) { 
-            console.error("Error fetching passengers:", e); 
-            showToast('ดึงข้อมูลรายชื่อในรถล้มเหลว', 'error');
-        }
+        } catch(e) { console.error(e); }
         hideLoader();
     } else {
-        // กรณีขาเข้า (IN)
         showToast('กรุณาแสกน "คนขับรถ"', 'info');
         document.getElementById('scanInput').placeholder = "แสกนบัตรคนขับ...";
     }
 
-    // วาดรายการรายชื่อ (ใช้ฟังก์ชัน renderStagingList ที่ปรับเลย์เอาต์ใหม่ตามข้อความก่อนหน้า)
+    // วาดรายการคน (ซึ่งจะไปเขียนทับ Summary Card ของคันก่อนหน้าโดยอัตโนมัติ)
     renderStagingList();
 }
 
