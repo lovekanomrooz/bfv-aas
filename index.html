@@ -1979,7 +1979,7 @@ function renderVehiclesTable() {
 
     const pageItems = list.slice(start, start + size);
 
-    // ใช้ map เพื่อสร้างแถวตารางทั้งหมดทีเดียว
+    // ใช้การสร้าง HTML ชุดเดียวจบ เพื่อให้ปุ่มกดทำงานได้ทุกแถว
     tbody.innerHTML = pageItems.map(v => {
         const t = typeVehicles.find(x => Number(x.id) === Number(v.typeId)) || {typeName:'Unknown'};
         const fullName = `${v.applicantFirstName || ''} ${v.applicantLastName || ''}`.trim() || '-';
@@ -2008,14 +2008,14 @@ function renderVehiclesTable() {
             </td>
             <td class="px-4 py-3 text-center whitespace-nowrap">
                 <button onclick="previewVehicleCard(${v.id})" class="text-pink-600 bg-pink-50 hover:bg-pink-100 p-1.5 rounded-lg transition mr-1 shadow-sm"><i data-lucide="printer" class="w-4 h-4 inline"></i></button>
-                <button onclick="editVehicle(${v.id})" class="text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg text-xs font-black transition mr-1 shadow-sm border border-blue-100">แก้ไข</button>
+                <button onclick="editVehicle(${v.id})" class="text-indigo-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg text-xs font-black transition mr-1 shadow-sm border border-blue-100">แก้ไข</button>
                 <button onclick="deleteVehicle(${v.id})" class="text-red-500 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition shadow-sm"><i data-lucide="trash-2" class="w-4 h-4 inline"></i></button>
             </td>
         </tr>`;
     }).join('');
 
     renderVehiclesPagination(list.length);
-    lucide.createIcons();
+    if (window.lucide) lucide.createIcons();
 }
 
 /**
@@ -6986,12 +6986,16 @@ async function previewVehicleCard(id) {
             const textColor = getContrastYIQ(color);
             const boxSize = areaIds.length > 2 ? 'w-[100px] h-[48px] text-4xl' : 'w-[90px] h-[90px] text-6xl';
             
-            return `
-                <div class="${boxSize} border-2 border-black flex items-center justify-center font-black shadow-sm" 
-                     style="background-color: ${color}; color: ${textColor};">
-                    ${num}
-                </div>`;
-        }).join('');
+             return `
+        <div class="${boxSize} border-2 border-black flex items-center justify-center font-black shadow-sm" 
+             style="background-color: ${color}; 
+                    color: ${textColor}; 
+                    padding-bottom: 10px; /* เพิ่มตัวเลขนี้เพื่อดันเลขขึ้น (ยิ่งมากเลขยิ่งสูง) */
+                    line-height: 1;      /* ช่วยให้การคำนวณตำแหน่งตัวหนังสือแม่นยำขึ้น */
+                    ">
+            ${num}
+        </div>`;
+}).join('');
 
         // ปรับตำแหน่งป้าย "บัตรชั่วคราว" ให้อยู่เหนือกรอบพื้นที่
         const tempEl = document.getElementById('renderTempV');
@@ -7000,7 +7004,7 @@ async function previewVehicleCard(id) {
 
         // บาร์โค้ดแนวตั้ง (ปรับตำแหน่งให้สมดุล)
         const bcBox = document.querySelector('#printCardFrontV .rotate-90');
-        if (bcBox) bcBox.style.top = "40px"; // ขยับขึ้นไม่ให้ทับส่วนอื่น
+        if (bcBox) bcBox.style.top = "180px"; // ขยับขึ้นไม่ให้ทับส่วนอื่น
 
         // ใส่ข้อมูลพนักงานลงในบัตร
         document.getElementById('renderOrgV').textContent = v.organization || '-';
