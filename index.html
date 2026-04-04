@@ -2079,33 +2079,38 @@ processMainScan = function() {
     input.focus();
 };
 
+/**
+ * ฟังก์ชันจัดการเมื่อแสกนบัตรรถสำเร็จ
+ */
 async function handleVehicleScan(cardId) {
-    // 1. [Reset UI & Data] ล้างข้อมูลเซสชันเดิมและคืนค่าปุ่มบันทึกทันที
+    // 1. [Reset UI & Data] ล้างข้อมูลเซสชันเดิมและคืนค่าปุ่มบันทึกทันทีเพื่อให้แสกนใหม่ต่อได้เลย
     vehicleSession = { mode: 'IN', vehicle: null, driver: null, passengers: [] };
     
     const btnSave = document.getElementById('btnSaveVehicle');
     if (btnSave) {
         btnSave.disabled = true;
         btnSave.textContent = "บันทึกข้อมูล";
-        btnSave.classList.remove('bg-gray-400'); // ลบสีเทาออก
-        btnSave.classList.add('bg-blue-600');    // ใส่สีน้ำเงินคืน
+        btnSave.classList.remove('bg-gray-400', 'bg-emerald-600');
+        btnSave.classList.add('bg-blue-600');
+        // คืนค่าฟังก์ชันคลิกกรณีที่ถูกเปลี่ยนเป็นเริ่มคันใหม่
+        btnSave.onclick = saveVehicleSession; 
     }
 
-    // 2. ค้นหาข้อมูลรถ
+    // 2. ค้นหาข้อมูลรถในฐานข้อมูล
     const v = allVehicles.find(x => String(x.cardId).toUpperCase() === cardId.toUpperCase());
     if (!v) return showAlert('ไม่พบข้อมูลรถ', `ไม่พบรหัสรถ ${cardId} ในระบบ`, 'error');
     if (v.status !== 'active') return showAlert('รถถูกระงับ', `รถคันนี้ถูกระงับการใช้งาน`, 'error');
 
-    // ตรวจสอบวันหมดอายุ
-    if (new Date() > new Date(v.expiryDate).setHours(23,59,59)) {
-        return showAlert('รถหมดอายุ', `บัตรรถคันนี้หมดอายุแล้ว`, 'error');
+    // ตรวจสอบวันหมดอายุของบัตรรถ (สิ้นสุดวันที่กำหนด)
+    if (new Date() > new Date(v.expiryDate).setHours(23, 59, 59)) {
+        return showAlert('รถหมดอายุ', `บัตรรถคันนี้หมดอายุแล้วเมื่อ ${formatDateOnly(v.expiryDate)}`, 'error');
     }
 
-    // ตั้งค่ารถและโหมด
+    // ตั้งค่าตัวแปรเซสชันและโหมด
     vehicleSession.vehicle = v;
     vehicleSession.mode = (v.currentStatus === 'IN') ? 'OUT' : 'IN';
     
-    // แสดง UI ส่วนจัดการรถ
+    // แสดง UI ส่วนจัดการรถ และซ่อนส่วนแสกนคนปกติ
     document.getElementById('scanResultEmpty').classList.add('hidden');
     document.getElementById('scanResultData').classList.add('hidden');
     document.getElementById('vehicleStagingArea').classList.remove('hidden');
@@ -2113,30 +2118,43 @@ async function handleVehicleScan(cardId) {
     document.getElementById('stgVehicleReg').textContent = v.vehicleReg;
     document.getElementById('stgVehicleId').textContent = `รหัสบัตร: ${v.cardId}`;
     
-    const areaIds = String(v.areaAccessIds || '').split(',').filter(x=>x);
-    const gateIds = String(v.allowedGateIds || '').split(',').filter(x=>x);
+    // เตรียมข้อมูลพื้นที่และประตู
+    const areaIds = String(v.areaAccessIds || '').split(',').filter(x => x !== "");
+    const gateIds = String(v.allowedGateIds || '').split(',').filter(x => x !== "");
     const gateNames = allGates.filter(g => gateIds.includes(String(g.id))).map(g => g.name).join(', ');
     
-    // --- ปรับปรุง: ใช้ -mt-0 เพื่อดึงข้อมูลขึ้นไปชิดรหัสบัตรมากขึ้น ---
+    // 3. วาดรายละเอียดรถ (จัดเลย์เอาต์แนวนอน และใช้สีพื้นที่จริง)
     let detailHtml = `
-        <div class="flex flex-col gap-2 -mt-0"> 
+        <div class="flex flex-col gap-2 -mt-1"> 
             <div class="flex flex-wrap items-center gap-2">
-                <div class="bg-slate-100 px-4 py-2 rounded-xl border border-slate-200 flex items-center gap-2">
+                <!-- ส่วนสังกัด -->
+                <div class="bg-slate-100 px-4 py-2 rounded-xl border border-slate-200 flex items-center gap-2 shadow-sm">
                     <span class="text-[9px] font-black text-slate-500 uppercase">หน่วยงาน:</span>
                     <span class="text-base font-black text-slate-800">${v.organization || 'ไม่ระบุ'}</span>
                 </div>
-                <div class="bg-blue-50 px-4 py-2 rounded-xl border border-blue-100 flex items-center gap-2">
+                <!-- ส่วนประตู -->
+                <div class="bg-blue-50 px-4 py-2 rounded-xl border border-blue-100 flex items-center gap-2 shadow-sm">
                     <span class="text-[9px] font-black text-blue-500 uppercase">จุดเข้าออก:</span>
                     <span class="text-base font-bold text-blue-800">${gateNames || 'ทุกจุดเข้า-ออก'}</span>
                 </div>
-                <div class="bg-indigo-50 px-4 py-2 rounded-xl border border-indigo-100 flex items-center gap-2">
+                <!-- ส่วนพื้นที่ (ดึงสีจากฐานข้อมูลพื้นที่) -->
+                <div class="bg-indigo-50 px-4 py-2 rounded-xl border border-indigo-100 flex items-center gap-2 shadow-sm">
                     <span class="text-[9px] font-black text-indigo-500 uppercase">พื้นที่อนุญาต:</span>
                     <div class="flex gap-1.5">
-                        ${areaIds.map(num => `<span class="bg-indigo-600 text-white px-2.5 py-0.5 rounded-lg text-base flex items-center justify-center font-black shadow-sm">${num}</span>`).join('')}
+                        ${areaIds.map(num => {
+                            const areaSetting = allAreas.find(a => String(a.areaNumber) === String(num));
+                            const color = areaSetting ? areaSetting.colorCode : '#4f46e5';
+                            const textColor = getContrastYIQ(color);
+                            return `<span style="background-color: ${color}; color: ${textColor}" 
+                                          class="px-2.5 py-0.5 rounded-lg text-base flex items-center justify-center font-black shadow-sm">
+                                        ${num}
+                                    </span>`;
+                        }).join('')}
                     </div>
                 </div>
-                <div class="bg-red-50 px-4 py-2 rounded-xl border border-red-100 flex items-center gap-2 ml-auto">
-                    <span class="text-[9px] font-black text-red-500 uppercase">วันหมดอายุบัตรรถ:</span>
+                <!-- วันหมดอายุ (ขยับไปขวาสุด) -->
+                <div class="bg-red-50 px-4 py-2 rounded-xl border border-red-100 flex items-center gap-2 ml-auto shadow-sm">
+                    <span class="text-[10px] font-black text-red-500 uppercase">หมดอายุบัตรรถ:</span>
                     <span class="text-base font-black text-red-600">${formatDateOnly(v.expiryDate)}</span>
                 </div>
             </div>
@@ -2144,28 +2162,36 @@ async function handleVehicleScan(cardId) {
     `;
     document.getElementById('stgVehicleDetails').innerHTML = detailHtml;
     
-    // Badge IN/OUT ใหญ่พิเศษ
+    // 4. ปรับสถานะ Badge IN/OUT ให้ใหญ่และชัดเจน
     const badge = document.getElementById('stgIoBadge');
     badge.textContent = vehicleSession.mode;
-    badge.className = `px-12 py-5 rounded-[2.5rem] font-black text-white text-6xl shadow-2xl transition-all duration-300 ${vehicleSession.mode==='IN'?'bg-green-600 ring-8 ring-green-100':'bg-orange-600 ring-8 ring-orange-100'}`;    // 3. จัดการรายชื่อพนักงานขาเข้า/ขาออก
-    
-	if (vehicleSession.mode === 'OUT') {
+    badge.className = `px-12 py-5 rounded-[2.5rem] font-black text-white text-6xl shadow-2xl transition-all duration-300 ${vehicleSession.mode === 'IN' ? 'bg-green-600 ring-8 ring-green-100' : 'bg-orange-600 ring-8 ring-orange-100'}`;
+
+    // 5. จัดการ Logic ขาเข้า/ขาออก
+    if (vehicleSession.mode === 'OUT') {
         showLoader('กำลังตรวจสอบพนักงานในรถ...');
         try {
+            // ดึงรายชื่อพนักงานที่มีสถานะ IN และเข้ามาพร้อมรถคันนี้ล่าสุด
             const peopleIn = await apiCall('getPeopleInVehicle', { vehicleCardId: v.cardId }, false);
             vehicleSession.passengers = peopleIn || [];
-            if(vehicleSession.passengers.length === 0) {
-                showToast('ไม่พบข้อมูลพนักงานค้างในรถ', 'info');
+            
+            if(vehicleSession.passengers.length > 0) {
+                showToast(`พบพนักงานในรถ ${vehicleSession.passengers.length} ท่าน`, 'success');
             } else {
-                showToast(`พบพนักงาน ${vehicleSession.passengers.length} คน`, 'success');
+                showToast('ไม่พบรายชื่อพนักงานที่เข้าพร้อมรถคันนี้', 'warning');
             }
-        } catch(e) { console.error(e); }
+        } catch(e) { 
+            console.error("Error fetching people in vehicle:", e); 
+            showToast('ดึงข้อมูลรายชื่อในรถล้มเหลว', 'error');
+        }
         hideLoader();
     } else {
-        showToast('กรุณาแสกน "คนขับรถ"', 'info');
+        // กรณีขาเข้า (IN) ให้เปลี่ยน Placeholder เพื่อแจ้งเตือนการแสกนคนขับ
+        showToast('รถรหัส ' + v.cardId + ' พร้อมแสกนคนเข้า', 'info');
         document.getElementById('scanInput').placeholder = "แสกนบัตรคนขับ...";
     }
 
+    // 6. วาดรายการรายชื่อ (ใช้ฟังก์ชัน Grid ที่เราทำไว้เพื่อให้ทุกแถวตรงกัน)
     renderStagingList();
 }
 
@@ -2264,16 +2290,24 @@ function renderStagingList() {
 
                 <!-- 4. Zone (กว้าง 100px - ทำ Badge ขนาดพอดี) -->
                 <div class="shrink-0 text-center">
-                    <span class="text-[9px] font-black text-indigo-400 uppercase block mb-1">Zone</span>
-                    <div class="flex gap-1 justify-center">
-                        ${areaIds.map(num => `
-                            <div class="w-12 h-12 bg-indigo-600 text-white rounded-xl flex flex-col items-center justify-center shadow-md border-2 border-indigo-100">
-                                <span class="text-[8px] font-bold opacity-70 leading-none">เขต</span>
-                                <span class="text-xl font-black leading-none">${num}</span>
-                            </div>
-                        `).join('')}
-                    </div>
+    <span class="text-[9px] font-black text-indigo-400 uppercase block mb-1">Zone</span>
+    <div class="flex gap-1 justify-center">
+        ${areaIds.map(num => {
+            // ค้นหาข้อมูลสีจากฐานข้อมูลพื้นที่
+            const areaSetting = allAreas.find(a => String(a.areaNumber) === String(num));
+            const color = areaSetting ? areaSetting.colorCode : '#4f46e5';
+            const textColor = getContrastYIQ(color);
+            
+            return `
+                <div style="background-color: ${color}; color: ${textColor}; border-color: ${color}" 
+                     class="w-12 h-12 rounded-xl flex flex-col items-center justify-center shadow-md border-2 filter brightness-95">
+                    <span class="text-[8px] font-bold opacity-80 leading-none">เขต</span>
+                    <span class="text-xl font-black leading-none">${num}</span>
                 </div>
+            `;
+        }).join('')}
+    </div>
+</div>
 
                 <!-- 5. วันหมดอายุ (กว้าง 150px) -->
                 <div class="shrink-0 text-right pr-4">
