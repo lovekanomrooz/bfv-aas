@@ -1900,7 +1900,7 @@ let currentScanMode = 'barcode'; // ค่าเริ่มต้น
     // Banner Timer
     let currentSlide = 0, slideInterval = null;
 	//-----------------------------------------
-	  let allVehicles = [], typeVehicles = [];
+	
 
 // เพิ่มในส่วน fetchInitialData หรือ navigateTo('manageVehicles')
 async function fetchVehiclesData() {
@@ -2741,8 +2741,11 @@ function toggleHybridCamera() {
                     cardStats = data.cardStats || { total:0, active:0, inactive:0, byType:{} };
                     monthlyStats = data.monthlyStats || { total: 0, in: 0, out: 0, gates: {} };
                     allAreas = data.areas || [];
-					allVehicles = data.allVehicles || [];
-					typeVehicles = data.typeVehicles || [];
+                    
+                    // >>> เพิ่ม 2 บรรทัดนี้เพื่อให้ข้อมูลรถพร้อมใช้งาน <<<
+                    allVehicles = data.allVehicles || [];
+                    typeVehicles = data.typeVehicles || [];
+                    // -------------------------------------------
 
                     updateGateSelects(); 
                     if(currentPage === 'home') {
@@ -2754,13 +2757,13 @@ function toggleHybridCamera() {
             } catch(e) {
                 console.error("Error rendering UI:", e);
             } finally {
-                // ไม่ว่าจะ Error หรือไม่ ต้องสั่งปิดหน้าโหลดเสมอ
+                // บังคับปิดหน้าโหลดเสมอ
                 hideInitialSplash();
             }
         })
         .catch(e => {
             console.error("Load failed:", e);
-            hideInitialSplash(); // ปิดหน้าโหลดกรณีเน็ตหลุด
+            hideInitialSplash(); 
             showToast("ไม่สามารถโหลดข้อมูลจากเซิร์ฟเวอร์ได้", "error");
         });
 }
@@ -6972,7 +6975,9 @@ document.getElementById('renderFooterV3').textContent = systemSettings.cardFoote
     }
 }
 
-function closeIdVehicleCardModal() { document.getElementById('idVehicleCardModal').classList.add('hidden'); }
+function closeIdVehicleCardModal() { 
+    document.getElementById('idVehicleCardModal').classList.add('hidden'); 
+}
 
 async function downloadVehiclePdfCard() {
     const cardId = document.getElementById('renderBarcodeTextV').textContent;
