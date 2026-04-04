@@ -6562,7 +6562,7 @@ function updateVehicleAreaCheckboxState() {
     
     checkboxes.forEach(cb => {
         const label = cb.closest('label');
-        if (checkedBoxes.length >= 4 && !cb.checked) {
+        if (checkedBoxes.length >= 2 && !cb.checked) {
             cb.disabled = true;
             label.classList.add('cb-disabled'); // ต้องมี style .cb-disabled ใน CSS ด้วย
         } else {
@@ -6574,9 +6574,9 @@ function updateVehicleAreaCheckboxState() {
 document.getElementById('vAreaCheckboxes').addEventListener('change', function(e) {
     if (e.target.classList.contains('v-area-cb')) {
         const checkedCount = document.querySelectorAll('.v-area-cb:checked').length;
-        if (checkedCount > 4) {
+        if (checkedCount > 2) {
             e.target.checked = false;
-            showToast('เลือกได้สูงสุด 4 พื้นที่เท่านั้น', 'warning');
+            showToast('เลือกได้สูงสุด 2 พื้นที่เท่านั้น', 'warning');
         }
     }
 });
@@ -6868,9 +6868,9 @@ async function previewIdCard(id) {
 document.addEventListener('change', function(e) {
     if (e.target.classList.contains('input-area-cb')) {
         const checkedCount = document.querySelectorAll('.input-area-cb:checked').length;
-        if (checkedCount > 2) {
+        if (checkedCount > 4) {
             e.target.checked = false; // ยกเลิกการเลือกช่องที่ 5
-            showToast('เลือกได้สูงสุด 2 พื้นที่เท่านั้น', 'warning');
+            showToast('เลือกได้สูงสุด 4 พื้นที่เท่านั้น', 'warning');
         }
     }
 });
