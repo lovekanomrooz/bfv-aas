@@ -1965,32 +1965,27 @@ function renderVehicleDashboard(stats) {
  * 3. แก้ไขตาราง (เพิ่มคอลัมน์ และปุ่มจัดการ)
  */
 function renderVehiclesTable() {
-    // 1. ตรวจสอบ Pagination
     const size = 10;
-    const start = (cardsPagination.page - 1) * size;
+    const cp = cardsPagination.page;
+    const start = (cp - 1) * size;
     const list = currentFilteredVehicles || [];
     const tbody = document.getElementById('vehiclesTableBody');
     
-    // 2. เคลียร์ตารางเดิม
-    tbody.innerHTML = '';
-
-    if(list.length === 0) {
+    if (list.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-gray-400">ไม่พบข้อมูลยานพาหนะ</td></tr>';
+        document.getElementById('vehiclesPagination').innerHTML = '';
         return;
     }
 
-    // 3. วาดแถวข้อมูล (ใช้ slice เพื่อแบ่งหน้า)
     const pageItems = list.slice(start, start + size);
 
-    pageItems.forEach(v => {
+    // ใช้ map เพื่อสร้างแถวตารางทั้งหมดทีเดียว
+    tbody.innerHTML = pageItems.map(v => {
         const t = typeVehicles.find(x => Number(x.id) === Number(v.typeId)) || {typeName:'Unknown'};
         const fullName = `${v.applicantFirstName || ''} ${v.applicantLastName || ''}`.trim() || '-';
         
-        // สร้างแถวใหม่ (ใช้ insertRow เพื่อความแม่นยำของ DOM)
-        const row = tbody.insertRow();
-        row.className = "border-b border-gray-100 hover:bg-gray-50 transition bg-white";
-        
-        row.innerHTML = `
+        return `
+        <tr class="border-b border-gray-100 hover:bg-gray-50 transition bg-white">
             <td class="px-4 py-3 font-black text-blue-700">${v.cardId}</td>
             <td class="px-4 py-3 font-bold text-gray-800">${v.vehicleReg}</td>
             <td class="px-4 py-3">
@@ -2012,16 +2007,15 @@ function renderVehiclesTable() {
                 </span>
             </td>
             <td class="px-4 py-3 text-center whitespace-nowrap">
-                <button onclick="previewVehicleCard(${v.id})" class="text-pink-600 bg-pink-50 hover:bg-pink-100 p-1.5 rounded-lg transition mr-1 shadow-sm"><i data-lucide="printer" class="w-4 h-4"></i></button>
+                <button onclick="previewVehicleCard(${v.id})" class="text-pink-600 bg-pink-50 hover:bg-pink-100 p-1.5 rounded-lg transition mr-1 shadow-sm"><i data-lucide="printer" class="w-4 h-4 inline"></i></button>
                 <button onclick="editVehicle(${v.id})" class="text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg text-xs font-black transition mr-1 shadow-sm border border-blue-100">แก้ไข</button>
-                <button onclick="deleteVehicle(${v.id})" class="text-red-500 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition shadow-sm"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                <button onclick="deleteVehicle(${v.id})" class="text-red-500 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition shadow-sm"><i data-lucide="trash-2" class="w-4 h-4 inline"></i></button>
             </td>
-        `;
-    });
+        </tr>`;
+    }).join('');
 
-    // วาดเลขหน้า
     renderVehiclesPagination(list.length);
-    if (window.lucide) lucide.createIcons();
+    lucide.createIcons();
 }
 
 /**
@@ -6977,12 +6971,12 @@ async function previewVehicleCard(id) {
         const areaContainer = document.getElementById('renderAreaBoxesV');
         const areaIds = String(v.areaAccessIds || '').split(',').filter(x => x);
         
-        // --- ส่วนที่แก้ไข: จัดการ Grid 2x2 ---
+        // ปรับตำแหน่ง Container ให้สูงขึ้น (ขยับจาก 135px เป็น 115px)
         if (areaIds.length > 2) {
-            // ถ้ามี 3-4 พื้นที่ ใช้ Grid 2 คอลัมน์
+            // กรณี 3-4 พื้นที่: ใช้ Grid 2x2
             areaContainer.className = "absolute top-[110px] left-0 right-0 grid grid-cols-2 gap-1.5 px-[75px] h-[100px]";
         } else {
-            // ถ้ามี 1-2 พื้นที่ ใช้ Flex แถวเดียวเหมือนเดิม
+            // กรณี 1-2 พื้นที่: ใช้ Flex
             areaContainer.className = "absolute top-[115px] left-0 right-0 flex justify-center gap-1.5 h-[90px]";
         }
 
@@ -6990,8 +6984,6 @@ async function previewVehicleCard(id) {
             const areaSetting = allAreas.find(a => String(a.areaNumber) === String(num));
             const color = areaSetting ? areaSetting.colorCode : '#ff0000';
             const textColor = getContrastYIQ(color);
-            
-            // ปรับขนาดกล่องถ้าเป็น Grid ให้เล็กลงนิดหน่อย
             const boxSize = areaIds.length > 2 ? 'w-[100px] h-[48px] text-4xl' : 'w-[90px] h-[90px] text-6xl';
             
             return `
@@ -7001,21 +6993,29 @@ async function previewVehicleCard(id) {
                 </div>`;
         }).join('');
 
-        // ข้อมูลอื่นๆ (รหัส, บาร์โค้ด, วันหมดอายุ)
-        document.getElementById('renderBarcodeV').textContent = `*${v.cardId}*`;
-        document.getElementById('renderBarcodeTextV').textContent = v.cardId;
-        document.getElementById('renderTempV').style.opacity = (t.isTemporary === true || t.isTemporary === 'TRUE') ? '1' : '0';
+        // ปรับตำแหน่งป้าย "บัตรชั่วคราว" ให้อยู่เหนือกรอบพื้นที่
+        const tempEl = document.getElementById('renderTempV');
+        tempEl.className = "absolute top-[90px] left-0 right-0 text-center text-red-600 font-black text-[16px] opacity-0 transition-opacity z-20";
+        tempEl.style.opacity = (t.isTemporary === true || t.isTemporary === 'TRUE') ? '1' : '0';
+
+        // บาร์โค้ดแนวตั้ง (ปรับตำแหน่งให้สมดุล)
+        const bcBox = document.querySelector('#printCardFrontV .rotate-90');
+        if (bcBox) bcBox.style.top = "40px"; // ขยับขึ้นไม่ให้ทับส่วนอื่น
+
+        // ใส่ข้อมูลพนักงานลงในบัตร
         document.getElementById('renderOrgV').textContent = v.organization || '-';
         document.getElementById('renderRegV').textContent = v.vehicleReg || '-';
         document.getElementById('renderCardIdV').textContent = v.cardId || '-';
         document.getElementById('renderExpV').textContent = formatDateOnly(v.expiryDate);
+        document.getElementById('renderBarcodeV').textContent = `*${v.cardId}*`;
+        document.getElementById('renderBarcodeTextV').textContent = v.cardId;
 
-        // ดึงชื่อประตู
+        // ช่องทางเข้าออก
         const gateIds = String(v.allowedGateIds || '').split(',');
         const gateNames = allGates.filter(g => gateIds.includes(String(g.id))).map(g => g.name).join(', ');
         document.getElementById('renderGatesV').textContent = gateNames || 'ทุกจุดเข้า-ออก';
 
-        // โหลดหน้าหลัง
+        // หน้าหลัง (Rules & Footer)
         document.getElementById('renderRulesTitleV1').textContent = systemSettings.rulesTitleV1 || 'ข้อควรปฏิบัติ';
         document.getElementById('renderRulesTitleV2').textContent = systemSettings.rulesTitleV2 || '';
         document.getElementById('renderRulesTitleV3').textContent = systemSettings.rulesTitleV3 || '';
