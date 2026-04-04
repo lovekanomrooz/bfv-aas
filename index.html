@@ -1271,6 +1271,19 @@ gap: 1px !important;
                 </div>
                 <p class="text-[10px] text-gray-500 mt-2">ติ๊กเลือกพื้นที่ที่สามารถผ่านประตูนี้ได้ (ถ้าไม่ติ๊กเลย = ผ่านได้ทุกคน)</p>
             </div>
+			<!-- เพิ่มโค้ดด้านล่างนี้ลงไปครับ -->
+<div class="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center justify-between cursor-pointer mt-4 shadow-sm" onclick="document.getElementById('gateAllowedVehicle').click()">
+    <div class="flex items-center gap-3">
+        <div class="bg-white p-2 rounded-lg text-blue-600 shadow-sm">
+            <i data-lucide="car"></i>
+        </div>
+        <div>
+            <p class="font-bold text-blue-900 text-sm">อนุญาตให้ยานพาหนะผ่านได้</p>
+            <p class="text-[10px] text-blue-600">จุดเข้า-ออกนี้รองรับรถยนต์/มอเตอร์ไซค์</p>
+        </div>
+    </div>
+    <input type="checkbox" id="gateAllowedVehicle" class="w-6 h-6 text-blue-600 rounded-lg focus:ring-blue-500 border-blue-300" onclick="event.stopPropagation()">
+</div>
             <div><label class="block text-sm font-bold mb-2 text-gray-700">สถานะ</label><select id="gateStatus" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 bg-white font-medium"><option value="active">เปิดใช้งาน (Active)</option><option value="inactive">ปิดใช้งาน (Inactive)</option></select></div>
         </div>
         <div class="p-4 border-t bg-white rounded-b-2xl flex justify-end gap-3 shadow-inner"><button onclick="closeGateModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition">ยกเลิก</button><button onclick="saveGate()" class="px-6 py-2 btn-primary text-white font-bold rounded-xl shadow-lg transition">บันทึก</button></div>
@@ -3452,26 +3465,49 @@ async function saveCard() {
     // 4. จัดการจุดเข้าออก (Gates)
     // ==========================================
     function renderGatesGrid() {
-        const c = document.getElementById('gatesGrid');
-        if(allGates.length === 0) { c.innerHTML = '<div class="col-span-full text-center p-8 bg-white rounded-2xl border-2 border-dashed border-gray-200 text-gray-400">ยังไม่มีข้อมูลจุดเข้าออก</div>'; return; }
-        
-        c.innerHTML = allGates.map(g => `
+    const c = document.getElementById('gatesGrid');
+    if(allGates.length === 0) { c.innerHTML = '...'; return; }
+    
+    c.innerHTML = allGates.map(g => {
+        const canVehicle = (g.allowedVehicle === true || g.allowedVehicle === 'TRUE');
+        return `
             <div class="bg-white rounded-2xl card-shadow border border-gray-100 p-5 relative overflow-hidden group">
                 <div class="absolute top-0 right-0 w-16 h-16 ${g.status==='active'?'bg-green-100':'bg-red-100'} rounded-bl-full flex items-start justify-end p-3"><i data-lucide="boom-box" class="w-6 h-6 ${g.status==='active'?'text-green-600':'text-red-500'}"></i></div>
                 <h3 class="font-bold text-xl text-gray-800 mb-1 pr-12">${g.name}</h3>
-                <p class="text-sm text-sky-600 font-medium mb-4"><i data-lucide="map-pin" class="w-4 h-4 inline"></i> ${g.location||'ไม่ระบุ'}</p>
+                <p class="text-sm text-sky-600 font-medium mb-2"><i data-lucide="map-pin" class="w-4 h-4 inline"></i> ${g.location||'ไม่ระบุ'}</p>
+                
+                <!-- แสดงสถานะรถ -->
+                <div class="mb-4">
+                    ${canVehicle ? 
+                        '<span class="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded-lg font-black flex items-center gap-1 w-fit"><i data-lucide="car" class="w-3 h-3"></i> รองรับยานพาหนะ</span>' : 
+                        '<span class="text-[10px] bg-gray-100 text-gray-400 px-2 py-1 rounded-lg font-bold flex items-center gap-1 w-fit"><i data-lucide="user" class="w-3 h-3"></i> เฉพาะเดินเท้า</span>'
+                    }
+                </div>
+
                 <div class="flex gap-2">
                     <button onclick="editGate(${g.id})" class="flex-1 bg-gray-50 hover:bg-gray-100 border text-gray-700 py-2 rounded-xl font-bold transition text-sm">แก้ไข</button>
                     <button onclick="deleteGate(${g.id})" class="bg-red-50 text-red-600 hover:bg-red-100 px-3 py-2 rounded-xl transition"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                 </div>
-            </div>`).join('');
-        lucide.createIcons();
-    }
-    function openGateModal() { document.getElementById('gateModalTitle').innerHTML='<i data-lucide="boom-box"></i> เพิ่มจุดเข้าออก'; document.getElementById('editGateId').value=''; ['gateName','gateLocation'].forEach(id=>document.getElementById(id).value=''); document.getElementById('gateStatus').value='active'; document.getElementById('gateModal').classList.remove('hidden'); }
+            </div>`;
+    }).join('');
+    lucide.createIcons();
+}
+    function openGateModal() { 
+    document.getElementById('gateModalTitle').innerHTML='<i data-lucide="boom-box"></i> เพิ่มจุดเข้าออก'; 
+    document.getElementById('editGateId').value=''; 
+    ['gateName','gateLocation'].forEach(id=>document.getElementById(id).value=''); 
+    document.getElementById('gateStatus').value='active'; 
+    
+    // รีเซ็ต Checkbox ยานพาหนะ
+    document.getElementById('gateAllowedVehicle').checked = false; 
+    
+    renderAreaCheckboxesGen('', 'gateAreaCheckboxes', 'input-gate-area-cb');
+    document.getElementById('gateModal').classList.remove('hidden'); 
+    if(window.lucide) lucide.createIcons();
+}
     function editGate(id) {
-    // แก้ไข: ใช้ Number() ในการเปรียบเทียบ ID
     const g = allGates.find(x => Number(x.id) === Number(id));
-    if (!g) return showToast('ไม่พบข้อมูลจุดเข้าออก', 'error');
+    if (!g) return;
 
     document.getElementById('gateModalTitle').innerHTML = '<i data-lucide="edit"></i> แก้ไขจุดเข้าออก';
     document.getElementById('editGateId').value = g.id;
@@ -3479,21 +3515,53 @@ async function saveCard() {
     document.getElementById('gateLocation').value = g.location || '';
     document.getElementById('gateStatus').value = g.status;
 
-    // โหลด Checkbox พื้นที่ที่อนุญาต
-    renderAreaCheckboxesGen(g.allowedAreas || '', 'gateAreaCheckboxes', 'input-gate-area-cb');
+    // โหลดค่า Checkbox ยานพาหนะ (รองรับทั้ง Boolean และ String จาก Sheet)
+    document.getElementById('gateAllowedVehicle').checked = (g.allowedVehicle === true || g.allowedVehicle === 'TRUE');
 
+    renderAreaCheckboxesGen(g.allowedAreas || '', 'gateAreaCheckboxes', 'input-gate-area-cb');
     document.getElementById('gateModal').classList.remove('hidden');
     if (window.lucide) lucide.createIcons();
 }
     function closeGateModal() { document.getElementById('gateModal').classList.add('hidden'); }
     async function saveGate() {
-        const id = document.getElementById('editGateId').value, name = document.getElementById('gateName').value.trim();
-        if(!name) return showToast('กรุณากรอกชื่อจุดเข้าออก', 'error');
-        const d = { name: name, location: document.getElementById('gateLocation').value.trim(), status: document.getElementById('gateStatus').value };
-        if(id) { d.id = parseInt(id); await apiCall('updateGate', d); const idx = allGates.findIndex(x=>x.id===d.id); if(idx!==-1) allGates[idx]={...allGates[idx], ...d}; showToast('แก้ไขสำเร็จ', 'success'); }
-        else { const res = await apiCall('addGate', d); allGates.push(res); showToast('เพิ่มสำเร็จ', 'success'); }
-        closeGateModal(); renderGatesGrid(); updateGateSelects();
+    const id = document.getElementById('editGateId').value;
+    const name = document.getElementById('gateName').value.trim();
+    if(!name) return showToast('กรุณากรอกชื่อจุดเข้าออก', 'error');
+
+    const d = { 
+        name: name, 
+        location: document.getElementById('gateLocation').value.trim(), 
+        status: document.getElementById('gateStatus').value,
+        // เพิ่มบรรทัดนี้เพื่อส่งค่า
+        allowedVehicle: document.getElementById('gateAllowedVehicle').checked 
+    };
+
+    const oldApiCall = window.apiCall;
+    window.apiCall = async function(action, data, hide) {
+        const checkedBoxes = Array.from(document.querySelectorAll('.input-gate-area-cb:checked')).map(cb => cb.value);
+        data.allowedAreas = checkedBoxes.join(',');
+        // มั่นใจว่า data ตัวที่จะส่งไปมีค่า allowedVehicle
+        data.allowedVehicle = d.allowedVehicle; 
+        return oldApiCall(action, data, hide);
+    };
+
+    // ทำงานตามปกติ
+    if(id) { 
+        d.id = parseInt(id); 
+        await apiCall('updateGate', d); 
+        const idx = allGates.findIndex(x=>x.id===d.id); 
+        if(idx!==-1) allGates[idx]={...allGates[idx], ...d}; 
+        showToast('แก้ไขสำเร็จ', 'success'); 
+    } else { 
+        const res = await apiCall('addGate', d); 
+        allGates.push(res); 
+        showToast('เพิ่มสำเร็จ', 'success'); 
     }
+    window.apiCall = oldApiCall; // คืนค่า apiCall ปกติ
+    closeGateModal(); 
+    renderGatesGrid(); 
+    updateGateSelects();
+}
     async function deleteGate(id) { if(confirm('ลบจุดเข้าออกนี้?')) { await apiCall('deleteGate', {id}); allGates = allGates.filter(r=>r.id!==id); renderGatesGrid(); updateGateSelects(); showToast('ลบสำเร็จ', 'success'); } }
 
     // ==========================================
