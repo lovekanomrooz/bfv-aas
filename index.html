@@ -2063,17 +2063,24 @@ processMainScan = function() {
 };
 
 async function handleVehicleScan(cardId) {
+    // 1. เพิ่ม Logic การ Reset ข้อมูลเดิมทันที เพื่อให้เริ่มแสกนคันใหม่ได้เลยแม้หน้าจอเดิมจะค้างอยู่ (แก้ข้อ 1)
+    vehicleSession = { mode: 'IN', vehicle: null, driver: null, passengers: [] };
+    
+    // ค้นหารถ
     const v = allVehicles.find(x => String(x.cardId).toUpperCase() === cardId.toUpperCase());
     if (!v) return showAlert('ไม่พบข้อมูลรถ', `ไม่พบรหัสรถ ${cardId} ในระบบ`, 'error');
     if (v.status !== 'active') return showAlert('รถถูกระงับ', `รถคันนี้ถูกระงับการใช้งาน`, 'error');
 
+    // ตรวจสอบวันหมดอายุ
     if (new Date() > new Date(v.expiryDate).setHours(23,59,59)) {
         return showAlert('รถหมดอายุ', `บัตรรถคันนี้หมดอายุแล้ว`, 'error');
     }
 
+    // กำหนดข้อมูลรถและโหมด (IN/OUT)
     vehicleSession.vehicle = v;
     vehicleSession.mode = (v.currentStatus === 'IN') ? 'OUT' : 'IN';
     
+    // จัดการ UI การแสดงผล
     document.getElementById('scanResultEmpty').classList.add('hidden');
     document.getElementById('scanResultData').classList.add('hidden');
     document.getElementById('vehicleStagingArea').classList.remove('hidden');
@@ -2082,7 +2089,7 @@ async function handleVehicleScan(cardId) {
     document.getElementById('stgVehicleId').textContent = `รหัสบัตร: ${v.cardId}`;
     document.getElementById('stgVehicleExp').textContent = `หมดอายุ: ${formatDateOnly(v.expiryDate)}`;
     
-    // วาดสิทธิ์พื้นที่และประตู (ข้อ 2)
+    // --- [ส่วนเดิมของคุณ: วาดสิทธิ์พื้นที่และประตู - ห้ามตัด] ---
     const areaIds = String(v.areaAccessIds || '').split(',').filter(x=>x);
     const gateIds = String(v.allowedGateIds || '').split(',').filter(x=>x);
     const gateNames = allGates.filter(g => gateIds.includes(String(g.id))).map(g => g.name).join(', ');
@@ -2095,23 +2102,37 @@ async function handleVehicleScan(cardId) {
         </div>
     `;
     document.getElementById('stgVehicleDetails').innerHTML = detailHtml;
-    
+    // --- [จบส่วนเดิม] ---
+
     const badge = document.getElementById('stgIoBadge');
     badge.textContent = vehicleSession.mode;
     badge.className = `px-6 py-2 rounded-full font-black text-white text-xl ${vehicleSession.mode==='IN'?'bg-green-600 shadow-green-200':'bg-orange-600 shadow-orange-200'} shadow-lg`;
 
+    // 2. Logic จัดการขาออก: ดึงรายชื่อคนที่ค้างอยู่ในรถ (แก้ข้อ 2)
     if (vehicleSession.mode === 'OUT') {
         showLoader('กำลังตรวจสอบพนักงานในรถ...');
         try {
+            // เรียก API ไปดึงคนในรถขาออก
             const peopleIn = await apiCall('getPeopleInVehicle', { vehicleCardId: v.cardId }, false);
             vehicleSession.passengers = peopleIn || [];
-            if(vehicleSession.passengers.length === 0) showToast('ไม่พบข้อมูลพนักงานค้างในรถ', 'info');
-        } catch(e) { console.error(e); }
+            
+            if(vehicleSession.passengers.length > 0) {
+                showToast(`พบพนักงานในรถ ${vehicleSession.passengers.length} ท่าน`, 'success');
+            } else {
+                showToast('ไม่พบข้อมูลพนักงานค้างในรถ', 'info');
+            }
+        } catch(e) { 
+            console.error("Error fetching passengers:", e); 
+            showToast('ดึงข้อมูลรายชื่อในรถล้มเหลว', 'error');
+        }
         hideLoader();
     } else {
+        // กรณีขาเข้า (IN)
         showToast('กรุณาแสกน "คนขับรถ"', 'info');
         document.getElementById('scanInput').placeholder = "แสกนบัตรคนขับ...";
     }
+
+    // วาดรายการรายชื่อ (ใช้ฟังก์ชัน renderStagingList ที่ปรับเลย์เอาต์ใหม่ตามข้อความก่อนหน้า)
     renderStagingList();
 }
 
@@ -2314,52 +2335,46 @@ async function saveVehicleSession() {
 function showVehicleSuccessSummary(session, people, gateName) {
     const list = document.getElementById('stgPeopleList');
     const btnSave = document.getElementById('btnSaveVehicle');
-    const ioColor = session.mode === 'IN' ? 'text-green-600' : 'text-orange-600';
-    const ioBg = session.mode === 'IN' ? 'bg-green-50' : 'bg-orange-50';
+    const ioColor = session.mode === 'IN' ? 'bg-green-500' : 'bg-orange-500';
 
-    // 1. เปลี่ยนปุ่มเป็น "เสร็จสิ้น"
-    btnSave.textContent = "บันทึกเรียบร้อย (คลิกเพื่อเริ่มคันใหม่)";
-    btnSave.classList.replace('bg-blue-600', 'bg-emerald-600');
-    btnSave.onclick = () => {
-        // เมื่อคลิกที่ปุ่มสีเขียว ถึงจะทำการ Reset หน้าจอจริงๆ
-        cancelVehicleSession();
-        btnSave.classList.replace('bg-emerald-600', 'bg-blue-600');
-        btnSave.onclick = saveVehicleSession; 
-    };
+    // ปรับปุ่มให้เป็นสีเทา บอกว่าแสกนต่อได้เลย
+    btnSave.textContent = "บันทึกแล้ว (แสกนคันต่อไปได้ทันที)";
+    btnSave.classList.replace('bg-blue-600', 'bg-gray-400');
+    btnSave.disabled = true;
 
-    // 2. วาดหน้าจอสรุป (Summary Card)
     let summaryHtml = `
-        <div class="p-6 ${ioBg} border-2 border-dashed border-gray-200 rounded-[2rem] text-center animate-fadeIn">
-            <div class="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border-4 border-emerald-500">
-                <i data-lucide="check-circle-2" class="w-12 h-12 text-emerald-500"></i>
+        <div class="p-4 bg-white border-2 border-emerald-100 rounded-3xl shadow-sm animate-fadeIn">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-8 h-8 ${ioColor} text-white rounded-full flex items-center justify-center shrink-0">
+                    <i data-lucide="check" class="w-5 h-5"></i>
+                </div>
+                <h3 class="font-black text-emerald-600 text-lg">บันทึกสำเร็จ</h3>
+                <span class="ml-auto text-[10px] font-bold text-gray-400 uppercase tracking-widest">${gateName}</span>
             </div>
-            <h3 class="text-2xl font-black text-gray-800 mb-1">บันทึกรายการสำเร็จ!</h3>
-            <p class="text-sm font-bold text-gray-500 mb-6">ยานพาหนะ: ${session.vehicle.vehicleReg} | สถานะ: <span class="${ioColor}">${session.mode}</span></p>
             
-            <div class="bg-white rounded-2xl p-4 text-left shadow-sm border border-gray-100">
-                <p class="text-[10px] font-black text-gray-400 uppercase mb-3 tracking-widest border-b pb-2">รายละเอียดรายการ</p>
-                <div class="space-y-2">
-                    <div class="flex justify-between text-xs font-bold">
-                        <span class="text-gray-400">จุดเข้าออก:</span>
-                        <span class="text-gray-700">${gateName}</span>
-                    </div>
-                    <div class="flex justify-between text-xs font-bold">
-                        <span class="text-gray-400">จำนวนพนักงาน:</span>
-                        <span class="text-blue-600">${people.length} ท่าน</span>
-                    </div>
-                    <div class="flex justify-between text-xs font-bold border-t pt-2 mt-2">
-                        <span class="text-gray-400">รายชื่อ:</span>
-                        <span class="text-right text-gray-600">${people.map(p => p.firstName).join(', ')}</span>
-                    </div>
+            <div class="grid grid-cols-2 gap-2 bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                <div>
+                    <p class="text-[9px] font-black text-gray-400 uppercase">ยานพาหนะ</p>
+                    <p class="text-sm font-bold text-gray-700">${session.vehicle.vehicleReg}</p>
+                </div>
+                <div>
+                    <p class="text-[9px] font-black text-gray-400 uppercase">จำนวน</p>
+                    <p class="text-sm font-bold text-blue-600">${people.length} คน</p>
+                </div>
+                <div class="col-span-2 border-t pt-1 mt-1">
+                    <p class="text-[9px] font-black text-gray-400 uppercase">รายชื่อพนักงาน</p>
+                    <p class="text-[11px] font-medium text-gray-600 truncate">${people.map(p => p.firstName).join(', ')}</p>
                 </div>
             </div>
-            <p class="mt-6 text-[11px] font-bold text-gray-400 animate-pulse">*** กรุณาคลิกปุ่มด้านล่างเพื่อแสกนรถคันต่อไป ***</p>
+            <div class="mt-3 py-2 bg-emerald-50 text-emerald-700 rounded-xl text-center text-[10px] font-bold animate-pulse">
+                พร้อมสำหรับการแสกนคันต่อไป...
+            </div>
         </div>
     `;
 
     list.innerHTML = summaryHtml;
     lucide.createIcons();
-}	  
+}  
 // ----------------จบส่วนแสกนรถ--------------
 // เพิ่มในส่วน fetchInitialData หรือ navigateTo('manageVehicles')
 async function fetchVehiclesData() {
