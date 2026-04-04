@@ -4791,7 +4791,10 @@ async function confirmDeleteUser(id, username) {
 	document.getElementById('cardTplRulesV').value = systemSettings.cardTplRulesV || '';
 	document.getElementById('cardFooterV1').value = systemSettings.cardFooterV1 || '';
 document.getElementById('cardFooterV2').value = systemSettings.cardFooterV2 || '';
-document.getElementById('cardFooterV3').value = systemSettings.cardFooterV3 || '';	
+document.getElementById('cardFooterV3').value = systemSettings.cardFooterV3 || '';
+		document.getElementById('rulesTitleV1').value = systemSettings.rulesTitleV1 || 'ข้อควรปฏิบัติ';
+		document.getElementById('rulesTitleV2').value = systemSettings.rulesTitleV2 || '';
+		document.getElementById('rulesTitleV3').value = systemSettings.rulesTitleV3 || '';
     // 3. ตั้งค่าเสียง AI & แจ้งเตือน
 	const delay = systemSettings.announcementDelay || 600;
 document.getElementById('announcementDelay').value = delay;
