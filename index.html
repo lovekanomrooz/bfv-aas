@@ -1574,10 +1574,11 @@ gap: 1px !important;
                     
                     <div class="absolute inset-0 z-10">
                         <!-- บาร์โค้ดแนวตั้ง (ปรับตำแหน่งไม่ให้ทับชื่อสนามบิน) -->
-                        <div class="absolute top-[-100px] right-[-5px] transform rotate-90 flex flex-col items-center">
-                            <div class="font-barcode text-5xl text-black leading-none" id="renderBarcodeV">*V001*</div>
-                            <div class="text-[10px] font-bold text-gray-800 -mt-1" id="renderBarcodeTextV">V001/2569</div>
-                        </div>
+                       <div class="absolute top-[40px] right-[-55px] transform rotate-90 flex flex-col items-center w-[220px] z-20">
+    <!-- ปรับ scale เพื่อให้บาร์โค้ดผอมลงและไม่ยาวเกินไป -->
+    <div class="font-barcode text-[42px] text-black leading-none transform scale-x-[0.7]" id="renderBarcodeV">*V001*</div>
+    <div class="text-[10px] font-bold text-gray-800 -mt-2 tracking-widest" id="renderBarcodeTextV">V001/2569</div>
+</div>
 
                         <!-- ป้ายบัตรชั่วคราว (ย้ายไปอยู่ด้านบนกรอบตัวเลข) -->
                         <div id="renderTempV" class="absolute top-[105px] left-0 right-0 text-center text-red-600 font-black text-[18px] opacity-0 transition-opacity">บัตรชั่วคราว</div>
@@ -2311,71 +2312,56 @@ function closeTypeVehicleModal() {
  * ฟังก์ชันโหลดข้อมูลยานพาหนะมาแก้ไข (Edit Vehicle)
  */
 function editVehicle(id) {
-    // 1. ค้นหาข้อมูลรถจาก Cache (allVehicles)
     const v = allVehicles.find(x => Number(x.id) === Number(id));
     if (!v) return showToast('ไม่พบข้อมูลยานพาหนะ', 'error');
 
-    // 2. ตั้งค่าหัวข้อ Modal และเก็บ ID แถวที่จะแก้ไข
     document.getElementById('vehicleModalTitle').innerHTML = '<i data-lucide="edit"></i> แก้ไขข้อมูลยานพาหนะ';
     document.getElementById('editVehicleDbId').value = v.id;
 
-    // 3. แยกส่วนรหัสบัตร (Card ID) เข้า 3 ช่อง (กรณีรูปแบบคือ PrefixNum/Year เช่น V001/2569)
+    // แยกส่วนรหัสบัตร
     const fullId = v.cardId || '';
-    const parts = fullId.split('/'); // แยกด้วยเครื่องหมาย /
-    
+    const parts = fullId.split('/');
     if(parts.length === 2) {
-        document.getElementById('vGenYear').value = parts[1]; // ใส่ปี (เช่น 2569)
-        const firstPart = parts[0]; // ส่วนหน้า (เช่น V001)
-        const numMatch = firstPart.match(/\d+$/); // หาตัวเลขท้ายสุด
-        
+        document.getElementById('vGenYear').value = parts[1];
+        const firstPart = parts[0];
+        const numMatch = firstPart.match(/\d+$/);
         if(numMatch) {
             const numStr = numMatch[0];
             document.getElementById('vGenPrefix').value = firstPart.substring(0, firstPart.length - numStr.length);
             document.getElementById('vGenNum').value = parseInt(numStr);
-        } else {
-            document.getElementById('vGenPrefix').value = firstPart;
-            document.getElementById('vGenNum').value = "";
         }
-    } else {
-        // ถ้ารหัสไม่ตรงรูปแบบ / ให้ใส่ช่องหลักตรงๆ
-        document.getElementById('vGenPrefix').value = fullId;
-        document.getElementById('vGenNum').value = "";
-        document.getElementById('vGenYear').value = "";
     }
     document.getElementById('vCardIdInp').value = v.cardId;
-	updateVehicleAreaCheckboxState();
-    // 4. โหลดประเภทบัตรรถลง Dropdown และเลือกค่าเดิม
+
+    // โหลดประเภทบัตรรถ
     document.getElementById('vTypeInp').innerHTML = typeVehicles.map(t => 
         `<option value="${t.id}" ${parseInt(t.id) === parseInt(v.typeId) ? 'selected' : ''}>${t.typeName}</option>`
     ).join('');
 
-    // 5. ใส่ข้อมูลพื้นฐาน
-    document.getElementById('vApplicantName').value = v.applicantName || '';
+    // ใส่ข้อมูลพื้นฐาน (SCHEMA ใหม่)
+    document.getElementById('vApplicantFirstName').value = v.applicantFirstName || '';
+    document.getElementById('vApplicantLastName').value = v.applicantLastName || '';
+    document.getElementById('vApplicantPosition').value = v.applicantPosition || '';
     document.getElementById('vOrganization').value = v.organization || '';
     document.getElementById('vVehicleReg').value = v.vehicleReg || '';
     document.getElementById('vOtherDetails').value = v.otherDetails || '';
     
-    // 6. จัดการเรื่องวันที่ (แปลงฟอร์แมตให้เข้ากับ input type="date")
-    const formatDateForInput = (dateStr) => {
-        if (!dateStr) return "";
-        const d = new Date(dateStr);
-        if (isNaN(d.getTime())) return "";
-        return d.toISOString().split('T')[0];
-    };
-    document.getElementById('vIssueDate').value = formatDateForInput(v.issueDate);
-    document.getElementById('vExpiryDate').value = formatDateForInput(v.expiryDate);
+    // วันที่
+    const formatDateForInp = (d) => d ? new Date(d).toISOString().split('T')[0] : "";
+    document.getElementById('vIssueDate').value = formatDateForInp(v.issueDate);
+    document.getElementById('vExpiryDate').value = formatDateForInp(v.expiryDate);
 
-    // 7. โหลดสถานะ (Radio)
-    const statusRadio = document.querySelector(`input[name="vStatus"][value="${v.status}"]`);
-    if(statusRadio) statusRadio.checked = true;
+    // สถานะ
+    const rad = document.querySelector(`input[name="vStatus"][value="${v.status}"]`);
+    if(rad) rad.checked = true;
 
-    // 8. วาด Checkbox ประตู (กรองเฉพาะประตูที่ให้รถเข้า และติ๊กอันที่เคยเลือกไว้)
+    // วาด Checkbox
     renderVehicleGateCheckboxes(v.allowedGateIds || '');
-
-    // 9. วาด Checkbox พื้นที่ (Area Access)
     renderAreaCheckboxesGen(v.areaAccessIds || '', 'vAreaCheckboxes', 'v-area-cb');
+    
+    // ตรวจสอบสถานะการล็อก 4 ช่อง
+    updateVehicleAreaCheckboxState(); 
 
-    // 10. แสดง Modal
     document.getElementById('vehicleModal').classList.remove('hidden');
     if (window.lucide) lucide.createIcons();
 }
@@ -6960,35 +6946,48 @@ async function previewVehicleCard(id) {
         document.getElementById('tplFrontImgV').src = systemSettings.cardTplFrontV || '';
         document.getElementById('tplBackImgV').src = systemSettings.cardTplBackV || '';
         
-        // วาดกล่องพื้นที่ (สีตามที่ตั้งค่าพื้นที่ไว้)
         const areaContainer = document.getElementById('renderAreaBoxesV');
         const areaIds = String(v.areaAccessIds || '').split(',').filter(x => x);
+        
+        // --- ส่วนที่แก้ไข: จัดการ Grid 2x2 ---
+        if (areaIds.length > 2) {
+            // ถ้ามี 3-4 พื้นที่ ใช้ Grid 2 คอลัมน์
+            areaContainer.className = "absolute top-[125px] left-0 right-0 grid grid-cols-2 gap-1.5 px-[75px] h-[100px]";
+        } else {
+            // ถ้ามี 1-2 พื้นที่ ใช้ Flex แถวเดียวเหมือนเดิม
+            areaContainer.className = "absolute top-[135px] left-0 right-0 flex justify-center gap-1.5 h-[90px]";
+        }
+
         areaContainer.innerHTML = areaIds.map(num => {
             const areaSetting = allAreas.find(a => String(a.areaNumber) === String(num));
             const color = areaSetting ? areaSetting.colorCode : '#ff0000';
             const textColor = getContrastYIQ(color);
+            
+            // ปรับขนาดกล่องถ้าเป็น Grid ให้เล็กลงนิดหน่อย
+            const boxSize = areaIds.length > 2 ? 'w-[100px] h-[48px] text-4xl' : 'w-[90px] h-[90px] text-6xl';
+            
             return `
-                <div class="w-[90px] h-[90px] border-2 border-black flex items-center justify-center text-6xl font-black shadow-md" 
+                <div class="${boxSize} border-2 border-black flex items-center justify-center font-black shadow-sm" 
                      style="background-color: ${color}; color: ${textColor};">
                     ${num}
                 </div>`;
         }).join('');
 
-        // บาร์โค้ด
+        // ข้อมูลอื่นๆ (รหัส, บาร์โค้ด, วันหมดอายุ)
         document.getElementById('renderBarcodeV').textContent = `*${v.cardId}*`;
         document.getElementById('renderBarcodeTextV').textContent = v.cardId;
-
-        // บัตรชั่วคราว
-        const tempEl = document.getElementById('renderTempV');
-        tempEl.style.opacity = (t.isTemporary === true || t.isTemporary === 'TRUE') ? '1' : '0';
-
-        // ข้อมูลอื่นๆ... (สังกัด, ทะเบียน, วันหมดอายุ)
+        document.getElementById('renderTempV').style.opacity = (t.isTemporary === true || t.isTemporary === 'TRUE') ? '1' : '0';
         document.getElementById('renderOrgV').textContent = v.organization || '-';
         document.getElementById('renderRegV').textContent = v.vehicleReg || '-';
         document.getElementById('renderCardIdV').textContent = v.cardId || '-';
         document.getElementById('renderExpV').textContent = formatDateOnly(v.expiryDate);
 
-        // หน้าหลัง
+        // ดึงชื่อประตู
+        const gateIds = String(v.allowedGateIds || '').split(',');
+        const gateNames = allGates.filter(g => gateIds.includes(String(g.id))).map(g => g.name).join(', ');
+        document.getElementById('renderGatesV').textContent = gateNames || 'ทุกจุดเข้า-ออก';
+
+        // โหลดหน้าหลัง
         document.getElementById('renderRulesTitleV1').textContent = systemSettings.rulesTitleV1 || 'ข้อควรปฏิบัติ';
         document.getElementById('renderRulesTitleV2').textContent = systemSettings.rulesTitleV2 || '';
         document.getElementById('renderRulesTitleV3').textContent = systemSettings.rulesTitleV3 || '';
@@ -6997,15 +6996,11 @@ async function previewVehicleCard(id) {
         document.getElementById('renderFooterV2').textContent = systemSettings.cardFooterV2 || '';
         document.getElementById('renderFooterV3').textContent = systemSettings.cardFooterV3 || '';
 
-        // ช่องทางเข้าออก
-        const gateIds = String(v.allowedGateIds || '').split(',');
-        const gateNames = allGates.filter(g => gateIds.includes(String(g.id))).map(g => g.name).join(', ');
-        document.getElementById('renderGatesV').textContent = gateNames || 'ทุกจุดเข้า-ออก';
-
         hideLoader();
         document.getElementById('idVehicleCardModal').classList.remove('hidden');
         lucide.createIcons();
     } catch(e) {
+        console.error(e);
         hideLoader();
         showToast('โหลดพรีวิวไม่สำเร็จ', 'error');
     }
