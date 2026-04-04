@@ -2087,27 +2087,58 @@ async function handleVehicleScan(cardId) {
     renderStagingList();
 }
 
-function handlePersonForVehicle(cardId) {
-    const person = allCards.find(c => c.cardId === cardId);
+async function handlePersonForVehicle(cardId) {
+    const person = allCards.find(c => String(c.cardId).toUpperCase() === String(cardId).toUpperCase());
     if (!person) return showAlert('ไม่พบข้อมูล', `ไม่พบบัตรหมายเลข ${cardId}`, 'error');
-    
-    // ตรวจสอบสิทธิ์เบื้องต้น (พนักงาน)
     if (person.status !== 'active') return showAlert('ถูกระงับ', 'บัตรถูกระงับการใช้งาน', 'error');
 
-    // ตรวจสอบบัตรคนขับ
+    // --- 1. ตรวจสอบวันหมดอายุ ---
+    const now = new Date();
+    const expiryDate = new Date(person.expiryDate);
+    expiryDate.setHours(23, 59, 59);
+    if (now > expiryDate) {
+        return showAlert('บัตรหมดอายุ', `คุณ ${person.firstName} บัตรหมดอายุแล้วเมื่อ ${formatDateOnly(person.expiryDate)}`, 'error');
+    }
+
+    // --- 2. ตรวจสอบผู้ติดตาม (เฉพาะขาเข้า) ---
+    const typeInfo = typeCards.find(t => String(t.id) === String(person.typeId));
+    if (isTrue(typeInfo.requireCompanion) && vehicleSession.mode === 'IN') {
+        // ถ้ายังไม่มีข้อมูลผู้ติดตาม ให้เปิด Modal
+        document.getElementById('companionModalMainCardId').value = person.cardId;
+        document.getElementById('compBarcode').value = '';
+        document.getElementById('companionModal').classList.remove('hidden');
+        // เราต้องจำไว้ว่าคนนี้กำลังรอผู้ติดตาม เพื่อจะแอดลงรถทีหลัง
+        window.pendingVehiclePerson = person; 
+        return;
+    }
+
+    // ถ้าผ่านหมด ให้แอดลงรถ
+    addPersonToVehicle(person);
+}
+
+// ฟังก์ชันเสริมสำหรับแอดคนลง Object รถ
+function addPersonToVehicle(person, companion = null) {
+    // ตรวจสอบว่าแสกนซ้ำในคันเดียวกันไหม
+    if ((vehicleSession.driver && vehicleSession.driver.cardId === person.cardId) || 
+        vehicleSession.passengers.some(p => p.cardId === person.cardId)) {
+        return showToast('บุคคลนี้อยู่ในรายการแล้ว', 'warning');
+    }
+
+    const personData = {...person};
+    if(companion) {
+        personData.companionCardId = companion.cardId;
+        personData.companionName = `${companion.firstName} ${companion.lastName}`;
+        personData.companionOrg = companion.organization;
+    }
+
     if (!vehicleSession.driver) {
         if (!isTrue(person.canDrive)) {
-            return showAlert('ไม่มีสิทธิ์ขับขี่', `คุณ ${person.firstName} ไม่มีสิทธิ์ DRIVE`, 'error');
+            return showAlert('ไม่มีสิทธิ์ขับขี่', `คุณ ${person.firstName} ไม่มีสิทธิ์ DRIVE (กรุณาแสกนคนที่มีสิทธิ์เป็นคนขับคนแรก)`, 'error');
         }
-        vehicleSession.driver = person;
-        showToast('บันทึกคนขับแล้ว แสกนผู้โดยสารต่อได้', 'success');
-        document.getElementById('scanInput').placeholder = "แสกนบัตรผู้โดยสาร (ถ้ามี)...";
+        vehicleSession.driver = personData;
+        showToast('บันทึกคนขับแล้ว', 'success');
     } else {
-        // ตรวจสอบว่าสแกนซ้ำไหม
-        if (vehicleSession.driver.cardId === cardId || vehicleSession.passengers.some(p => p.cardId === cardId)) {
-            return showToast('บุคคลนี้อยู่ในรายการแล้ว', 'warning');
-        }
-        vehicleSession.passengers.push(person);
+        vehicleSession.passengers.push(personData);
     }
     renderStagingList();
 }
@@ -2117,44 +2148,63 @@ function renderStagingList() {
     const btnSave = document.getElementById('btnSaveVehicle');
     let html = '';
 
-    // คนขับ (Driver)
+    // 1. ส่วนของคนขับ (DRIVER) - เน้นสีทอง/ฟ้า
     if (vehicleSession.driver) {
         html += `
-        <div class="p-4 bg-blue-50 border-2 border-blue-200 rounded-2xl flex items-center justify-between animate-fadeIn">
-            <div class="flex items-center gap-3">
-                <div class="bg-blue-600 text-white px-2 py-1 rounded text-[8px] font-black uppercase tracking-tighter">DRIVER</div>
+        <div class="p-4 bg-amber-50 border-2 border-amber-200 rounded-2xl flex items-center justify-between shadow-sm animate-fadeIn mb-3">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-amber-500 text-white rounded-full flex items-center justify-center shadow-md">
+                    <i data-lucide="steering-wheel" class="w-6 h-6"></i>
+                </div>
                 <div>
-                    <p class="font-black text-gray-800">${vehicleSession.driver.firstName} ${vehicleSession.driver.lastName}</p>
-                    <p class="text-[10px] text-blue-600 font-bold">${vehicleSession.driver.cardId} | ${vehicleSession.driver.organization}</p>
+                    <p class="text-[10px] font-black text-amber-600 uppercase tracking-widest">พนักงานขับรถ (Driver)</p>
+                    <p class="font-black text-lg text-gray-800">${vehicleSession.driver.firstName} ${vehicleSession.driver.lastName}</p>
+                    <p class="text-xs text-amber-700 font-bold">${vehicleSession.driver.cardId} | ${vehicleSession.driver.organization}</p>
                 </div>
             </div>
-            <button onclick="removeDriver()" class="text-red-400 hover:text-red-600 p-2"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            <button onclick="removeDriver()" class="bg-white p-2 rounded-xl text-red-500 hover:bg-red-50 shadow-sm border border-red-100 transition"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
         </div>`;
     }
 
-    // ผู้โดยสาร (Passengers)
+    // 2. ส่วนของผู้โดยสาร (PASSENGERS) - สีน้ำเงิน/เทา
     vehicleSession.passengers.forEach((p, index) => {
+        const hasComp = p.companionCardId;
         html += `
-        <div class="p-4 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-between animate-fadeIn">
-            <div class="flex items-center gap-3">
-                <div class="bg-gray-300 text-white px-2 py-1 rounded text-[8px] font-black uppercase tracking-tighter">PASSENGER</div>
-                <div>
-                    <p class="font-bold text-gray-700">${p.firstName} ${p.lastName}</p>
-                    <p class="text-[10px] text-gray-400 font-medium">${p.cardId}</p>
+        <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col gap-2 shadow-sm animate-fadeIn mb-2">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 bg-slate-400 text-white rounded-full flex items-center justify-center">
+                        <i data-lucide="user" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">ผู้โดยสาร (Passenger)</p>
+                        <p class="font-bold text-gray-700">${p.firstName} ${p.lastName}</p>
+                        <p class="text-xs text-slate-500">${p.cardId}</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    ${vehicleSession.mode === 'IN' ? `
+                        <button onclick="swapToDriver(${index})" class="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-[11px] font-black hover:bg-blue-600 hover:text-white transition border border-blue-200">
+                            <i data-lucide="refresh-cw" class="w-3 h-3 inline mr-1"></i> สลับเป็นคนขับ
+                        </button>` : ''}
+                    <button onclick="removePassenger(${index})" class="p-2 text-slate-400 hover:text-red-500 transition"><i data-lucide="x" class="w-5 h-5"></i></button>
                 </div>
             </div>
-            <div class="flex gap-1">
-                ${vehicleSession.mode === 'IN' ? `<button onclick="swapToDriver(${index})" class="text-blue-500 text-[10px] font-bold px-2 hover:underline">เป็นคนขับ</button>` : ''}
-                <button onclick="removePassenger(${index})" class="text-gray-400 hover:text-red-500 p-2"><i data-lucide="x" class="w-4 h-4"></i></button>
-            </div>
+            ${hasComp ? `
+                <div class="ml-14 p-2 bg-indigo-100/50 rounded-lg border border-indigo-100 flex items-center gap-2">
+                    <i data-lucide="users" class="w-3 h-3 text-indigo-600"></i>
+                    <span class="text-[10px] font-bold text-indigo-700">ผู้ติดตาม: ${p.companionName} (${p.companionCardId})</span>
+                </div>
+            ` : ''}
         </div>`;
     });
 
-    list.innerHTML = html || '<div class="py-10 text-center text-gray-300 italic text-sm">รอการแสกนพนักงาน...</div>';
+    list.innerHTML = html || '<div class="py-20 text-center text-gray-300 italic flex flex-col items-center gap-2"><i data-lucide="scan" class="w-12 h-12 opacity-20"></i>กรุณาแสกนบัตรพนักงาน...</div>';
     document.getElementById('stgCount').textContent = (vehicleSession.driver ? 1 : 0) + vehicleSession.passengers.length + ' คน';
     
-    // เงื่อนไขปุ่มบันทึก: ขาเข้าต้องมีคนขับ, ขาออกต้องมีอย่างน้อย 1 คน
     btnSave.disabled = (vehicleSession.mode === 'IN' && !vehicleSession.driver);
+    btnSave.textContent = vehicleSession.mode === 'IN' ? 'ยืนยันการบันทึก "เข้าพื้นที่"' : 'ยืนยันการบันทึก "ออกพื้นที่"';
+    
     lucide.createIcons();
 }
 
@@ -3064,7 +3114,7 @@ function toggleHybridCamera() {
             currentUser = JSON.parse(sUser); 
             showMainApp(false); 
         }
-        
+        checkGatePermissions();
         fetchInitialData();
         startBackgroundSync();
     }
@@ -3088,7 +3138,7 @@ function toggleHybridCamera() {
                     allVehicles = data.allVehicles || [];
                     typeVehicles = data.typeVehicles || [];
                     // -------------------------------------------
-
+					//checkGatePermissions();
                     updateGateSelects(); 
                     if(currentPage === 'home') {
                         renderHomeDashboard(); 
@@ -3938,29 +3988,75 @@ function startBackgroundSync() {
         const mainInput = document.getElementById('scanInput'); mainInput.value = ''; mainInput.focus();
     }
 
-    function processCompanionScan() {
+   function processCompanionScan() {
     const gateId = document.getElementById('scanGateSelect').value;
     const mainCardId = document.getElementById('companionModalMainCardId').value.toUpperCase();
     const compBarcodeInp = document.getElementById('compBarcode');
     const compCardId = compBarcodeInp.value.trim().toUpperCase();
 
-    if(!compCardId) return compBarcodeInp.focus();
+    // 1. ตรวจสอบว่ากรอกรหัสผู้ติดตามหรือยัง
+    if (!compCardId) {
+        compBarcodeInp.focus();
+        return;
+    }
 
+    // 2. ค้นหาข้อมูลบัตรผู้ติดตามในฐานข้อมูล
     const compCard = allCards.find(c => String(c.cardId).toUpperCase() === compCardId);
-    if (!compCard) return showAlert('ไม่พบข้อมูล', `ไม่พบบัตรผู้ติดตามหมายเลข ${compCardId}`, 'error');
-    if (compCard.status !== 'active') return showAlert('ถูกระงับ', `บัตรผู้ติดตามถูกระงับการใช้งาน`, 'error');
-
-    const mainCard = allCards.find(c => String(c.cardId).toUpperCase() === mainCardId);
-    const typeInfo = typeCards.find(t => parseInt(t.id) === parseInt(mainCard.typeId));
-
-    closeCompanionModal();
-
-    currentDisplayCardId = mainCard.cardId;
     
-    // --- ส่วนที่แก้ไข: ส่ง compCard เข้าไปใน showInstantUI เพื่อให้แสดงผลทันที ---
-    showInstantUI(mainCard, typeInfo, 'IN', compCard); 
-    
-    executeScanFinal(gateId, mainCard.cardId, compCard.cardId, 'IN', `${mainCard.firstName} ${mainCard.lastName}`);
+    // 3. ตรวจสอบความถูกต้องของบัตรผู้ติดตาม
+    if (!compCard) {
+        return showAlert('ไม่พบข้อมูล', `ไม่พบบัตรผู้ติดตามหมายเลข ${compCardId}`, 'error');
+    }
+    if (compCard.status !== 'active') {
+        return showAlert('ถูกระงับ', `บัตรผู้ติดตามถูกระงับการใช้งาน`, 'error');
+    }
+    if (compCardId === mainCardId) {
+        return showAlert('ข้อมูลไม่ถูกต้อง', 'บัตรหลักและบัตรผู้ติดตามต้องไม่เป็นใบเดียวกัน', 'warning');
+    }
+
+    // 4. ตรวจสอบวันหมดอายุของบัตรผู้ติดตาม
+    const now = new Date();
+    const compExpiry = new Date(compCard.expiryDate);
+    compExpiry.setHours(23, 59, 59);
+    if (now > compExpiry) {
+        return showAlert('บัตรผู้ติดตามหมดอายุ', `บัตรผู้ติดตามคุณ ${compCard.firstName} หมดอายุแล้วเมื่อ ${formatDateOnly(compCard.expiryDate)}`, 'error');
+    }
+
+    // 5. แยกการทำงานตามโหมดการแสกน
+    if (currentScanTarget === 'vehicle') {
+        // --- กรณีโหมดแสกนรถ (Vehicle Mode) ---
+        closeCompanionModal();
+        
+        // นำพนักงานที่รออยู่ (Pending) พร้อมข้อมูลผู้ติดตาม แอดลงรายการในรถ
+        if (window.pendingVehiclePerson) {
+            addPersonToVehicle(window.pendingVehiclePerson, compCard);
+            window.pendingVehiclePerson = null; // ล้างค่าตัวแปรพักข้อมูล
+        } else {
+            showToast('เกิดข้อผิดพลาด: ไม่พบข้อมูลพนักงานหลัก', 'error');
+        }
+        
+    } else {
+        // --- กรณีโหมดบุคคลปกติ (Standard Person Mode) ---
+        const mainCard = allCards.find(c => String(c.cardId).toUpperCase() === mainCardId);
+        const typeInfo = typeCards.find(t => String(t.id) === String(mainCard.typeId));
+
+        closeCompanionModal();
+
+        // กำหนด ID ที่กำลังแสดงผลเพื่อให้ UI อัปเดตถูกคน
+        currentDisplayCardId = mainCard.cardId;
+
+        // แสดงผลข้อมูลที่หน้าจอทันที (Optimistic UI)
+        showInstantUI(mainCard, typeInfo, 'IN', compCard);
+
+        // ส่งข้อมูลไปบันทึกลง Server/Log
+        executeScanFinal(
+            gateId, 
+            mainCard.cardId, 
+            compCard.cardId, 
+            'IN', 
+            `${mainCard.firstName} ${mainCard.lastName}`
+        );
+    }
 }
 
     function handleScanSuccess(res) {
@@ -7509,6 +7605,32 @@ function filterVehiclesTable() {
     
     document.getElementById('vehiclesPagination').innerHTML = pHtml;
 }
+
+function checkGatePermissions() {
+    const gateId = document.getElementById('scanGateSelect').value;
+    if (!gateId) {
+        document.getElementById('modeToggleContainer').classList.add('hidden');
+        setScanMode('person');
+        return;
+    }
+    const gate = allGates.find(g => String(g.id) === String(gateId));
+    const toggle = document.getElementById('modeToggleContainer');
+    
+    if (gate && isTrue(gate.allowedVehicle)) {
+        toggle.classList.remove('hidden');
+        toggle.classList.add('grid');
+    } else {
+        toggle.classList.add('hidden');
+        setScanMode('person');
+    }
+}
+
+// 2. แก้ไขฟังก์ชัน saveGateToLocal ให้สั้นลง
+saveGateToLocal = function() {
+    localStorage.setItem('aac_savedGate', document.getElementById('scanGateSelect').value);
+    checkGatePermissions(); // เรียกใช้ฟังก์ชันตรวจสอบ
+    document.getElementById('scanInput').focus();
+};	  
 	  //-----------------
   </script>
 </body>
