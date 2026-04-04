@@ -1972,6 +1972,12 @@ let currentScanMode = 'barcode'; // ค่าเริ่มต้น
 	  let selectedFaceIds = []; // เก็บ ID รูปที่เลือก
     // Banner Timer
     let currentSlide = 0, slideInterval = null;
+	  // ฟังก์ชันช่วยเช็คค่า True/False แบบไม่สนตัวพิมพ์เล็กใหญ่
+function isTrue(val) {
+    if (typeof val === 'boolean') return val;
+    if (typeof val === 'string') return val.toUpperCase() === 'TRUE';
+    return false;
+}
 	//--------------เริ่มส่วนแสกนรถ-----------------
 	let currentScanTarget = 'person'; // 'person' หรือ 'vehicle'
 let vehicleSession = {
@@ -2011,7 +2017,7 @@ saveGateToLocal = function() {
     const gate = allGates.find(g => String(g.id) === String(gateId));
     const toggle = document.getElementById('modeToggleContainer');
     
-    if (gate && (gate.allowedVehicle === true || gate.allowedVehicle === 'TRUE')) {
+    if (gate && isTrue(gate.allowedVehicle)) {
         toggle.classList.remove('hidden');
         toggle.classList.add('grid');
     } else {
@@ -2090,7 +2096,7 @@ function handlePersonForVehicle(cardId) {
 
     // ตรวจสอบบัตรคนขับ
     if (!vehicleSession.driver) {
-        if (person.canDrive !== true && person.canDrive !== 'TRUE') {
+        if (!isTrue(person.canDrive)) {
             return showAlert('ไม่มีสิทธิ์ขับขี่', `คุณ ${person.firstName} ไม่มีสิทธิ์ DRIVE`, 'error');
         }
         vehicleSession.driver = person;
@@ -2156,7 +2162,7 @@ function renderStagingList() {
 function removeDriver() { vehicleSession.driver = null; renderStagingList(); }
 function removePassenger(i) { vehicleSession.passengers.splice(i, 1); renderStagingList(); }
 function swapToDriver(i) {
-    if (vehicleSession.passengers[i].canDrive !== true && vehicleSession.passengers[i].canDrive !== 'TRUE') {
+    if (!isTrue(vehicleSession.passengers[i].canDrive)) {
         return showAlert('สิทธิ์ไม่พอ', 'พนักงานคนนี้ไม่มีสิทธิ์ DRIVE', 'error');
     }
     const oldDriver = vehicleSession.driver;
@@ -2380,7 +2386,7 @@ function renderVehicleGateCheckboxes(selectedStr = '') {
     const selectedArr = val.split(',').map(s => s.trim());
     
     // กรองเฉพาะประตูที่อนุญาตให้รถผ่าน (allowedVehicle === true)
-    const vehicleGates = allGates.filter(g => String(g.allowedVehicle).toUpperCase() === 'TRUE');
+    const vehicleGates = allGates.filter(g => isTrue(g.allowedVehicle));
     
     if(vehicleGates.length === 0) {
         container.innerHTML = '<p class="text-xs text-red-400 p-2">ไม่มีประตูที่รองรับรถ</p>';
@@ -4681,7 +4687,7 @@ async function saveCard() {
     if(allGates.length === 0) { c.innerHTML = '...'; return; }
     
     c.innerHTML = allGates.map(g => {
-        const canVehicle = (g.allowedVehicle === true || g.allowedVehicle === 'TRUE');
+        const canVehicle = isTrue(g.allowedVehicle);
         return `
             <div class="bg-white rounded-2xl card-shadow border border-gray-100 p-5 relative overflow-hidden group">
                 <div class="absolute top-0 right-0 w-16 h-16 ${g.status==='active'?'bg-green-100':'bg-red-100'} rounded-bl-full flex items-start justify-end p-3"><i data-lucide="boom-box" class="w-6 h-6 ${g.status==='active'?'text-green-600':'text-red-500'}"></i></div>
@@ -7038,9 +7044,9 @@ async function previewIdCard(id) {
         const escortEl = document.getElementById('renderEscort');
         const driveEl = document.getElementById('renderDrive');
 
-        const isTemp = (t.isTemporary == true || t.isTemporary == 'TRUE' || t.isTemporary == 'true');
-        const noComp = (t.requireCompanion == false || t.requireCompanion == 'FALSE' || t.requireCompanion == 'false');
-        const canDrive = (c.canDrive == true || c.canDrive == 'TRUE' || c.canDrive == 'true');
+        const isTemp = isTrue(t.isTemporary);
+        const noComp = !isTrue(t.requireCompanion);
+        const canDrive = isTrue(c.canDrive);
 
         // ล็อคความสูงของป้ายสถานะไว้ที่ 28px เสมอ เพื่อจองพื้นที่ไว้ไม่ให้ข้างล่างเลื่อนขึ้น
         tempEl.style.setProperty('display', 'block', 'important'); 
@@ -7346,7 +7352,7 @@ async function previewVehicleCard(id) {
         // ปรับตำแหน่งป้าย "บัตรชั่วคราว" ให้อยู่เหนือกรอบพื้นที่
         const tempEl = document.getElementById('renderTempV');
         tempEl.className = "absolute top-[100px] left-0 right-0 text-center text-red-600 font-black text-[16px] opacity-0 transition-opacity z-20";
-        tempEl.style.opacity = (t.isTemporary === true || t.isTemporary === 'TRUE') ? '1' : '0';
+        tempEl.style.opacity = isTrue(t.isTemporary) ? '1' : '0';
 
         // บาร์โค้ดแนวตั้ง (ปรับตำแหน่งให้สมดุล)
         const bcBox = document.querySelector('#printCardFrontV .rotate-90');
