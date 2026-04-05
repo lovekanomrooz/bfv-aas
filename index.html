@@ -2823,8 +2823,17 @@ function openTypeVehicleModal() {
     document.getElementById('typeVehicleModalTitle').innerHTML = '<i data-lucide="settings-2"></i> เพิ่มประเภทบัตรรถ';
     document.getElementById('editTypeVehicleId').value = '';
     document.getElementById('tvName').value = '';
+    
+    // ตั้งค่าเริ่มต้นเป็น 1 ปี
     document.getElementById('tvValue').value = '1';
     document.getElementById('tvType').value = 'year';
+    
+    // --- เพิ่มส่วนแก้บั๊ก: ปลดล็อกช่องตัวเลขให้พร้อมใช้งาน ---
+    const valInput = document.getElementById('tvValue');
+    valInput.disabled = false;
+    valInput.classList.remove('bg-gray-200', 'cursor-not-allowed', 'text-transparent');
+    // ---------------------------------------------
+
     document.getElementById('tvIsTemp').checked = false;
     document.getElementById('tvStatus').value = 'active';
     document.getElementById('typeVehicleModal').classList.remove('hidden');
@@ -2844,7 +2853,20 @@ function editTypeVehicle(id) {
     document.getElementById('tvType').value = t.durationType;
     document.getElementById('tvIsTemp').checked = (t.isTemporary === true || t.isTemporary === 'TRUE');
     document.getElementById('tvStatus').value = t.status;
-    
+
+	// --- เพิ่มส่วนแก้ไขบั๊ก ---
+    const valInput = document.getElementById('tvValue');
+    if (t.durationType === 'custom') {
+        // ถ้าเป็นแบบกำหนดเอง -> ให้ล็อกช่อง
+        valInput.disabled = true;
+        valInput.classList.add('bg-gray-200', 'cursor-not-allowed', 'text-transparent');
+    } else {
+        // ถ้าเป็นแบบปี/เดือน/วัน -> ให้ปลดล็อกช่อง
+        valInput.disabled = false;
+        valInput.classList.remove('bg-gray-200', 'cursor-not-allowed', 'text-transparent');
+    }
+    // ----------------------------
+	
     document.getElementById('typeVehicleModal').classList.remove('hidden');
 }
 
@@ -3008,13 +3030,14 @@ function toggleVehicleCustomDuration() {
     if(type === 'custom') {
         valInput.disabled = true;
         valInput.value = '0';
-        valInput.classList.add('bg-gray-200', 'cursor-not-allowed', 'text-transparent shadow-inner');
+        valInput.classList.add('bg-gray-200', 'cursor-not-allowed', 'text-transparent');
     } else {
         valInput.disabled = false;
-        if(valInput.value === '0') valInput.value = '1';
-        valInput.classList.remove('bg-gray-200', 'cursor-not-allowed', 'text-transparent shadow-inner');
+        // ถ้าค่าเดิมเป็น 0 หรือว่าง ให้เปลี่ยนเป็น 1 เพื่อความสะดวกในการกรอก
+        if(valInput.value === '0' || valInput.value === '') valInput.value = '1';
+        valInput.classList.remove('bg-gray-200', 'cursor-not-allowed', 'text-transparent');
     }
-}	  
+}  
 	  // ---------------จบ รถ-----------------------
 	  // ------------- AI VOICE -----------------
 	  // เพิ่มค่าเริ่มต้นในตัวแปร systemSettings
