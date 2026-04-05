@@ -826,9 +826,10 @@ gap: 1px !important;
 
        <!-- Tab Buttons -->
        <div class="flex gap-2 border-b border-gray-200 mb-6 overflow-x-auto hide-scrollbar">
-           <button onclick="switchReportTab('logs')" id="tabBtn-logs" class="px-6 py-3 font-bold text-indigo-600 border-b-4 border-indigo-600 transition whitespace-nowrap"><i data-lucide="list" class="w-4 h-4 inline mr-1"></i> ประวัติการเข้า-ออก</button>
-           <button onclick="switchReportTab('cards')" id="tabBtn-cards" class="px-6 py-3 font-bold text-gray-400 border-b-4 border-transparent hover:text-indigo-600 transition whitespace-nowrap"><i data-lucide="database" class="w-4 h-4 inline mr-1"></i> ข้อมูลฐานข้อมูลบัตร</button>
-       </div>
+    <button onclick="switchReportTab('logs')" id="tabBtn-logs" class="px-6 py-3 font-bold text-indigo-600 border-b-4 border-indigo-600 transition whitespace-nowrap"><i data-lucide="list" class="w-4 h-4 inline mr-1"></i> ประวัติการเข้า-ออก</button>
+    <button onclick="switchReportTab('cards')" id="tabBtn-cards" class="px-6 py-3 font-bold text-gray-400 border-b-4 border-transparent hover:text-indigo-600 transition whitespace-nowrap"><i data-lucide="database" class="w-4 h-4 inline mr-1"></i> ฐานข้อมูลบัตรพนักงาน</button>
+    <button onclick="switchReportTab('vehicles')" id="tabBtn-vehicles" class="px-6 py-3 font-bold text-gray-400 border-b-4 border-transparent hover:text-indigo-600 transition whitespace-nowrap"><i data-lucide="truck" class="w-4 h-4 inline mr-1"></i> ฐานข้อมูลยานพาหนะ</button>
+</div>
        
        <!-- ================= TAB 1: ประวัติการเข้า-ออก ================= -->
        <div id="tabContent-logs" class="block animate-fadeIn">
@@ -877,6 +878,21 @@ gap: 1px !important;
                </button>
            </div>
        </div>
+		  
+	<!-- ================= TAB 3: ส่งออกฐานข้อมูลรถ ================= -->
+		<div id="tabContent-vehicles" class="hidden animate-fadeIn">
+    <div class="bg-white rounded-2xl card-shadow p-8 text-center max-w-2xl mx-auto border-t-4 border-blue-500 mt-10">
+        <div class="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <i data-lucide="truck" class="w-10 h-10"></i>
+        </div>
+        <h3 class="text-2xl font-black text-gray-800 mb-2">ส่งออกฐานข้อมูลยานพาหนะ</h3>
+        <p class="text-gray-500 mb-8">ดึงข้อมูลรถทั้งหมดในระบบออกมาเป็นไฟล์ Excel เพื่อตรวจสอบรายชื่อผู้ยื่นคำขอ ทะเบียนรถ และวันหมดอายุ</p>
+        
+        <button onclick="exportAllVehiclesExcel()" class="w-full sm:w-auto mx-auto px-8 py-4 bg-blue-600 hover:bg-blue-700 transition text-white rounded-xl flex items-center justify-center gap-3 shadow-lg font-bold text-lg hover:-translate-y-1">
+            <i data-lucide="download-cloud" class="w-6 h-6"></i> ดาวน์โหลดฐานข้อมูลรถ (.xls)
+        </button>
+    </div>
+</div>  
 
       </div>
 
@@ -5327,78 +5343,80 @@ async function confirmDeleteUser(id, username) {
 
     // --- อัปเดตไฟล์ Export ให้มีผู้บันทึกด้วย ---
     // --- เปลี่ยนจาก CSV เป็น Excel พร้อมจัดรูปแบบสีและเส้น ---
-    function exportExcel() {
-        const list = window.currentReportFiltered || [];
-        if(list.length === 0) return showToast('ไม่มีข้อมูลให้ส่งออก', 'warning');
-        
-        const m = document.getElementById('reportMonth').value, y = document.getElementById('reportYear').value, g = document.getElementById('reportGate').value;
-        const mText = m ? thaiMonths[parseInt(m)-1] : 'ทุกเดือน';
-        const yText = y ? (parseInt(y) + 543) : '';
-        
-        // --- ส่วนที่แก้ไข: เปลี่ยนชื่อเวลากด Export Excel ---
-        const gText = g === 'SYSTEM_FORCE' ? 'ระบบบังคับออกทั้งหมด' : (g ? g : 'ทุกจุดเข้าออก');
-        const title = `รายงานการเข้าออกพื้นที่ ${gText} ประจำเดือน ${mText} ${yText}`;
-        const fileName = `Report_AccessLog_${y}${m?`_${m}`:''}.xls`;
+   function exportExcel() {
+    const list = window.currentReportFiltered || [];
+    if(list.length === 0) return showToast('ไม่มีข้อมูลให้ส่งออก', 'warning');
+    
+    const m = document.getElementById('reportMonth').value, y = document.getElementById('reportYear').value, g = document.getElementById('reportGate').value;
+    const mText = m ? thaiMonths[parseInt(m)-1] : 'ทุกเดือน';
+    const yText = y ? (parseInt(y) + 543) : '';
+    
+    // --- ส่วนที่แก้ไข: เปลี่ยนชื่อเวลากด Export Excel ---
+    const gText = g === 'SYSTEM_FORCE' ? 'ระบบบังคับออกทั้งหมด' : (g ? g : 'ทุกจุดเข้าออก');
+    const title = `รายงานการเข้าออกพื้นที่ ${gText} ประจำเดือน ${mText} ${yText}`;
+    const fileName = `Report_AccessLog_${y}${m?`_${m}`:''}.xls`;
 
-        // สร้างโครงสร้าง HTML สำหรับเปิดใน Excel พร้อมฝัง CSS Styles
-        let html = `
-        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-        <head><meta charset="utf-8"></head>
-        <body>
-            <table border="1" style="border-collapse: collapse; font-family: 'Sarabun', Tahoma, sans-serif; font-size: 11pt; width: 100%;">
-                <!-- หัวรายงาน -->
-                <tr>
-                    <th colspan="9" style="font-size: 16pt; font-weight: bold; text-align: center; padding: 15px; background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">
-                        ${title}
-                    </th>
-                </tr> 
-                <!-- หัวคอลัมน์ตาราง -->
-                <tr style="background-color: #16a34a; color: #ffffff; font-weight: bold; text-align: center; height: 30px;">
-                    <th style="padding: 5px; border: 1px solid #14532d;">วัน-เวลา</th>
-                    <th style="padding: 5px; border: 1px solid #14532d;">สถานะ</th>
-                    <th style="padding: 5px; border: 1px solid #14532d;">จุดเข้าออก</th>
-                    <th style="padding: 5px; border: 1px solid #14532d;">รหัสบัตร</th>
-                    <th style="padding: 5px; border: 1px solid #14532d;">ประเภทบัตร</th>
-                    <th style="padding: 5px; border: 1px solid #14532d;">ชื่อ-นามสกุล</th>
-                    <th style="padding: 5px; border: 1px solid #14532d;">หน่วยงาน</th>
-                    <th style="padding: 5px; border: 1px solid #14532d;">ข้อมูลผู้ติดตาม</th>
-                    <th style="padding: 5px; border: 1px solid #14532d;">ผู้ทำรายการ</th>
-                </tr>`;
+    // สร้างโครงสร้าง HTML สำหรับเปิดใน Excel พร้อมฝัง CSS Styles
+    let html = `
+    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+    <head><meta charset="utf-8"></head>
+    <body>
+        <table border="1" style="border-collapse: collapse; font-family: 'Sarabun', Tahoma, sans-serif; font-size: 11pt; width: 100%;">
+            <!-- หัวรายงาน (ปรับ colspan จาก 9 เป็น 10) -->
+            <tr>
+                <th colspan="10" style="font-size: 16pt; font-weight: bold; text-align: center; padding: 15px; background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">
+                    ${title}
+                </th>
+            </tr> 
+            <!-- หัวคอลัมน์ตาราง -->
+            <tr style="background-color: #16a34a; color: #ffffff; font-weight: bold; text-align: center; height: 30px;">
+                <th style="padding: 5px; border: 1px solid #14532d;">วัน-เวลา</th>
+                <th style="padding: 5px; border: 1px solid #14532d;">สถานะ</th>
+                <th style="padding: 5px; border: 1px solid #14532d;">จุดเข้าออก</th>
+                <th style="padding: 5px; border: 1px solid #14532d;">ทะเบียนรถ</th> <!-- เพิ่มคอลัมน์ใหม่ -->
+                <th style="padding: 5px; border: 1px solid #14532d;">รหัสบัตร</th>
+                <th style="padding: 5px; border: 1px solid #14532d;">ประเภทบัตร</th>
+                <th style="padding: 5px; border: 1px solid #14532d;">ชื่อ-นามสกุล</th>
+                <th style="padding: 5px; border: 1px solid #14532d;">หน่วยงาน</th>
+                <th style="padding: 5px; border: 1px solid #14532d;">ข้อมูลผู้ติดตาม</th>
+                <th style="padding: 5px; border: 1px solid #14532d;">ผู้ทำรายการ</th>
+            </tr>`;
 
-        // วนลูปสร้างข้อมูลแต่ละแถว
-        list.forEach(L => {
-            // กำหนดสีพื้นหลังสถานะ
-            let statusBg = L.ioType === 'IN' ? '#dcfce7' : '#ffedd5';
-            let statusColor = L.ioType === 'IN' ? '#166534' : '#9a3412';
-            let compInfo = L.companionName ? `${L.companionName} (${L.companionCardId})` : '-';
+    // วนลูปสร้างข้อมูลแต่ละแถว
+    list.forEach(L => {
+        // กำหนดสีพื้นหลังสถานะ
+        let statusBg = L.ioType === 'IN' ? '#dcfce7' : '#ffedd5';
+        let statusColor = L.ioType === 'IN' ? '#166534' : '#9a3412';
+        let compInfo = L.companionName ? `${L.companionName} (${L.companionCardId})` : '-';
 
-            html += `
-                <tr style="height: 25px;">
-                    <td style="text-align: center; vertical-align: middle; border: 1px solid #e5e7eb;">${formatDateTime(L.timestamp).replace(' | ', ' ')}</td>
-                    <td style="text-align: center; vertical-align: middle; background-color: ${statusBg}; color: ${statusColor}; font-weight: bold; border: 1px solid #e5e7eb;">${L.ioType}</td>
-                    <td style="text-align: center; vertical-align: middle; border: 1px solid #e5e7eb;">${L.gateName}</td>
-                    <td style="text-align: center; vertical-align: middle; border: 1px solid #e5e7eb; mso-number-format:'\\@';">${L.cardId}</td>
-                    <td style="text-align: center; vertical-align: middle; border: 1px solid #e5e7eb;">${L.cardTypeName}</td>
-                    <td style="vertical-align: middle; border: 1px solid #e5e7eb; padding-left: 5px;">${L.firstName} ${L.lastName}</td>
-                    <td style="vertical-align: middle; border: 1px solid #e5e7eb; padding-left: 5px;">${L.organization || '-'}</td>
-                    <td style="vertical-align: middle; border: 1px solid #e5e7eb; padding-left: 5px; color: #4338ca;">${compInfo}</td>
-                    <td style="text-align: center; vertical-align: middle; border: 1px solid #e5e7eb;">${L.recordedBy || '-'}</td>
-                </tr>`;
-        });
+        html += `
+            <tr style="height: 25px;">
+                <td style="text-align: center; vertical-align: middle; border: 1px solid #e5e7eb;">${formatDateTime(L.timestamp).replace(' | ', ' ')}</td>
+                <td style="text-align: center; vertical-align: middle; background-color: ${statusBg}; color: ${statusColor}; font-weight: bold; border: 1px solid #e5e7eb;">${L.ioType}</td>
+                <td style="text-align: center; vertical-align: middle; border: 1px solid #e5e7eb;">${L.gateName}</td>
+                <td style="text-align: center; vertical-align: middle; border: 1px solid #e5e7eb; font-weight: bold; color: #1e40af;">${L.vehicleReg || '-'}</td> <!-- เพิ่มข้อมูลทะเบียนรถ -->
+                <td style="text-align: center; vertical-align: middle; border: 1px solid #e5e7eb; mso-number-format:'\\@';">${L.cardId}</td>
+                <td style="text-align: center; vertical-align: middle; border: 1px solid #e5e7eb;">${L.cardTypeName || '-'}</td>
+                <td style="vertical-align: middle; border: 1px solid #e5e7eb; padding-left: 5px;">${L.firstName} ${L.lastName}</td>
+                <td style="vertical-align: middle; border: 1px solid #e5e7eb; padding-left: 5px;">${L.organization || '-'}</td>
+                <td style="vertical-align: middle; border: 1px solid #e5e7eb; padding-left: 5px; color: #4338ca;">${compInfo}</td>
+                <td style="text-align: center; vertical-align: middle; border: 1px solid #e5e7eb;">${L.recordedBy || '-'}</td>
+            </tr>`;
+    });
 
-        html += `</table></body></html>`;
+    html += `</table></body></html>`;
 
-        // สร้างไฟล์และดาวน์โหลด
-        const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        showToast('ดาวน์โหลดไฟล์ Excel สำเร็จ', 'success');
-    }
+    // สร้างไฟล์และดาวน์โหลด
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showToast('ดาวน์โหลดไฟล์ Excel สำเร็จ', 'success');
+}
 
     // ==========================================
     // 7. ตั้งค่า & Banner (Settings)
@@ -6024,16 +6042,23 @@ let tempCardImageBase64 = null;
 
 
     // --- ฟังก์ชันควบคุม Tab ---
-    function switchReportTab(tabId) {
-        document.getElementById('tabContent-logs').classList.add('hidden');
-        document.getElementById('tabContent-cards').classList.add('hidden');
-        
-        document.getElementById('tabBtn-logs').className = "px-6 py-3 font-bold text-gray-400 border-b-4 border-transparent hover:text-indigo-600 transition whitespace-nowrap";
-        document.getElementById('tabBtn-cards').className = "px-6 py-3 font-bold text-gray-400 border-b-4 border-transparent hover:text-indigo-600 transition whitespace-nowrap";
-        
-        document.getElementById(`tabContent-${tabId}`).classList.remove('hidden');
-        document.getElementById(`tabBtn-${tabId}`).className = "px-6 py-3 font-bold text-indigo-600 border-b-4 border-indigo-600 transition whitespace-nowrap";
-    }
+   function switchReportTab(tabId) {
+    // รายการ ID ทั้งหมดที่มี
+    const tabs = ['logs', 'cards', 'vehicles'];
+    
+    tabs.forEach(id => {
+        const content = document.getElementById(`tabContent-${id}`);
+        const btn = document.getElementById(`tabBtn-${id}`);
+        if (id === tabId) {
+            content.classList.remove('hidden');
+            btn.className = "px-6 py-3 font-bold text-indigo-600 border-b-4 border-indigo-600 transition whitespace-nowrap";
+        } else {
+            content.classList.add('hidden');
+            btn.className = "px-6 py-3 font-bold text-gray-400 border-b-4 border-transparent hover:text-indigo-600 transition whitespace-nowrap";
+        }
+    });
+    if(window.lucide) lucide.createIcons();
+}
 
     // --- ฟังก์ชัน Export ฐานข้อมูลบัตร ---
     async function exportAllCardsExcel() {
@@ -6105,6 +6130,68 @@ let tempCardImageBase64 = null;
         hideLoader();
         showToast('ดาวน์โหลดฐานข้อมูลบัตรสำเร็จ', 'success');
     }
+
+	// ---------------- export รถ excel
+async function exportAllVehiclesExcel() {
+    showLoader('กำลังดึงข้อมูลยานพาหนะทั้งหมด...');
+    
+    // ดึงข้อมูลรถล่าสุด
+    const latestVehicles = await apiCall('getVehicles'); 
+    if(!latestVehicles || latestVehicles.length === 0) {
+        hideLoader();
+        return showToast('ไม่มีข้อมูลรถในระบบ', 'warning');
+    }
+
+    const fileName = `Database_AllVehicles_${new Date().getTime()}.xls`;
+
+    let html = `
+    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+    <head><meta charset="utf-8"></head>
+    <body>
+        <table border="1" style="border-collapse: collapse; font-family: 'Sarabun', sans-serif;">
+            <tr>
+                <th colspan="8" style="font-size: 16pt; font-weight: bold; text-align: center; background-color: #dbeafe; color: #1e40af; padding: 10px;">
+                    ฐานข้อมูลยานพาหนะ (ข้อมูล ณ ${formatDateOnly(new Date().toISOString())})
+                </th>
+            </tr>
+            <tr style="background-color: #1d4ed8; color: #ffffff; font-weight: bold; text-align: center;">
+                <th>รหัสบัตรรถ</th>
+                <th>ทะเบียนรถ</th>
+                <th>ประเภทบัตรรถ</th>
+                <th>ผู้ยื่นคำขอ</th>
+                <th>หน่วยงาน / สังกัด</th>
+                <th>วันหมดอายุ</th>
+                <th>สถานะการใช้งาน</th>
+                <th>สถานะปัจจุบัน</th>
+            </tr>`;
+
+    latestVehicles.forEach(v => {
+        const t = typeVehicles.find(x => Number(x.id) === Number(v.typeId)) || {typeName:'Unknown'};
+        html += `
+            <tr>
+                <td style="mso-number-format:'\\@'; text-align: center;">${v.cardId}</td>
+                <td style="text-align: center; font-weight: bold;">${v.vehicleReg}</td>
+                <td>${t.typeName}</td>
+                <td>${v.applicantFirstName} ${v.applicantLastName || ''}</td>
+                <td>${v.organization || '-'}</td>
+                <td style="text-align: center;">${formatDateOnly(v.expiryDate)}</td>
+                <td style="text-align: center;">${v.status.toUpperCase()}</td>
+                <td style="text-align: center;">${v.currentStatus || 'OUT'}</td>
+            </tr>`;
+    });
+
+    html += `</table></body></html>`;
+
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = fileName;
+    link.click();
+    
+    hideLoader();
+    showToast('ดาวน์โหลดฐานข้อมูลยานพาหนะสำเร็จ', 'success');
+}
+	//---------------------------
     ////////////
 // ==========================================
 // ระบบ Face Recognition แบบ Real-time (กล้องเข้า-ออก)
