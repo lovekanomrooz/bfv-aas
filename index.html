@@ -5661,38 +5661,43 @@ async function refreshActiveInsideData() {
     lucide.createIcons();
 }
 
-    async function forceOut(dbId, name) {
-        if(confirm(`ยืนยันการ "บังคับแสกนออก" ให้กับคุณ ${name} หรือไม่?`)) {
-            const adminName = `${currentUser.firstName} ${currentUser.lastName} (Admin Force)`;
+   async function forceOut(dbId, name) {
+    if(confirm(`ยืนยันการ "บังคับแสกนออก" ให้กับคุณ ${name} หรือไม่?`)) {
+        const adminName = `${currentUser.firstName} ${currentUser.lastName} (Admin Force)`;
+        showLoader('กำลังดำเนินการ...');
+        try {
             await apiCall('forceOutCard', { id: dbId, recordedBy: adminName });
-            showToast(`บังคับนำ ${name} ออกจากพื้นที่สำเร็จ`, 'success');
+            showToast(`บังคับนำ ${name} ออกสำเร็จ`, 'success');
             
-            // อัปเดตข้อมูล Local Array ให้ตรงกันโดยไม่ต้องโหลดใหม่ทั้งหมด
-            const idx = allCards.findIndex(c => c.id === dbId);
+            // อัปเดตสถานะใน Cache เครื่อง เพื่อให้ตารางวาดใหม่แล้วพนักงานหายไป
+            const idx = allCards.findIndex(c => Number(c.id) === Number(dbId));
             if(idx !== -1) allCards[idx].currentStatus = 'OUT';
             
-            renderActiveInsideTable();
-        }
+            renderActiveInsideTable(); // วาดตารางใหม่
+        } catch(e) { console.error(e); }
+        hideLoader();
     }
+}
 
-    async function forceOutAll() {
-        const insideUsers = allCards.filter(c => c.currentStatus === 'IN');
-        if(insideUsers.length === 0) return showToast('ไม่มีผู้ตกค้างในพื้นที่', 'info');
-        
-        if(confirm(`ยืนยันการบังคับเคลียร์ผู้ใช้งานทั้งหมด ${insideUsers.length} รายการ ให้ออกจากพื้นที่ใช่หรือไม่?\n(ระบบจะสร้างประวัติเป็นขาออกอัตโนมัติ)`)) {
-            const adminName = `${currentUser.firstName} ${currentUser.lastName} (Admin Force)`;
-            showLoader('กำลังเคลียร์ผู้ตกค้างในพื้นที่ทั้งหมด...');
+   async function forceOutAll() {
+    const personCount = allCards.filter(c => c.currentStatus === 'IN').length;
+    const vehicleCount = allVehicles.filter(v => v.currentStatus === 'IN').length;
+    
+    if(personCount === 0 && vehicleCount === 0) return showToast('ไม่มีข้อมูลตกค้าง', 'info');
+    
+    if(confirm(`ยืนยันการบังคับเคลียร์พนักงาน (${personCount}) และยานพาหนะ (${vehicleCount}) ให้ออกจากพื้นที่ทั้งหมดใช่หรือไม่?`)) {
+        const adminName = `${currentUser.firstName} ${currentUser.lastName} (Admin Force)`;
+        showLoader('กำลังเคลียร์ข้อมูลทั้งหมด...');
+        try {
+            await apiCall('forceOutAllCards', { recordedBy: adminName });
+            showToast(`เคลียร์ข้อมูลสำเร็จ`, 'success');
             
-            const res = await apiCall('forceOutAllCards', { recordedBy: adminName });
-            
-            // อัปเดตข้อมูล Local
-            allCards.forEach(c => { if(c.currentStatus === 'IN') c.currentStatus = 'OUT'; });
-            renderActiveInsideTable();
-            
-            hideLoader();
-            showToast(`เคลียร์ผู้ตกค้างสำเร็จ ${res.count} รายการ`, 'success');
-        }
+            // โหลดข้อมูลใหม่ทั้งหมดจาก Server เพื่อความแม่นยำ
+            await refreshActiveInsideData(); 
+        } catch(e) { console.error(e); }
+        hideLoader();
     }
+}
 
 	  async function forceOutVehicle(dbId, reg) {
     if(confirm(`ยืนยันการ "บังคับรถออก" ทะเบียน ${reg} หรือไม่?\n(พนักงานทุกคนที่มารถคันนี้จะถูกบันทึกออกอัตโนมัติ)`)) {
