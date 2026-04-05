@@ -901,9 +901,13 @@ gap: 1px !important;
 
        <!-- เพิ่มปุ่มสลับแท็บ คน / รถ -->
     <div class="flex gap-2 mb-6 bg-gray-100 p-1 rounded-2xl w-fit">
-        <button onclick="switchInsideTab('person')" id="tabInsidePerson" class="px-6 py-2 rounded-xl font-bold text-sm bg-white shadow-sm text-indigo-600 transition">พนักงาน (${allCards.filter(c=>c.currentStatus==='IN').length})</button>
-        <button onclick="switchInsideTab('vehicle')" id="tabInsideVehicle" class="px-6 py-2 rounded-xl font-bold text-sm text-gray-500 hover:bg-white/50 transition">ยานพาหนะ (${allVehicles.filter(v=>v.currentStatus==='IN').length})</button>
-    </div>
+    <button onclick="switchInsideTab('person')" id="tabInsidePerson" class="px-6 py-2 rounded-xl font-bold text-sm bg-white shadow-sm text-indigo-600 transition">
+        พนักงาน (<span id="countInsidePerson">0</span>)
+    </button>
+    <button onclick="switchInsideTab('vehicle')" id="tabInsideVehicle" class="px-6 py-2 rounded-xl font-bold text-sm text-gray-500 hover:bg-white/50 transition">
+        ยานพาหนะ (<span id="countInsideVehicle">0</span>)
+    </button>
+</div>
 
     <!-- สรุปตัวเลข (ปรับให้เปลี่ยนตามแท็บ) -->
     <div id="insideSummaryBox" class="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-6 flex justify-between items-center shadow-sm">
@@ -5624,7 +5628,11 @@ async function refreshActiveInsideData() {
     const tbody = document.getElementById('activeInsideTableBody');
     const thead = document.getElementById('activeInsideThead');
     const summary = document.getElementById('insideSummaryBox');
-    
+
+	// --- เพิ่ม 2 บรรทัดนี้เพื่ออัปเดตตัวเลขบนปุ่มให้ถูกต้อง ---
+    document.getElementById('countInsidePerson').textContent = allCards.filter(c => c.currentStatus === 'IN').length;
+    document.getElementById('countInsideVehicle').textContent = allVehicles.filter(v => v.currentStatus === 'IN').length;
+	   
     if (currentInsideTab === 'person') {
         // --- วาดตารางคน (เหมือนเดิมแต่ย้ายมาอยู่ในเงื่อนไข) ---
         const list = allCards.filter(c => c.currentStatus === 'IN');
