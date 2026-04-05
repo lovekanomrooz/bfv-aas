@@ -5699,14 +5699,29 @@ async function refreshActiveInsideData() {
     }
 }
 
-	  async function forceOutVehicle(dbId, reg) {
+/**
+ * แก้ไขฟังก์ชันบังคับรถออก
+ */
+async function forceOutVehicle(dbId, reg) {
     if(confirm(`ยืนยันการ "บังคับรถออก" ทะเบียน ${reg} หรือไม่?\n(พนักงานทุกคนที่มารถคันนี้จะถูกบันทึกออกอัตโนมัติ)`)) {
         const adminName = `${currentUser.firstName} ${currentUser.lastName} (Admin Force)`;
         showLoader('กำลังเคลียร์รถและคนในรถออก...');
-        await apiCall('forceOutVehicle', { id: dbId, recordedBy: adminName });
+        try {
+            await apiCall('forceOutVehicle', { id: dbId, recordedBy: adminName });
+            
+            // 1. อัปเดตสถานะในตัวแปร Cache ทันที เพื่อความรวดเร็วในการแสดงผล
+            const vIdx = allVehicles.findIndex(v => Number(v.id) === Number(dbId));
+            if(vIdx !== -1) allVehicles[vIdx].currentStatus = 'OUT';
+            
+            // 2. ดึงข้อมูลพนักงานและรถที่เหลือใหม่ทั้งหมดจาก Server เพื่อให้ข้อมูลคนขับ/ผู้โดยสารหายไปด้วย
+            await refreshActiveInsideData(); 
+            
+            showToast(`บังคับรถ ${reg} ออกสำเร็จ`, 'success');
+        } catch(e) { 
+            console.error(e);
+            showToast('เกิดข้อผิดพลาดในการบังคับออก', 'error');
+        }
         hideLoader();
-        showToast(`บังคับรถ ${reg} ออกสำเร็จ`, 'success');
-        refreshActiveInsideData();
     }
 }
 //
