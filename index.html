@@ -5507,6 +5507,9 @@ document.getElementById('cardFooterV3').value = systemSettings.cardFooterV3 || '
 		document.getElementById('rulesTitleV1').value = systemSettings.rulesTitleV1 || 'ข้อควรปฏิบัติ';
 		document.getElementById('rulesTitleV2').value = systemSettings.rulesTitleV2 || '';
 		document.getElementById('rulesTitleV3').value = systemSettings.rulesTitleV3 || '';
+		document.getElementById('lblOrgV').value = systemSettings.lblOrgV || 'สังกัด';
+document.getElementById('lblRegV').value = systemSettings.lblRegV || 'เลขทะเบียน';
+document.getElementById('lblIdV').value = systemSettings.lblIdV || 'ทะเบียนควบคุมเลขที่';
     // 3. ตั้งค่าเสียง AI & แจ้งเตือน
 	const delay = systemSettings.announcementDelay || 600;
 document.getElementById('announcementDelay').value = delay;
@@ -5576,7 +5579,10 @@ systemSettings.rulesTitleV2 = document.getElementById('rulesTitleV2').value;
 systemSettings.rulesTitleV3 = document.getElementById('rulesTitleV3').value;
 systemSettings.cardFooterV1 = document.getElementById('cardFooterV1').value;
 systemSettings.cardFooterV2 = document.getElementById('cardFooterV2').value;
-systemSettings.cardFooterV3 = document.getElementById('cardFooterV3').value;	   
+systemSettings.cardFooterV3 = document.getElementById('cardFooterV3').value;
+systemSettings.lblOrgV = document.getElementById('lblOrgV').value.trim();
+systemSettings.lblRegV = document.getElementById('lblRegV').value.trim();
+systemSettings.lblIdV = document.getElementById('lblIdV').value.trim();	   
 
     // 2. รูปแบบบัตร (Card Template)
     systemSettings.cardTplFront = document.getElementById('cardTplFront').value;
@@ -7787,21 +7793,26 @@ function testFullNotification() {
 async function previewVehicleCard(id) {
     showLoader('กำลังเตรียมข้อมูลบัตรรถ...');
     try {
+        // 1. ค้นหาข้อมูลรถและประเภทบัตรรถ
         const v = allVehicles.find(x => Number(x.id) === Number(id));
         const t = typeVehicles.find(x => Number(x.id) === Number(v.typeId)) || {};
 
+        if (!v) throw new Error("ไม่พบข้อมูลยานพาหนะ");
+
+        // 2. โหลดรูปพื้นหลังเทมเพลต
         document.getElementById('tplFrontImgV').src = systemSettings.cardTplFrontV || '';
         document.getElementById('tplBackImgV').src = systemSettings.cardTplBackV || '';
         
+        // 3. จัดการวาดกล่องพื้นที่อนุญาต (Area Boxes)
         const areaContainer = document.getElementById('renderAreaBoxesV');
         const areaIds = String(v.areaAccessIds || '').split(',').filter(x => x);
         
-        // ปรับตำแหน่ง Container ให้สูงขึ้น (ขยับจาก 135px เป็น 115px)
+        // ปรับเลย์เอาต์ตามจำนวนพื้นที่
         if (areaIds.length > 2) {
             // กรณี 3-4 พื้นที่: ใช้ Grid 2x2
             areaContainer.className = "absolute top-[125px] left-0 right-0 grid grid-cols-2 gap-1.5 px-[75px] h-[100px]";
         } else {
-            // กรณี 1-2 พื้นที่: ใช้ Flex
+            // กรณี 1-2 พื้นที่: ใช้ Flex จัดกลาง
             areaContainer.className = "absolute top-[135px] left-0 right-0 flex justify-center gap-1.5 h-[90px]";
         }
 
@@ -7811,27 +7822,38 @@ async function previewVehicleCard(id) {
             const textColor = getContrastYIQ(color);
             const boxSize = areaIds.length > 2 ? 'w-[100px] h-[48px] text-4xl' : 'w-[90px] h-[90px] text-6xl';
             
-             return `
-        <div class="${boxSize} border-2 border-black flex items-center justify-center font-black shadow-sm" 
-             style="background-color: ${color}; 
-                    color: ${textColor}; 
-                    padding-bottom: 20px; /* เพิ่มตัวเลขนี้เพื่อดันเลขขึ้น (ยิ่งมากเลขยิ่งสูง) */
-                    line-height: 1;      /* ช่วยให้การคำนวณตำแหน่งตัวหนังสือแม่นยำขึ้น */
-                    ">
-            ${num}
-        </div>`;
-}).join('');
+            return `
+                <div class="${boxSize} border-2 border-black flex items-center justify-center font-black shadow-sm" 
+                     style="background-color: ${color}; 
+                            color: ${textColor}; 
+                            padding-bottom: 20px; 
+                            line-height: 1;">
+                    ${num}
+                </div>`;
+        }).join('');
 
-        // ปรับตำแหน่งป้าย "บัตรชั่วคราว" ให้อยู่เหนือกรอบพื้นที่
+        // 4. จัดการป้าย "บัตรชั่วคราว"
         const tempEl = document.getElementById('renderTempV');
-        tempEl.className = "absolute top-[100px] left-0 right-0 text-center text-red-600 font-black text-[16px] opacity-0 transition-opacity z-20";
-        tempEl.style.opacity = isTrue(t.isTemporary) ? '1' : '0';
+        if (tempEl) {
+            tempEl.className = "absolute top-[120px] left-0 right-0 text-center text-red-600 font-black text-[16px] opacity-0 transition-opacity z-20";
+            tempEl.style.opacity = isTrue(t.isTemporary) ? '1' : '0';
+        }
 
-        // บาร์โค้ดแนวตั้ง (ปรับตำแหน่งให้สมดุล)
+        // 5. ปรับตำแหน่งกล่องบาร์โค้ดแนวตั้ง
         const bcBox = document.querySelector('#printCardFrontV .rotate-90');
-        if (bcBox) bcBox.style.top = "180px"; // ขยับขึ้นไม่ให้ทับส่วนอื่น
+        if (bcBox) bcBox.style.top = "180px"; 
 
-        // ใส่ข้อมูลพนักงานลงในบัตร
+        // --- [ส่วนที่แก้ไข: อัปเดตหัวข้อ Labels ตาม Settings] ---
+        const lblOrg = document.querySelector('#printCardFrontV .v-lbl-org');
+        const lblReg = document.querySelector('#printCardFrontV .v-lbl-reg');
+        const lblId = document.querySelector('#printCardFrontV .v-lbl-id');
+        
+        if (lblOrg) lblOrg.textContent = systemSettings.lblOrgV || 'สังกัด';
+        if (lblReg) lblReg.textContent = systemSettings.lblRegV || 'ทะเบียนรถ';
+        if (lblId) lblId.textContent = systemSettings.lblIdV || 'เลขควบคุม';
+        // ---------------------------------------------------
+
+        // 6. ใส่ข้อมูลตัวแปรจากฐานข้อมูลลงในหน้าบัตร
         document.getElementById('renderOrgV').textContent = v.organization || '-';
         document.getElementById('renderRegV').textContent = v.vehicleReg || '-';
         document.getElementById('renderCardIdV').textContent = v.cardId || '-';
@@ -7839,12 +7861,12 @@ async function previewVehicleCard(id) {
         document.getElementById('renderBarcodeV').textContent = `*${v.cardId}*`;
         document.getElementById('renderBarcodeTextV').textContent = v.cardId;
 
-        // ช่องทางเข้าออก
-        const gateIds = String(v.allowedGateIds || '').split(',');
+        // 7. ข้อมูลช่องทางเข้าออก (Gate Access)
+        const gateIds = String(v.allowedGateIds || '').split(',').filter(id => id);
         const gateNames = allGates.filter(g => gateIds.includes(String(g.id))).map(g => g.name).join(', ');
         document.getElementById('renderGatesV').textContent = gateNames || 'ทุกจุดเข้า-ออก';
 
-        // หน้าหลัง (Rules & Footer)
+        // 8. ข้อมูลหน้าหลัง (Rules & Footer)
         document.getElementById('renderRulesTitleV1').textContent = systemSettings.rulesTitleV1 || 'ข้อควรปฏิบัติ';
         document.getElementById('renderRulesTitleV2').textContent = systemSettings.rulesTitleV2 || '';
         document.getElementById('renderRulesTitleV3').textContent = systemSettings.rulesTitleV3 || '';
@@ -7853,13 +7875,15 @@ async function previewVehicleCard(id) {
         document.getElementById('renderFooterV2').textContent = systemSettings.cardFooterV2 || '';
         document.getElementById('renderFooterV3').textContent = systemSettings.cardFooterV3 || '';
 
+        // 9. ปิดหน้าจอโหลดและแสดง Modal
         hideLoader();
         document.getElementById('idVehicleCardModal').classList.remove('hidden');
-        lucide.createIcons();
+        if (window.lucide) lucide.createIcons();
+
     } catch(e) {
-        console.error(e);
+        console.error("Preview Error:", e);
         hideLoader();
-        showToast('โหลดพรีวิวไม่สำเร็จ', 'error');
+        showToast('โหลดพรีวิวไม่สำเร็จ: ' + e.message, 'error');
     }
 }
 
