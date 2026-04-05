@@ -899,34 +899,28 @@ gap: 1px !important;
            </div>
        </div>
 
-       <!-- สรุปตัวเลข -->
-       <div class="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-6 flex justify-between items-center shadow-sm">
-           <div class="flex items-center gap-3">
-               <div class="w-12 h-12 bg-orange-200 text-orange-600 rounded-full flex items-center justify-center"><i data-lucide="users" class="w-6 h-6"></i></div>
-               <div>
-                   <p class="text-sm font-bold text-orange-700">จำนวนผู้ที่ยังอยู่ในพื้นที่ทั้งหมด</p>
-                   <p class="text-2xl font-black text-orange-900"><span id="activeInsideCount">0</span> <span class="text-base font-medium text-orange-700">รายการ</span></p>
-               </div>
-           </div>
-       </div>
+       <!-- เพิ่มปุ่มสลับแท็บ คน / รถ -->
+    <div class="flex gap-2 mb-6 bg-gray-100 p-1 rounded-2xl w-fit">
+        <button onclick="switchInsideTab('person')" id="tabInsidePerson" class="px-6 py-2 rounded-xl font-bold text-sm bg-white shadow-sm text-indigo-600 transition">พนักงาน (${allCards.filter(c=>c.currentStatus==='IN').length})</button>
+        <button onclick="switchInsideTab('vehicle')" id="tabInsideVehicle" class="px-6 py-2 rounded-xl font-bold text-sm text-gray-500 hover:bg-white/50 transition">ยานพาหนะ (${allVehicles.filter(v=>v.currentStatus==='IN').length})</button>
+    </div>
 
-       <div class="bg-white rounded-2xl card-shadow overflow-hidden">
-           <div class="overflow-x-auto">
-               <table class="w-full">
-                   <thead class="bg-gray-50 border-b">
-                       <tr>
-                           <th class="px-4 py-3 text-left text-sm font-bold text-gray-500">รหัสบัตร / ประเภท</th>
-                           <th class="px-4 py-3 text-left text-sm font-bold text-gray-500">ชื่อ - นามสกุล / หน่วยงาน</th>
-                           <th class="px-4 py-3 text-left text-sm font-bold text-gray-500">วัน/เวลาที่เข้าพื้นที่</th>
-                           <th class="px-4 py-3 text-center text-sm font-bold text-gray-500">ระยะเวลาตกค้าง</th>
-                           <th class="px-4 py-3 text-center text-sm font-bold text-gray-500 min-w-[120px]">จัดการ</th>
-                       </tr>
-                   </thead>
-                   <tbody id="activeInsideTableBody"></tbody>
-               </table>
-           </div>
-       </div>
-      </div>
+    <!-- สรุปตัวเลข (ปรับให้เปลี่ยนตามแท็บ) -->
+    <div id="insideSummaryBox" class="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-6 flex justify-between items-center shadow-sm">
+        <!-- ... เนื้อหาจะถูกวาดโดย JS ... -->
+    </div>
+
+    <div class="bg-white rounded-2xl card-shadow overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead id="activeInsideThead" class="bg-gray-50 border-b">
+                    <!-- หัวตารางจะเปลี่ยนตามแท็บ -->
+                </thead>
+                <tbody id="activeInsideTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
       <!-- ============================================== -->
       <!-- หน้าการตั้งค่า (Admin Only) -->
@@ -1999,6 +1993,8 @@ function isTrue(val) {
     if (typeof val === 'string') return val.toUpperCase() === 'TRUE';
     return false;
 }
+let currentInsideTab = 'person';
+
 	//--------------เริ่มส่วนแสกนรถ-----------------
 	let currentScanTarget = 'person'; // 'person' หรือ 'vehicle'
 let vehicleSession = {
@@ -5592,6 +5588,14 @@ systemSettings.ttsGreeting = document.getElementById('ttsGreeting').value;
 // ==========================================
     // ระบบตรวจสอบผู้ตกค้างในพื้นที่ (Active Inside)
     // ==========================================
+	  	// ----------- บังคับรถออก -----------
+	function switchInsideTab(tab) {
+    currentInsideTab = tab;
+    document.getElementById('tabInsidePerson').className = tab === 'person' ? 'px-6 py-2 rounded-xl font-bold text-sm bg-white shadow-sm text-indigo-600' : 'px-6 py-2 rounded-xl font-bold text-sm text-gray-500 hover:bg-white/50';
+    document.getElementById('tabInsideVehicle').className = tab === 'vehicle' ? 'px-6 py-2 rounded-xl font-bold text-sm bg-white shadow-sm text-blue-600' : 'px-6 py-2 rounded-xl font-bold text-sm text-gray-500 hover:bg-white/50';
+    renderActiveInsideTable();
+}
+	// -----------------------------------
     function getDurationText(inTimeStr) {
         if(!inTimeStr) return '-';
         const inTime = new Date(inTimeStr);
@@ -5606,52 +5610,48 @@ systemSettings.ttsGreeting = document.getElementById('ttsGreeting').value;
     }
 
 async function refreshActiveInsideData() {
-        showLoader('กำลังตรวจสอบข้อมูลล่าสุดจากฐานข้อมูล...');
-        try {
-            // ดึงข้อมูลบัตรทั้งหมดล่าสุดจาก Google Sheets
-            allCards = await apiCall('getCards'); 
-            // นำข้อมูลใหม่มาวาดลงตาราง
-            renderActiveInsideTable(); 
-            showToast('อัปเดตข้อมูลผู้ตกค้างล่าสุดเรียบร้อย', 'success');
-        } catch (error) {
-            showToast('ไม่สามารถอัปเดตข้อมูลได้ โปรดลองอีกครั้ง', 'error');
-        } finally {
-            hideLoader();
-        }
+    showLoader('กำลังอัปเดตข้อมูลล่าสุด...');
+    const data = await apiCall('getInitialData', {}, false);
+    allCards = data.allCards;
+    allVehicles = data.allVehicles;
+    renderActiveInsideTable();
+    hideLoader();
+    showToast('อัปเดตข้อมูลเรียบร้อย', 'success');
+}
+
+
+   function renderActiveInsideTable() {
+    const tbody = document.getElementById('activeInsideTableBody');
+    const thead = document.getElementById('activeInsideThead');
+    const summary = document.getElementById('insideSummaryBox');
+    
+    if (currentInsideTab === 'person') {
+        // --- วาดตารางคน (เหมือนเดิมแต่ย้ายมาอยู่ในเงื่อนไข) ---
+        const list = allCards.filter(c => c.currentStatus === 'IN');
+        thead.innerHTML = `<tr><th class="px-4 py-3 text-left text-sm font-bold text-gray-500">พนักงาน</th><th class="px-4 py-3 text-left text-sm font-bold text-gray-500">เวลาเข้า</th><th class="px-4 py-3 text-center text-sm font-bold text-gray-500">ระยะเวลา</th><th class="px-4 py-3 text-center text-sm font-bold text-gray-500">จัดการ</th></tr>`;
+        tbody.innerHTML = list.map(c => `
+            <tr class="border-b hover:bg-gray-50 transition">
+                <td class="p-3"><p class="font-bold text-gray-800">${c.firstName} ${c.lastName}</p><p class="text-[10px] text-gray-400">${c.cardId}</p></td>
+                <td class="p-3 text-xs text-gray-500">${formatDateTime(c.lastLogTime)}</td>
+                <td class="p-3 text-center">${getDurationText(c.lastLogTime)}</td>
+                <td class="p-3 text-center"><button onclick="forceOut(${c.id}, '${c.firstName}')" class="text-orange-600 bg-orange-50 px-3 py-1 rounded-lg font-bold text-xs border border-orange-200">บังคับออก</button></td>
+            </tr>
+        `).join('');
+    } else {
+        // --- วาดตารางรถ (ใหม่) ---
+        const list = allVehicles.filter(v => v.currentStatus === 'IN');
+        thead.innerHTML = `<tr><th class="px-4 py-3 text-left text-sm font-bold text-gray-500">ยานพาหนะ</th><th class="px-4 py-3 text-left text-sm font-bold text-gray-500">หน่วยงาน</th><th class="px-4 py-3 text-left text-sm font-bold text-gray-500">เวลาเข้า</th><th class="px-4 py-3 text-center text-sm font-bold text-gray-500">จัดการ</th></tr>`;
+        tbody.innerHTML = list.map(v => `
+            <tr class="border-b hover:bg-blue-50/30 transition">
+                <td class="p-3"><p class="font-black text-blue-900">${v.vehicleReg}</p><p class="text-[10px] text-blue-500">${v.cardId}</p></td>
+                <td class="p-3 text-sm font-bold text-gray-600">${v.organization || '-'}</td>
+                <td class="p-3 text-xs text-gray-500">${formatDateTime(v.lastLogTime)}</td>
+                <td class="p-3 text-center"><button onclick="forceOutVehicle(${v.id}, '${v.vehicleReg}')" class="text-red-600 bg-red-50 px-3 py-1 rounded-lg font-bold text-xs border border-red-200 shadow-sm">บังคับรถออก</button></td>
+            </tr>
+        `).join('');
     }
-
-    function renderActiveInsideTable() {
-        const tbody = document.getElementById('activeInsideTableBody');
-        const insideUsers = allCards.filter(c => c.currentStatus === 'IN');
-        
-        // เรียงจากคนที่เข้านานสุด (เข้าก่อน) ไว้บนสุด
-        insideUsers.sort((a,b) => new Date(a.lastLogTime) - new Date(b.lastLogTime));
-
-        document.getElementById('activeInsideCount').textContent = insideUsers.length;
-
-        if(insideUsers.length === 0) { 
-            tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-gray-400"><i data-lucide="check-circle" class="w-12 h-12 mx-auto mb-2 text-green-400"></i>ไม่มีผู้ตกค้างในพื้นที่ (Clear)</td></tr>`; 
-            lucide.createIcons(); 
-            return; 
-        }
-
-        tbody.innerHTML = insideUsers.map(c => {
-            const t = typeCards.find(x => parseInt(x.id) === parseInt(c.typeId)) || {typeName:'Unknown'};
-            return `
-            <tr class="border-b border-gray-100 hover:bg-gray-50 bg-white transition">
-                <td class="p-3 text-sm"><div class="font-bold text-gray-800">${c.cardId}</div><div class="text-[10px] text-gray-500 uppercase mt-0.5">${t.typeName}</div></td>
-                <td class="p-3 text-sm"><div class="font-bold text-gray-800">${c.firstName} ${c.lastName}</div><div class="text-xs text-sky-600">${c.organization||'-'}</div></td>
-                <td class="p-3 text-xs font-medium text-gray-600">${formatDateTime(c.lastLogTime).replace(' | ', '<br>')}</td>
-                <td class="p-3 text-center text-sm">${getDurationText(c.lastLogTime)}</td>
-                <td class="p-3 text-center">
-                    <button onclick="forceOut(${c.id}, '${c.firstName}')" class="text-orange-600 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 mx-auto shadow-sm">
-                        <i data-lucide="log-out" class="w-3 h-3"></i> บังคับออก
-                    </button>
-                </td>
-            </tr>`;
-        }).join('');
-        lucide.createIcons();
-    }
+    lucide.createIcons();
+}
 
     async function forceOut(dbId, name) {
         if(confirm(`ยืนยันการ "บังคับแสกนออก" ให้กับคุณ ${name} หรือไม่?`)) {
@@ -5686,6 +5686,16 @@ async function refreshActiveInsideData() {
         }
     }
 
+	  async function forceOutVehicle(dbId, reg) {
+    if(confirm(`ยืนยันการ "บังคับรถออก" ทะเบียน ${reg} หรือไม่?\n(พนักงานทุกคนที่มารถคันนี้จะถูกบันทึกออกอัตโนมัติ)`)) {
+        const adminName = `${currentUser.firstName} ${currentUser.lastName} (Admin Force)`;
+        showLoader('กำลังเคลียร์รถและคนในรถออก...');
+        await apiCall('forceOutVehicle', { id: dbId, recordedBy: adminName });
+        hideLoader();
+        showToast(`บังคับรถ ${reg} ออกสำเร็จ`, 'success');
+        refreshActiveInsideData();
+    }
+}
 //
     // ==========================================
     // 8. ข้อมูลส่วนตัว (Profile)
